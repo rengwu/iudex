@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"embed"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -57,26 +59,69 @@ func init() {
 // ---------------------------------------------------------------------------
 
 var initCmd = &cobra.Command{
-	Use:   "init <workspace-dir> <repo-url>",
+	Use:   "init <workspace-dir>",
 	Short: "Initialize a new llm-flow workspace",
-	Args:  cobra.ExactArgs(2),
+	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		workspaceDir, repoURL := args[0], args[1]
+		workspaceDir := args[0]
 		workspace, err := filepath.Abs(workspaceDir)
 		if err != nil {
 			return err
 		}
 		fmt.Printf("Initializing llm-flow workspace at %s\n", workspace)
 
+		// Create workspace dir if it doesn't exist
+		if err := os.MkdirAll(workspace, 0o755); err != nil {
+			return err
+		}
+
+		// Check if workspace is already a git repository
+		gitDir := filepath.Join(workspace, ".git")
+		_, err = os.Stat(gitDir)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		isGitRepo := !os.IsNotExist(err)
+
+		if !isGitRepo {
+			fmt.Print("No git repository found. Initialize a new one? [Y/n] ")
+			reader := bufio.NewReader(os.Stdin)
+			response, readErr := reader.ReadString('\n')
+			if readErr != nil && readErr != io.EOF {
+				return readErr
+			}
+			response = strings.ToLower(strings.TrimSpace(response))
+			if response != "" && response != "y" && response != "yes" {
+				return fmt.Errorf("a git repository is required; aborting")
+			}
+			fmt.Println("  Initializing git repository…")
+			gitInit := exec.Command("git", "init")
+			gitInit.Dir = workspace
+			gitInit.Stdout, gitInit.Stderr = os.Stdout, os.Stderr
+			if err := gitInit.Run(); err != nil {
+				return fmt.Errorf("git init: %w", err)
+			}
+			// Worktrees need at least one commit on the default branch
+			gitCommit := exec.Command("git", "commit", "--allow-empty", "-m", "initial commit")
+			gitCommit.Dir = workspace
+			gitCommit.Stdout, gitCommit.Stderr = os.Stdout, os.Stderr
+			if err := gitCommit.Run(); err != nil {
+				return fmt.Errorf("git init commit: %w", err)
+			}
+		} else {
+			fmt.Println("  Existing git repository detected.")
+		}
+
 		worktreesDir := filepath.Join(workspace, "project", "worktrees")
 		if err := os.MkdirAll(worktreesDir, 0o755); err != nil {
 			return err
 		}
 
-		// Clone repo into project/worktrees/main
+		// Clone workspace repo into project/worktrees/main
 		mainDir := filepath.Join(worktreesDir, "main")
-		fmt.Printf("  Cloning %s → project/worktrees/main …\n", repoURL)
-		cloneCmd := exec.Command("git", "clone", repoURL, mainDir)
+		fmt.Printf("  Cloning into project/worktrees/main …\n")
+		cloneCmd := exec.Command("git", "clone", ".", mainDir)
+		cloneCmd.Dir = workspace
 		cloneCmd.Stdout, cloneCmd.Stderr = os.Stdout, os.Stderr
 		if err := cloneCmd.Run(); err != nil {
 			return fmt.Errorf("git clone: %w", err)

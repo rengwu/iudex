@@ -1,1 +1,4 @@
 vendor/
+llm-flow
+test/
+.dev-skills/
