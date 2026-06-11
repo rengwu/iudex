@@ -3,11 +3,11 @@
 **Purpose:** Triage incoming ideas, bugs, and feature requests through a structured state machine. Produces well-specified tickets in `queue/` ready for an agent to pick up, or records rejections in `docs/out-of-scope/`.
 
 ## How to use
-Tell Claude: "Use triage to [review this idea / look at task-NNNNN / show me what needs attention]"
+Tell Claude: "Use triage to [review this idea / look at ticket-NNNNN / show me what needs attention]"
 
 ## The issue tracker for this repo
 
-This workspace tracks work through `queue/task-NNNNN.md` files and `events.jsonl`. There is no external issue tracker. Ticket states are:
+This workspace tracks work through `queue/ticket-NNNNN.md` files and `events.jsonl`. There is no external issue tracker. Ticket states are:
 
 ```
 queued → in-progress → pending-review → pending-human-review → done
@@ -35,7 +35,7 @@ State:
 The human invokes triage and describes what they want in natural language:
 - "Show me what needs attention" → show existing queue/ and any informal notes
 - "Triage this idea: [description]" → evaluate a new idea
-- "Move task-00003 to ready-for-agent" → quick state override
+- "Move ticket-00003 to ready-for-agent" → quick state override
 
 ## Show what needs attention
 
@@ -45,7 +45,7 @@ If there are informal ideas not yet in `queue/`, ask the human to describe them.
 
 ## Triage a specific idea or ticket
 
-1. **Gather context.** If a ticket ID is given, read `queue/task-NNNNN.md`. Explore `project/worktrees/main` to understand the codebase. Read `docs/glossary.md` and `docs/adr/` for relevant decisions. Check `docs/out-of-scope/` for prior rejections resembling this request.
+1. **Gather context.** If a ticket ID is given, read `queue/ticket-NNNNN.md`. Explore `project/worktrees/main` to understand the codebase. Read `docs/glossary.md` and `docs/adr/` for relevant decisions. Check `docs/out-of-scope/` for prior rejections resembling this request.
 
 2. **Recommend.** State your category and state recommendation with reasoning, plus a brief codebase summary relevant to the request. Wait for direction.
 
@@ -60,7 +60,7 @@ If there are informal ideas not yet in `queue/`, ask the human to describe them.
 
 ## Quick state override
 
-If the human says "move task-NNNNN to ready-for-agent", trust them and act. Confirm what you're about to do, then proceed. Skip grilling. Ask if they want to write an agent brief.
+If the human says "move ticket-NNNNN to ready-for-agent", trust them and act. Confirm what you're about to do, then proceed. Skip grilling. Ask if they want to write an agent brief.
 
 ## Needs-info template
 

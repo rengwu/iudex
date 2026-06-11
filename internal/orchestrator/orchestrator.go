@@ -138,7 +138,7 @@ func (o *Orchestrator) tick() {
 
 	// Claim queued tickets up to max_agents.
 	queueDir := config.QueueDir(o.workspace)
-	matches, _ := filepath.Glob(filepath.Join(queueDir, "task-*.md"))
+	matches, _ := filepath.Glob(filepath.Join(queueDir, "ticket-*.md"))
 	for _, ticketFile := range matches {
 		if activeCount >= o.cfg.MaxAgents {
 			break

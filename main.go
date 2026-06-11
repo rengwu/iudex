@@ -335,7 +335,7 @@ var mergeCmd = &cobra.Command{
 			}
 		}
 
-		fmt.Printf("  Squash-merging ticket/%s → main…\n", ticketID)
+		fmt.Printf("  Squash-merging work/%s → main…\n", ticketID)
 		commitHash, err := git.SquashMerge(workspace, ticketID)
 		if err != nil {
 			return err
@@ -480,7 +480,7 @@ var statusCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		queue, _ := filepath.Glob(filepath.Join(config.QueueDir(workspace), "task-*.md"))
+		queue, _ := filepath.Glob(filepath.Join(config.QueueDir(workspace), "ticket-*.md"))
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		fmt.Fprintln(w, "TICKET\tSTATE")

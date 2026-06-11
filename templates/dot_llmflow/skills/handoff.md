@@ -33,7 +33,7 @@ References only — do not duplicate content:
 - PRD: docs/prd/<name>.md
 - ADRs: docs/adr/NNNN-slug.md
 - Arch review: docs/design/arch-review-YYYY-MM-DD.md
-- Tickets: queue/task-NNNNN.md
+- Tickets: queue/ticket-NNNNN.md
 
 ## What was decided
 

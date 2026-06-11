@@ -34,7 +34,7 @@ func run(cwd string, args ...string) (string, error) {
 func CreateWorktree(workspace, ticket string) (string, error) {
 	main := config.MainWorktree(workspace)
 	dest := config.TaskWorktree(workspace, ticket)
-	branch := "ticket/" + ticket
+	branch := "work/" + ticket
 	if _, err := run(main, "worktree", "add", "-b", branch, dest, "main"); err != nil {
 		return "", fmt.Errorf("create worktree: %w", err)
 	}
@@ -47,7 +47,7 @@ func RemoveWorktree(workspace, ticket string) {
 	main := config.MainWorktree(workspace)
 	dest := config.TaskWorktree(workspace, ticket)
 	run(main, "worktree", "remove", dest, "--force") // best-effort
-	run(main, "branch", "-D", "ticket/"+ticket)      // best-effort
+	run(main, "branch", "-D", "work/"+ticket)         // best-effort
 }
 
 // IsClean returns true when the worktree has no uncommitted changes.
@@ -113,7 +113,7 @@ func WIPCommit(workspace, ticket string) error {
 // Returns the resulting commit hash.
 func SquashMerge(workspace, ticket string) (string, error) {
 	main := config.MainWorktree(workspace)
-	branch := "ticket/" + ticket
+	branch := "work/" + ticket
 	if _, err := run(main, "merge", "--squash", branch); err != nil {
 		return "", fmt.Errorf("squash merge: %w", err)
 	}

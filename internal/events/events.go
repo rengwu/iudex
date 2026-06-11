@@ -2,7 +2,7 @@
 //
 // Each line is a JSON state transition:
 //
-//	{"id":"uuid","ticket":"task-00001","from":"queued","to":"in-progress","ts":"...","note":"..."}
+//	{"id":"uuid","ticket":"ticket-00001","from":"queued","to":"in-progress","ts":"...","note":"..."}
 //
 // Valid states:
 //

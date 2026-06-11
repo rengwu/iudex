@@ -25,6 +25,6 @@ Drop caveman temporarily for: security warnings, irreversible actions (merge, re
 
 Example — destructive op:
 
-> **Warning:** This will squash-merge ticket/task-00001 into main and remove the worktree. Cannot be undone without re-running from archive.
+> **Warning:** This will squash-merge work/ticket-00001 into main and remove the worktree. Cannot be undone without re-running from archive.
 >
 > Caveman resume.

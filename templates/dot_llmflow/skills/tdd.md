@@ -84,12 +84,12 @@ After all tests pass:
 // GOOD: Tests observable behavior through exported interface
 func TestOrchestratorClaimsTicket(t *testing.T) {
     ws := setupTestWorkspace(t)
-    writeQueueTicket(ws, "task-00001", "Add login page")
+    writeQueueTicket(ws, "ticket-00001", "Add login page")
 
     orch := orchestrator.New(ws, cfg)
     orch.Tick()
 
-    state, _ := events.GetTicketState(ws, "task-00001")
+    state, _ := events.GetTicketState(ws, "ticket-00001")
     if state != "in-progress" {
         t.Errorf("want in-progress, got %s", state)
     }

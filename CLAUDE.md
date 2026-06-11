@@ -56,13 +56,13 @@ llm-flow-go/
 │   ├── review.md              # system prompt injected into QA agent sessions
 │   └── skills/                # human-triggered markdown skills (not used by agents)
 ├── docs/state.md              # human-maintained project state (updated after each merge)
-├── queue/                     # unclaimed tickets: task-NNNNN.md files
-├── archive/                   # permanent record: archive/task-NNNNN/ per completed ticket
+├── queue/                     # unclaimed tickets: ticket-NNNNN.md files
+├── archive/                   # permanent record: archive/ticket-NNNNN/ per completed ticket
 ├── events.jsonl               # append-only JSONL — sole source of truth for ticket state
 └── project/
     └── worktrees/
         ├── main/              # canonical branch (cloned repo)
-        └── task-NNNNN/        # one git worktree per active ticket
+        └── ticket-NNNNN/      # one git worktree per active ticket
             └── .task/         # gitignored; brief.md, log.md, review.md
 ```
 
@@ -71,18 +71,18 @@ llm-flow-go/
 ## Ticket lifecycle
 
 ```
-llm-flow new-ticket task-00001 "Add login page"
-  → creates queue/task-00001.md
+llm-flow new-ticket ticket-00001 "Add login page"
+  → creates queue/ticket-00001.md
   → appends {state: queued} to events.jsonl
 
 Orchestrator tick (every N seconds):
-  → claims queue/task-00001.md
-  → git worktree add project/worktrees/task-00001 -b ticket/task-00001
+  → claims queue/ticket-00001.md
+  → git worktree add project/worktrees/ticket-00001 -b work/ticket-00001
   → moves brief → .task/brief.md
   → creates .task/log.md
-  → removes queue/task-00001.md (atomic claim lock)
+  → removes queue/ticket-00001.md (atomic claim lock)
   → appends {state: in-progress}
-  → surfaces spawn command to TUI: "cd project/worktrees/task-00001 && claude"
+  → surfaces spawn command to TUI: "cd project/worktrees/ticket-00001 && claude"
 
 Impl agent works, commits, appends {state: pending-review} to events.jsonl
 
@@ -92,10 +92,10 @@ QA agent reads brief + log + diff, writes .task/review.md
   → appends {state: pending-human-review} or {state: in-progress} (if blocking issues)
 
 Human runs:
-  llm-flow review task-00001   # prints brief, log, diff, QA review
-  llm-flow merge task-00001    # squash-merges → main, archives, removes worktree
-  llm-flow reject task-00001   # archives as _rejected/, returns brief to queue/
-  llm-flow manual task-00001   # human takes over; llm-flow finish when done
+  llm-flow review ticket-00001   # prints brief, log, diff, QA review
+  llm-flow merge ticket-00001    # squash-merges → main, archives, removes worktree
+  llm-flow reject ticket-00001   # archives as _rejected/, returns brief to queue/
+  llm-flow manual ticket-00001   # human takes over; llm-flow finish when done
 ```
 
 **State machine:**
@@ -147,7 +147,7 @@ pending-human-review → human-manual → pending-review (via finish)
 - Uses `O_APPEND|O_WRONLY` for concurrent-safe writes
 
 ### `internal/git`
-- `CreateWorktree(workspace, ticket)` — `git worktree add` on a new branch `ticket/<id>`
+- `CreateWorktree(workspace, ticket)` — `git worktree add` on a new branch `work/<id>`
 - `RemoveWorktree(workspace, ticket)` — `git worktree remove --force`
 - `SquashMerge(workspace, ticket)` — merges to main with `feat: complete <id>` message, returns commit hash
 - `IsClean(workspace, ticket)` — checks for uncommitted changes in the worktree

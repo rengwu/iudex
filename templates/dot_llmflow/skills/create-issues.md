@@ -41,16 +41,16 @@ Iterate until the user approves.
 
 ### 4. Write tickets
 
-For each approved slice, determine the next available ticket ID by scanning `queue/` for existing `task-NNNNN.md` files. Write tickets in dependency order (blockers first).
+For each approved slice, determine the next available ticket ID by scanning `queue/` for existing `ticket-NNNNN.md` files. Write tickets in dependency order (blockers first).
 
-For each ticket, write `queue/task-NNNNN.md`:
+For each ticket, write `queue/ticket-NNNNN.md`:
 
 ```markdown
-# task-NNNNN: <title>
+# ticket-NNNNN: <title>
 
 _Priority: N/5_
 _Type: AFK | HITL_
-_Blocked by: task-NNNNN | none_
+_Blocked by: ticket-NNNNN | none_
 
 ## Problem Statement
 What needs to be done and why. Describe end-to-end behavior, not layer-by-layer implementation.

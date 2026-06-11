@@ -280,7 +280,7 @@ func (m Model) refreshCmd() tea.Cmd {
 	workspace := m.workspace
 	return func() tea.Msg {
 		queueDir := config.QueueDir(workspace)
-		queueFiles, _ := filepath.Glob(filepath.Join(queueDir, "task-*.md"))
+		queueFiles, _ := filepath.Glob(filepath.Join(queueDir, "ticket-*.md"))
 
 		tickets, _ := events.GetAllTickets(workspace)
 

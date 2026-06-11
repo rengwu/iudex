@@ -29,8 +29,9 @@ If `docs/glossary.md` doesn't exist yet, create it lazily when the first term is
 # Project Glossary
 
 **Ticket**:
-A unit of work tracked by its lifecycle in events.jsonl, identified by task-NNNNN.
-_Avoid_: issue, task, card
+A unit of work tracked by its lifecycle in events.jsonl. Identified by a ticket-NNNNN
+ID (the "task-" prefix is a file-naming convention; the concept is always called a ticket).
+_Avoid_: issue, card (use ticket); task (use only as part of the ID, e.g. ticket-00001)
 
 **Queue**:
 The set of unclaimed tickets waiting in queue/ for an agent to pick up.
