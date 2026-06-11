@@ -51,7 +51,7 @@ llm-flow-go/
 ```
 <workspace>/
 ├── .llmflow/
-│   ├── config.yml             # max_agents, poll_interval, stall_timeout, agent_command
+│   ├── config.yml             # max_agents, poll_interval_seconds, stall_timeout_minutes, agent_command, merge_strategy
 │   ├── impl.md                # system prompt injected into impl agent sessions
 │   ├── review.md              # system prompt injected into QA agent sessions
 │   └── skills/                # human-triggered markdown skills (not used by agents)
@@ -118,9 +118,9 @@ pending-human-review → human-manual → pending-review (via finish)
 
 | Command | Description |
 |---------|-------------|
-| `llm-flow init <dir> <repo-url>` | Clone repo, scaffold workspace from embedded templates |
+| `llm-flow init <dir>` | Scaffold workspace from embedded templates; initializes git repo if none exists |
 | `llm-flow start` | Launch Bubble Tea TUI + start orchestrator goroutine |
-| `llm-flow new-ticket <id> <title>` | Create ticket markdown in queue/ |
+| `llm-flow new-ticket <id> <title> [--deps <ids>] [--priority 1-5]` | Create ticket markdown in queue/ |
 | `llm-flow review <id>` | Print brief, log, diff, QA review; show next actions |
 | `llm-flow merge <id>` | Squash-merge to main, archive, remove worktree |
 | `llm-flow reject <id> [--reason]` | Archive as _rejected, return brief to queue |
@@ -134,30 +134,32 @@ pending-human-review → human-manual → pending-review (via finish)
 ## Internal packages
 
 ### `internal/config`
-- `FindWorkspace(dir)` — walks up from cwd looking for `events.jsonl`
+- `FindWorkspace(dir)` — walks up from cwd looking for `.llmflow/config.yml`
 - `Load(workspace)` — parses `.llmflow/config.yml` into `Config` struct
-- Path helpers: `QueueDir`, `ArchiveDir`, `TaskDir`, `TaskWorktree`
-- `Config` fields: `MaxAgents`, `PollInterval` (seconds), `StallTimeout` (minutes), `AgentCommand`
+- Path helpers: `QueueDir`, `ArchiveDir`, `WorktreesDir`, `MainWorktree`, `TaskDir`, `TaskWorktree`, `EventsFile`
+- `Config` fields: `MaxAgents`, `PollInterval` (mapped from `poll_interval_seconds`), `StallTimeout` (mapped from `stall_timeout_minutes`), `AgentCommand`, `MergeStrategy`
 
 ### `internal/events`
-- `Append(workspace, ticketID, fromState, toState, note)` — appends one JSON line with UUID + timestamp
+- `Append(workspace, ticketID, fromState, toState, note)` — appends one JSON line with RFC4122 UUIDv4 + RFC3339 timestamp; returns the written `Event`
 - `GetTicketState(workspace, ticketID)` — replays events, returns current state
 - `GetAllTickets(workspace)` — returns `map[ticketID]currentState`
+- `GetTicketEvents(workspace, ticketID)` — returns full ordered event history for one ticket
 - `ActiveStates` — `map[string]bool` of states where a worktree is live (`in-progress`, `pending-review`, `human-manual`)
-- Uses `O_APPEND|O_WRONLY` for concurrent-safe writes
+- Uses `O_APPEND|O_WRONLY|O_CREATE` for concurrent-safe writes
 
 ### `internal/git`
 - `CreateWorktree(workspace, ticket)` — `git worktree add` on a new branch `work/<id>`
 - `RemoveWorktree(workspace, ticket)` — `git worktree remove --force`
 - `SquashMerge(workspace, ticket)` — merges to main with `feat: complete <id>` message, returns commit hash
 - `IsClean(workspace, ticket)` — checks for uncommitted changes in the worktree
-- `WIPCommit(workspace, ticket)` — commits everything with `wip: pre-QA snapshot`
-- `GetDiff(workspace, ticket)` — `git diff main...HEAD` from the worktree
+- `WIPCommit(workspace, ticket)` — commits everything with `wip(<ticket>): pre-handoff checkpoint [orchestrator]`
+- `GetDiff(workspace, ticket)` — `git diff main..HEAD` from the worktree, excluding `.task/`
 - `IsStalled(workspace, ticket, minutes)` — `git log --since=N minutes` returns empty
 - `GetCommitCount`, `GetLastCommitTime` — used by TUI for the ACTIVE panel
 
 ### `internal/archive`
-- `Archive(workspace, ticketID, outcome, commitHash, reason)` — copies `brief.md`, `log.md`, `review.md` (if exists), writes `diff.patch` and `meta.json` into `archive/<id>/` or `archive/<id>_rejected/`
+- `Archive(workspace, ticketID, outcome, mergeCommit, rejectionReason)` — copies `brief.md`, `log.md`, `review.md` (if exists), writes `diff.patch` and `meta.json` into `archive/<id>/` or `archive/<id>_rejected/` (collisions become `_rejected_2`, etc.)
+- `meta.json` fields: `Ticket`, `Outcome`, `ArchivedAt`, `MergeCommit`, `RejectionReason`, `Events` (full event history)
 
 ### `internal/orchestrator`
 - Single goroutine + `time.Ticker` + buffered `chan struct{}`
@@ -207,13 +209,11 @@ All vendored. No network access needed to build.
 
 ## What is NOT implemented yet
 
-As of the initial scaffold, the implementations are structural stubs. Before using in production, verify and harden:
+The core pipeline is functional. Known gaps before production hardening:
 
-- `internal/git` — all functions need real subprocess calls tested against actual git repos
-- `internal/events` — UUID generation (currently may use a simple counter or placeholder)
 - Error handling in `merge` and `reject` for edge cases (worktree already removed, branch already merged)
-- `.gitignore` injection into each new worktree to exclude `.task/`
 - `feedback` command (referenced in PRD OQ2, not yet implemented)
+- Integration tests against real git repos (all git functions are implemented but untested end-to-end)
 
 ---
 
