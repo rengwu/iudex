@@ -160,7 +160,12 @@ func (m Model) viewSpawn() string {
 	}
 	lines := []string{bold.Render("SPAWN") + "  " + dim.Render("run each in a new terminal:")}
 	for _, sc := range m.spawnCmds {
-		lines = append(lines, fmt.Sprintf("  %s  %s  %s",
+		roleLabel := green.Render("[impl]")
+		if sc.Role == "qa" {
+			roleLabel = yellow.Render("[qa]  ")
+		}
+		lines = append(lines, fmt.Sprintf("  %s %s  %s  %s",
+			roleLabel,
 			green.Render(sc.Ticket),
 			dim.Render("→"),
 			boldCyan.Render(sc.Command),

@@ -31,6 +31,7 @@ import (
 type SpawnCommand struct {
 	Ticket  string
 	Command string
+	Role    string // "impl" or "qa"
 }
 
 // Orchestrator manages the background polling loop.
@@ -198,6 +199,30 @@ func (o *Orchestrator) tick() {
 			}
 		}
 	}
+
+	// Surface QA spawn commands for pending-review tickets.
+	for ticket, state := range tickets {
+		if state != "pending-review" {
+			continue
+		}
+		o.mu.Lock()
+		already := false
+		for _, sc := range o.SpawnCommands {
+			if sc.Ticket == ticket && sc.Role == "qa" {
+				already = true
+				break
+			}
+		}
+		o.mu.Unlock()
+		if already {
+			continue
+		}
+		cmd := fmt.Sprintf("cd project/worktrees/%s && %s", ticket, o.cfg.AgentCommand)
+		o.mu.Lock()
+		o.SpawnCommands = append(o.SpawnCommands, SpawnCommand{Ticket: ticket, Command: cmd, Role: "qa"})
+		o.mu.Unlock()
+		o.notify()
+	}
 }
 
 func (o *Orchestrator) claimTicket(ticket, ticketFile string) error {
@@ -236,7 +261,7 @@ func (o *Orchestrator) claimTicket(ticket, ticketFile string) error {
 
 	cmd := fmt.Sprintf("cd project/worktrees/%s && %s", ticket, o.cfg.AgentCommand)
 	o.mu.Lock()
-	o.SpawnCommands = append(o.SpawnCommands, SpawnCommand{Ticket: ticket, Command: cmd})
+	o.SpawnCommands = append(o.SpawnCommands, SpawnCommand{Ticket: ticket, Command: cmd, Role: "impl"})
 	o.mu.Unlock()
 
 	return nil
