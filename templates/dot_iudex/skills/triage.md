@@ -52,7 +52,7 @@ If there are informal ideas not yet in `queue/`, ask the human to describe them.
 3. **Grill (if needed).** If the request needs fleshing out, run a grilling session (see `grill-me`): one question at a time, recommend an answer for each. Update `docs/glossary.md` inline as terms are sharpened.
 
 4. **Apply the outcome:**
-   - `ready-for-agent` → write the ticket (see `create-issues`) and register it
+   - `ready-for-agent` → write the ticket (see `create-tickets`) and register it
    - `ready-for-human` → write the ticket with HITL flag and HITL notes
    - `needs-info` → write notes for the requester (template below) and stop
    - `wontfix` (enhancement) → write to `docs/out-of-scope/` (see below)

@@ -49,7 +49,7 @@ Unresolved decisions or information the next agent will need.
 Concrete actions the next agent should take first, in order:
 1. [Action] — e.g. "Run `iudex status` to see current ticket states"
 2. [Action] — e.g. "Use grill-me on the open question about X"
-3. [Action] — e.g. "Use create-issues from docs/prd/feature.md"
+3. [Action] — e.g. "Use create-tickets from docs/prd/feature.md"
 ```
 
 ## Rules

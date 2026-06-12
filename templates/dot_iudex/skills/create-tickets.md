@@ -1,9 +1,9 @@
-# Skill: create-issues
+# Skill: create-tickets
 
 **Purpose:** Break a PRD or plan into well-scoped, actionable tickets in `queue/` using vertical (tracer-bullet) slices.
 
 ## How to use
-Tell Claude: "Use create-issues to generate tickets from docs/prd/<name>.md"
+Tell Claude: "Use create-tickets to generate tickets from docs/prd/<name>.md"
 
 ## Process
 

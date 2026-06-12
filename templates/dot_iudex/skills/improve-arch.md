@@ -2,7 +2,7 @@
 
 **⚠ HUMAN-TRIGGERED ONLY. Agents must never invoke this skill autonomously.**
 
-**Purpose:** Scan the codebase, surface architectural friction, and produce an HTML report of deepening opportunities — refactors that turn shallow modules into deep ones. Findings become inputs to `write-prd` and `create-issues`, never direct code changes.
+**Purpose:** Scan the codebase, surface architectural friction, and produce an HTML report of deepening opportunities — refactors that turn shallow modules into deep ones. Findings become inputs to `write-prd` and `create-tickets`, never direct code changes.
 
 ## How to use
 Open a manual session and tell Claude:
@@ -62,4 +62,4 @@ Also save a text summary to `docs/design/arch-review-<YYYY-MM-DD>.md` so it pers
 Once the user picks a candidate, drop into a grilling session (see `grill-me`). Walk the design tree one question at a time. Update `docs/glossary.md` inline as terms are resolved. Offer an ADR if the user rejects a candidate for a load-bearing reason worth preserving.
 
 ## Output
-Claude writes a report — **not code changes**. The human decides which findings become tickets via `create-issues`.
+Claude writes a report — **not code changes**. The human decides which findings become tickets via `create-tickets`.
