@@ -2,5 +2,7 @@
 max_agents: 3
 stall_timeout_minutes: 10
 poll_interval_seconds: 30
-agent_command: "pi dev"      # command to launch your coding agent
+agent_command: "claude"      # command to launch your coding agent
 merge_strategy: squash       # only squash supported for now
+# impl_prompt: "Read ../../../.iudex/impl.md and follow it to implement the ticket in .task/brief.md."
+# qa_prompt: "Read ../../../.iudex/review.md and follow it to review the ticket in .task/brief.md."

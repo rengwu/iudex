@@ -217,7 +217,7 @@ func (o *Orchestrator) tick() {
 		if already {
 			continue
 		}
-		cmd := fmt.Sprintf("cd project/worktrees/%s && %s", ticket, o.cfg.AgentCommand)
+		cmd := spawnCmd(ticket, o.cfg.AgentCommand, o.cfg.QAPrompt)
 		o.mu.Lock()
 		o.SpawnCommands = append(o.SpawnCommands, SpawnCommand{Ticket: ticket, Command: cmd, Role: "qa"})
 		o.mu.Unlock()
@@ -259,7 +259,7 @@ func (o *Orchestrator) claimTicket(ticket, ticketFile string) error {
 		return err
 	}
 
-	cmd := fmt.Sprintf("cd project/worktrees/%s && %s", ticket, o.cfg.AgentCommand)
+	cmd := spawnCmd(ticket, o.cfg.AgentCommand, o.cfg.ImplPrompt)
 	o.mu.Lock()
 	o.SpawnCommands = append(o.SpawnCommands, SpawnCommand{Ticket: ticket, Command: cmd, Role: "impl"})
 	o.mu.Unlock()
@@ -279,6 +279,13 @@ func (o *Orchestrator) notify() {
 	case o.updates <- struct{}{}:
 	default: // TUI hasn't consumed the last signal yet; that's fine
 	}
+}
+
+func spawnCmd(ticket, agentCommand, prompt string) string {
+	if prompt == "" {
+		return fmt.Sprintf("cd project/worktrees/%s && %s", ticket, agentCommand)
+	}
+	return fmt.Sprintf(`cd project/worktrees/%s && %s "%s"`, ticket, agentCommand, prompt)
 }
 
 func copyFile(src, dst string) error {

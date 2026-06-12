@@ -14,6 +14,8 @@ type Config struct {
 	PollInterval  int    `yaml:"poll_interval_seconds"`
 	AgentCommand  string `yaml:"agent_command"`
 	MergeStrategy string `yaml:"merge_strategy"`
+	ImplPrompt    string `yaml:"impl_prompt"`
+	QAPrompt      string `yaml:"qa_prompt"`
 }
 
 var defaults = Config{
@@ -22,6 +24,8 @@ var defaults = Config{
 	PollInterval:  30,
 	AgentCommand:  "pi dev",
 	MergeStrategy: "squash",
+	ImplPrompt:    "Read ../../../.iudex/impl.md and follow it to implement the ticket in .task/brief.md.",
+	QAPrompt:      "Read ../../../.iudex/review.md and follow it to review the ticket in .task/brief.md.",
 }
 
 // FindWorkspace walks up from start (or CWD) looking for .iudex/config.yml.
