@@ -130,6 +130,30 @@ func (o *Orchestrator) tick() {
 		return
 	}
 
+	// Prune stale spawn commands and alerts.
+	o.mu.Lock()
+	live := o.SpawnCommands[:0]
+	for _, sc := range o.SpawnCommands {
+		state := tickets[sc.Ticket]
+		keep := (sc.Role == "impl" && state == "in-progress") ||
+			(sc.Role == "qa" && state == "pending-review")
+		if keep {
+			live = append(live, sc)
+		}
+	}
+	o.SpawnCommands = live
+
+	liveAlerts := o.Alerts[:0]
+	for _, a := range o.Alerts {
+		// Keep alerts not tied to a specific ticket, or for tickets still active.
+		ticketID := alertTicket(a)
+		if ticketID == "" || events.ActiveStates[tickets[ticketID]] {
+			liveAlerts = append(liveAlerts, a)
+		}
+	}
+	o.Alerts = liveAlerts
+	o.mu.Unlock()
+
 	activeCount := 0
 	for _, state := range tickets {
 		if events.ActiveStates[state] {
@@ -279,6 +303,22 @@ func (o *Orchestrator) notify() {
 	case o.updates <- struct{}{}:
 	default: // TUI hasn't consumed the last signal yet; that's fine
 	}
+}
+
+// alertTicket extracts the ticket ID from a stall alert message, or "" if not applicable.
+func alertTicket(alert string) string {
+	// Stall alerts have the form: "⚠  ticket-NNNNN stalled — ..."
+	// Auto-commit info has the form: "ℹ  auto-committed WIP for ticket-NNNNN ..."
+	for _, prefix := range []string{"⚠  ", "ℹ  auto-committed WIP for "} {
+		s := strings.TrimPrefix(alert, prefix)
+		if s != alert {
+			if idx := strings.Index(s, " "); idx != -1 {
+				return s[:idx]
+			}
+			return s
+		}
+	}
+	return ""
 }
 
 func spawnCmd(ticket, agentCommand, prompt string) string {
