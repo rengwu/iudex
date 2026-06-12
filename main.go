@@ -45,6 +45,7 @@ func init() {
 		mergeCmd,
 		rejectCmd,
 		finishCmd,
+		reviseCmd,
 		manualCmd,
 		statusCmd,
 		archiveListCmd,
@@ -474,8 +475,40 @@ var finishCmd = &cobra.Command{
 			}
 		}
 
+		// QA approve path: pending-review → pending-human-review
+		if state == "pending-review" {
+			events.Append(workspace, ticketID, "pending-review", "pending-human-review", "")
+			fmt.Printf("✓ %s approved by QA. State: pending-human-review\n  Run: iudex review %s\n", ticketID, ticketID)
+			return nil
+		}
+
+		// Impl/manual done path: → pending-review
 		events.Append(workspace, ticketID, orDefault(state, "human-manual"), "pending-review", "")
 		fmt.Printf("✓ %s handed off to QA. State: pending-review\n", ticketID)
+		return nil
+	},
+}
+
+// ---------------------------------------------------------------------------
+// revise
+// ---------------------------------------------------------------------------
+
+var reviseCmd = &cobra.Command{
+	Use:   "revise <ticket-id>",
+	Short: "Return a ticket to the impl agent for revision (QA use)",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ticketID := args[0]
+		workspace, err := config.FindWorkspace("")
+		if err != nil {
+			return err
+		}
+		state, _ := events.GetTicketState(workspace, ticketID)
+		if state != "pending-review" {
+			return fmt.Errorf("%s is in state %q — revise only applies to pending-review tickets", ticketID, state)
+		}
+		events.Append(workspace, ticketID, "pending-review", "in-progress", "Returned for revision — see .task/review.md")
+		fmt.Printf("✓ %s returned for revision. State: in-progress\n  The orchestrator will surface a new impl spawn command.\n", ticketID)
 		return nil
 	},
 }
