@@ -523,17 +523,28 @@ var statusCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		queue, _ := filepath.Glob(filepath.Join(config.QueueDir(workspace), "ticket-*.md"))
+		queueFiles, _ := filepath.Glob(filepath.Join(config.QueueDir(workspace), "ticket-*.md"))
+		inQueue := make(map[string]bool, len(queueFiles))
+		for _, f := range queueFiles {
+			inQueue[strings.TrimSuffix(filepath.Base(f), ".md")] = true
+		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		fmt.Fprintln(w, "TICKET\tSTATE")
 		fmt.Fprintln(w, "------\t-----")
-		for _, f := range queue {
-			name := strings.TrimSuffix(filepath.Base(f), ".md")
-			fmt.Fprintf(w, "%s\t%s\n", name, "queued (unclaimed)")
-		}
 		for ticket, state := range tickets {
-			fmt.Fprintf(w, "%s\t%s\n", ticket, state)
+			label := state
+			if state == "queued" && inQueue[ticket] {
+				label = "queued (unclaimed)"
+			}
+			fmt.Fprintf(w, "%s\t%s\n", ticket, label)
+		}
+		// Show queue files not yet registered in events (pre-written, awaiting iudex new-ticket).
+		for _, f := range queueFiles {
+			name := strings.TrimSuffix(filepath.Base(f), ".md")
+			if tickets[name] == "" {
+				fmt.Fprintf(w, "%s\t%s\n", name, "queued (unregistered)")
+			}
 		}
 		return w.Flush()
 	},
