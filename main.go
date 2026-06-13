@@ -214,11 +214,22 @@ var newTicketCmd = &cobra.Command{
 			return err
 		}
 
+		deps, _ := cmd.Flags().GetString("deps")
+
 		queueFile := filepath.Join(config.QueueDir(workspace), ticketID+".md")
 		rel, _ := filepath.Rel(workspace, queueFile)
 
 		if _, err := os.Stat(queueFile); err == nil {
 			// File already exists — reconcile instead of failing.
+
+			// If --deps is specified and the file lacks a ## Dependencies
+			// section, inject one so the orchestrator enforces them.
+			if deps != "" {
+				if err := ensureDepsSection(queueFile, deps); err != nil {
+					return fmt.Errorf("update deps in %s: %w", rel, err)
+				}
+			}
+
 			state, _ := events.GetTicketState(workspace, ticketID)
 			if state != "" {
 				fmt.Printf("ticket %s is already registered (state: %s).\n", ticketID, state)
@@ -239,7 +250,6 @@ var newTicketCmd = &cobra.Command{
 			return fmt.Errorf("title is required when creating a new ticket")
 		}
 
-		deps, _ := cmd.Flags().GetString("deps")
 		priority, _ := cmd.Flags().GetInt("priority")
 
 		depSection := ""
@@ -648,4 +658,43 @@ func orDefault(s, def string) string {
 		return def
 	}
 	return s
+}
+
+// ensureDepsSection adds a ## Dependencies section to an existing ticket file
+// if one is not already present. Safe to call with an empty deps string (no-op).
+func ensureDepsSection(queueFile, deps string) error {
+	if deps == "" {
+		return nil
+	}
+	var lines []string
+	for _, d := range strings.Split(deps, ",") {
+		if d = strings.TrimSpace(d); d != "" {
+			lines = append(lines, "- "+d)
+		}
+	}
+	if len(lines) == 0 {
+		return nil
+	}
+
+	data, err := os.ReadFile(queueFile)
+	if err != nil {
+		return err
+	}
+	content := string(data)
+
+	// Don't overwrite an existing ## Dependencies section.
+	if strings.Contains(content, "## Dependencies") {
+		return nil
+	}
+
+	newSection := "\n## Dependencies\n" + strings.Join(lines, "\n") + "\n"
+
+	// Inject before ## Problem Statement when present; otherwise append.
+	const marker = "\n## Problem Statement"
+	if idx := strings.Index(content, marker); idx != -1 {
+		content = content[:idx] + newSection + content[idx:]
+	} else {
+		content = strings.TrimRight(content, "\n") + "\n" + newSection
+	}
+	return os.WriteFile(queueFile, []byte(content), 0o644)
 }

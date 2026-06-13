@@ -221,6 +221,42 @@ func (o *Orchestrator) tick() {
 		}
 	}
 
+	// Rebuild dep-wait alerts from the current queue state so the TUI shows
+	// which tickets are blocked and why. Replaces all ⏳ alerts from prior ticks.
+	var depWaits []string
+	for _, ticketFile := range matches {
+		ticket := strings.TrimSuffix(filepath.Base(ticketFile), ".md")
+		state := tickets[ticket]
+		if state != "" && state != "queued" && state != "rejected" {
+			continue
+		}
+		blocking := queue.BlockingDeps(ticketFile, tickets)
+		if len(blocking) == 0 {
+			continue
+		}
+		var parts []string
+		for _, dep := range blocking {
+			depState := tickets[dep]
+			if depState == "" {
+				depState = "unknown"
+			}
+			parts = append(parts, fmt.Sprintf("%s (%s)", dep, depState))
+		}
+		depWaits = append(depWaits, fmt.Sprintf("⏳  %s waiting on: %s", ticket, strings.Join(parts, ", ")))
+	}
+	o.mu.Lock()
+	var keptAlerts []string
+	for _, a := range o.Alerts {
+		if !strings.HasPrefix(a, "⏳") {
+			keptAlerts = append(keptAlerts, a)
+		}
+	}
+	o.Alerts = append(keptAlerts, depWaits...)
+	o.mu.Unlock()
+	if len(depWaits) > 0 {
+		o.notify()
+	}
+
 	// Rebuild spawn commands from current ticket states.
 	// This is derived on every tick so commands always reflect reality —
 	// tickets re-entering in-progress (via revise) are covered automatically.

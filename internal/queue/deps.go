@@ -2,18 +2,20 @@ package queue
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"strings"
 )
 
 // ParseDependencies reads a ticket markdown file and returns the list of
 // dependency ticket IDs declared under the "## Dependencies" heading.
-// Returns nil, nil if the file is absent or the section is not present.
+// Returns nil, nil if the section is not present. Returns an error if the
+// file does not exist or cannot be read.
 func ParseDependencies(ticketFile string) ([]string, error) {
 	f, err := os.Open(ticketFile)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil
+			return nil, fmt.Errorf("ticket file not found: %s", ticketFile)
 		}
 		return nil, err
 	}
@@ -55,4 +57,21 @@ func DepsReady(ticketFile string, allStates map[string]string) (bool, error) {
 		}
 	}
 	return true, nil
+}
+
+// BlockingDeps returns dep IDs from ticketFile that are not yet "done".
+// Returns nil if all deps are satisfied, the file has no deps section, or the
+// file cannot be read.
+func BlockingDeps(ticketFile string, allStates map[string]string) []string {
+	deps, err := ParseDependencies(ticketFile)
+	if err != nil || len(deps) == 0 {
+		return nil
+	}
+	var blocking []string
+	for _, dep := range deps {
+		if allStates[dep] != "done" {
+			blocking = append(blocking, dep)
+		}
+	}
+	return blocking
 }
