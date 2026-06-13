@@ -1,8 +1,29 @@
-# iudex configuration
-max_agents: 3
-stall_timeout_minutes: 10
-poll_interval_seconds: 30
-agent_command: "claude"      # command to launch your coding agent
-merge_strategy: squash       # only squash supported for now
-# impl_prompt: "Read ../../../.iudex/impl.md and follow it to implement the ticket in .task/brief.md."
-# qa_prompt: "Read ../../../.iudex/review.md and follow it to review the ticket in .task/brief.md."
+# iudex workspace configuration
+#
+# This file lives at .iudex/config.yml. It is local operational state and is
+# gitignored along with the rest of .iudex/.
+
+# Canonical branch all finished tickets merge into. iudex init sets this to the
+# repo's current branch at init time.
+main_branch: main
+
+# Maximum number of tickets allowed in the "active" state at once. `iudex
+# activate` refuses once this cap is reached.
+max_active: 4
+
+# Number of QA rejections (`iudex qa reject`) a ticket may accumulate before it
+# is moved to "failed" for human intervention. Reset by `iudex retry`.
+qa_reject_limit: 3
+
+# Command used to build agent spawn commands. iudex never launches the agent
+# itself — it only prints the command for you to run.
+agent_command: claude
+
+# How `iudex human-qa approve` lands a ticket on main_branch: "no-ff" | "squash".
+merge_strategy: no-ff
+
+# Commit message for the merge. {{.Ticket}} is substituted with the ticket id.
+merge_message_template: "feat: complete {{.Ticket}}"
+
+# Prefix for per-ticket work branches, e.g. work/t5.
+branch_prefix: "work/"

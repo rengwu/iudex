@@ -1,18 +1,9 @@
-// Package events manages the append-only events.jsonl state machine.
+// Package events manages the append-only events.jsonl log, the sole source of
+// truth for ticket state.
 //
-// Each line is a JSON state transition:
-//
-//	{"id":"uuid","ticket":"ticket-00001","from":"queued","to":"in-progress","ts":"...","note":"..."}
-//
-// Valid states:
-//
-//	queued               ticket is in queue/, unclaimed
-//	in-progress          impl agent is working in worktree
-//	pending-review       QA agent is reviewing in same worktree
-//	pending-human-review QA done, waiting for human decision
-//	human-manual         human has taken over the worktree
-//	done                 approved, merged, archived, worktree removed
-//	rejected             rejected by human, archived, worktree removed
+// Each line is a JSON state transition. Status, dependencies, and the QA-reject
+// counter are all derived by replaying the log (see package ticket); nothing is
+// stored anywhere else.
 package events
 
 import (
@@ -23,70 +14,47 @@ import (
 	"os"
 	"time"
 
-	"iudex/internal/config"
+	"iudex/internal/workspace"
 )
 
-// Event represents a single state transition.
+// Event is a single state transition for a ticket.
 type Event struct {
-	ID     string `json:"id"`
-	Ticket string `json:"ticket"`
-	From   string `json:"from"`
-	To     string `json:"to"`
-	TS     string `json:"ts"`
-	Note   string `json:"note,omitempty"`
+	ID      string   `json:"id"`
+	Ticket  string   `json:"ticket"`
+	From    string   `json:"from"`
+	To      string   `json:"to"`
+	TS      string   `json:"ts"`
+	Trigger string   `json:"trigger,omitempty"` // command that caused it, e.g. "queue", "qa-reject"
+	Deps    []string `json:"deps,omitempty"`    // blocking dependencies, set on the queue event
+	Reason  string   `json:"reason,omitempty"`  // optional human/agent note
 }
 
-// ActiveStates is the set of states where a worktree is occupied.
-var ActiveStates = map[string]bool{
-	"in-progress":    true,
-	"pending-review": true,
-	"human-manual":   true,
-}
+// Append writes ev to events.jsonl, filling in a fresh ID and timestamp. The
+// write uses O_APPEND so concurrent invocations are safe on POSIX filesystems.
+// It returns the completed event.
+func Append(root string, ev Event) (Event, error) {
+	ev.ID = newUUID()
+	ev.TS = time.Now().UTC().Format(time.RFC3339)
 
-// Append writes a new state transition to events.jsonl atomically (O_APPEND).
-func Append(workspace, ticket, from, to, note string) (Event, error) {
-	ev := Event{
-		ID:     newUUID(),
-		Ticket: ticket,
-		From:   from,
-		To:     to,
-		TS:     time.Now().UTC().Format(time.RFC3339),
-		Note:   note,
-	}
 	line, err := json.Marshal(ev)
 	if err != nil {
 		return Event{}, err
 	}
-	f, err := os.OpenFile(
-		config.EventsFile(workspace),
-		os.O_APPEND|os.O_WRONLY|os.O_CREATE,
-		0o644,
-	)
+	f, err := os.OpenFile(workspace.EventsFile(root), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o644)
 	if err != nil {
 		return Event{}, err
 	}
 	defer f.Close()
-	_, err = fmt.Fprintf(f, "%s\n", line)
-	return ev, err
-}
-
-// GetTicketState returns the current state of a ticket by replaying events.jsonl.
-func GetTicketState(workspace, ticket string) (string, error) {
-	states, err := replayStates(workspace, ticket)
-	if err != nil {
-		return "", err
+	if _, err := fmt.Fprintf(f, "%s\n", line); err != nil {
+		return Event{}, err
 	}
-	return states[ticket], nil
+	return ev, nil
 }
 
-// GetAllTickets returns a map of ticket → current state for every known ticket.
-func GetAllTickets(workspace string) (map[string]string, error) {
-	return replayStates(workspace, "")
-}
-
-// GetTicketEvents returns all events for a specific ticket in order.
-func GetTicketEvents(workspace, ticket string) ([]Event, error) {
-	f, err := os.Open(config.EventsFile(workspace))
+// ReadAll returns every event in the log, in order. Malformed lines are skipped.
+// A missing log is treated as empty.
+func ReadAll(root string) ([]Event, error) {
+	f, err := os.Open(workspace.EventsFile(root))
 	if os.IsNotExist(err) {
 		return nil, nil
 	}
@@ -95,37 +63,7 @@ func GetTicketEvents(workspace, ticket string) ([]Event, error) {
 	}
 	defer f.Close()
 
-	var result []Event
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if line == "" {
-			continue
-		}
-		var ev Event
-		if json.Unmarshal([]byte(line), &ev) != nil {
-			continue // skip malformed lines silently
-		}
-		if ev.Ticket == ticket {
-			result = append(result, ev)
-		}
-	}
-	return result, scanner.Err()
-}
-
-// replayStates scans events.jsonl and returns the latest state per ticket.
-// If filterTicket is non-empty, only that ticket's events are considered.
-func replayStates(workspace, filterTicket string) (map[string]string, error) {
-	f, err := os.Open(config.EventsFile(workspace))
-	if os.IsNotExist(err) {
-		return map[string]string{}, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	states := make(map[string]string)
+	var out []Event
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -136,11 +74,9 @@ func replayStates(workspace, filterTicket string) (map[string]string, error) {
 		if json.Unmarshal([]byte(line), &ev) != nil {
 			continue
 		}
-		if filterTicket == "" || ev.Ticket == filterTicket {
-			states[ev.Ticket] = ev.To
-		}
+		out = append(out, ev)
 	}
-	return states, scanner.Err()
+	return out, scanner.Err()
 }
 
 func newUUID() string {
@@ -148,6 +84,5 @@ func newUUID() string {
 	rand.Read(b)
 	b[6] = (b[6] & 0x0f) | 0x40
 	b[8] = (b[8] & 0x3f) | 0x80
-	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
-		b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 }
