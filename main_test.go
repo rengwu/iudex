@@ -1,10 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -156,7 +156,7 @@ func TestCLIActivateBlockedByDep(t *testing.T) {
 
 func TestCLIMaxActiveCap(t *testing.T) {
 	ws := newWorkspace(t)
-	setMaxActive(t, ws, 1)
+	setConfigInt(t, ws, "max_active", 1)
 	author(t, ws, "t1")
 	author(t, ws, "t2")
 	mustRun(t, ws, "queue", "t1")
@@ -183,18 +183,60 @@ func TestCLIQueueValidation(t *testing.T) {
 	wantState(t, ws, "t2", "")                      // never registered
 }
 
-func setMaxActive(t *testing.T, ws string, n int) {
+// toPendingQA drives a fresh ticket from authoring through to pending-qa.
+func toPendingQA(t *testing.T, ws, id string) {
+	t.Helper()
+	author(t, ws, id)
+	mustRun(t, ws, "queue", id)
+	mustRun(t, ws, "activate", id)
+	mustRun(t, filepath.Join(ws, ".iudex", "worktrees", id), "finish")
+	wantState(t, ws, id, "pending-qa")
+}
+
+func TestCLIQAApprove(t *testing.T) {
+	ws := newWorkspace(t)
+	toPendingQA(t, ws, "t1")
+	mustRun(t, ws, "qa", "approve", "t1")
+	wantState(t, ws, "t1", "pending-human-qa")
+}
+
+func TestCLIQARejectBackToActive(t *testing.T) {
+	ws := newWorkspace(t)
+	toPendingQA(t, ws, "t1")
+	// reject inferred from the worktree cwd, no explicit id.
+	mustRun(t, filepath.Join(ws, ".iudex", "worktrees", "t1"), "qa", "reject")
+	wantState(t, ws, "t1", "active")
+}
+
+func TestCLIQARejectToFailedAtLimit(t *testing.T) {
+	ws := newWorkspace(t)
+	setConfigInt(t, ws, "qa_reject_limit", 1)
+	toPendingQA(t, ws, "t1")
+	mustRun(t, ws, "qa", "reject", "t1")
+	wantState(t, ws, "t1", "failed")
+}
+
+// setConfigInt rewrites a `key: <int>` line in the workspace config.
+func setConfigInt(t *testing.T, ws, key string, val int) {
 	t.Helper()
 	p := workspace.ConfigFile(ws)
 	data, err := os.ReadFile(p)
 	if err != nil {
 		t.Fatal(err)
 	}
-	out := strings.Replace(string(data), "max_active: 4", "max_active: "+strconv.Itoa(n), 1)
-	if out == string(data) {
-		t.Fatal("could not find max_active line to replace")
+	lines := strings.Split(string(data), "\n")
+	found := false
+	for i, ln := range lines {
+		if strings.HasPrefix(ln, key+":") {
+			lines[i] = fmt.Sprintf("%s: %d", key, val)
+			found = true
+			break
+		}
 	}
-	if err := os.WriteFile(p, []byte(out), 0o644); err != nil {
+	if !found {
+		t.Fatalf("config key %q not found", key)
+	}
+	if err := os.WriteFile(p, []byte(strings.Join(lines, "\n")), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }
