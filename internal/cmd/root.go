@@ -1,10 +1,8 @@
-// Package cmd defines the iudex CLI command tree (cobra). Command logic is
-// scaffolded; handlers currently report that they are not yet implemented.
+// Package cmd defines the iudex CLI command tree (cobra).
 package cmd
 
 import (
 	"embed"
-	"fmt"
 
 	"github.com/spf13/cobra"
 )
@@ -44,10 +42,4 @@ func newRootCmd() *cobra.Command {
 		newStatusCmd(),
 	)
 	return root
-}
-
-// stub reports that a command's logic is not yet implemented.
-func stub(cmd *cobra.Command, name string) error {
-	fmt.Fprintf(cmd.OutOrStdout(), "iudex %s: not yet implemented\n", name)
-	return nil
 }

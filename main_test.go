@@ -294,6 +294,45 @@ func TestCLIApproveRefusesOffMain(t *testing.T) {
 	wantState(t, ws, "t1", "pending-human-qa")
 }
 
+func TestCLIRemoveQueued(t *testing.T) {
+	ws := newWorkspace(t)
+	author(t, ws, "t1")
+	mustRun(t, ws, "queue", "t1")
+	mustRun(t, ws, "remove", "t1")
+	wantState(t, ws, "t1", "removed")
+
+	if _, err := os.Stat(filepath.Join(ws, ".iudex", "queue", "t1.md")); !os.IsNotExist(err) {
+		t.Error("queue file should be cleared on remove")
+	}
+	if _, err := os.Stat(filepath.Join(ws, ".iudex", "archive", "t1", "brief.md")); err != nil {
+		t.Error("queued brief should be preserved in the archive")
+	}
+}
+
+func TestCLIRemoveActive(t *testing.T) {
+	ws := newWorkspace(t)
+	author(t, ws, "t1")
+	mustRun(t, ws, "queue", "t1")
+	mustRun(t, ws, "activate", "t1")
+	mustRun(t, ws, "remove", "t1")
+	wantState(t, ws, "t1", "removed")
+
+	if _, err := os.Stat(filepath.Join(ws, ".iudex", "worktrees", "t1")); !os.IsNotExist(err) {
+		t.Error("worktree should be removed")
+	}
+	if _, err := os.Stat(filepath.Join(ws, ".iudex", "archive", "t1", "meta.json")); err != nil {
+		t.Error("archive should exist after remove")
+	}
+}
+
+func TestCLIRemoveRefusesTerminal(t *testing.T) {
+	ws := newWorkspace(t)
+	toPendingHumanQA(t, ws, "t1")
+	mustRun(t, ws, "human-qa", "approve", "t1")
+	wantState(t, ws, "t1", "done")
+	mustFail(t, ws, "remove", "t1")
+}
+
 // gitC runs git in dir with the hermetic test environment.
 func gitC(t *testing.T, dir string, args ...string) {
 	t.Helper()
