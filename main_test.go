@@ -216,6 +216,97 @@ func TestCLIQARejectToFailedAtLimit(t *testing.T) {
 	wantState(t, ws, "t1", "failed")
 }
 
+// toPendingHumanQA drives a fresh ticket all the way to pending-human-qa, with
+// a committed change in its worktree so there is something to merge.
+func toPendingHumanQA(t *testing.T, ws, id string) {
+	t.Helper()
+	author(t, ws, id)
+	mustRun(t, ws, "queue", id)
+	mustRun(t, ws, "activate", id)
+	wt := filepath.Join(ws, ".iudex", "worktrees", id)
+	if err := os.WriteFile(filepath.Join(wt, "app_"+id+".txt"), []byte("work for "+id+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mustRun(t, wt, "finish") // auto-commits the change
+	mustRun(t, ws, "qa", "approve", id)
+	wantState(t, ws, id, "pending-human-qa")
+}
+
+func TestCLIHumanQAApproveToDone(t *testing.T) {
+	ws := newWorkspace(t)
+	toPendingHumanQA(t, ws, "t1")
+	mustRun(t, ws, "human-qa", "approve", "t1")
+	wantState(t, ws, "t1", "done")
+
+	if _, err := os.Stat(filepath.Join(ws, ".iudex", "worktrees", "t1")); !os.IsNotExist(err) {
+		t.Error("worktree should be removed after approve")
+	}
+	for _, f := range []string{"brief.md", "diff.patch", "meta.json"} {
+		if _, err := os.Stat(filepath.Join(ws, ".iudex", "archive", "t1", f)); err != nil {
+			t.Errorf("archive/%s missing: %v", f, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(ws, "app_t1.txt")); err != nil {
+		t.Error("merged change should be present on main at the repo root")
+	}
+}
+
+func TestCLIHumanQARejectBackToActive(t *testing.T) {
+	ws := newWorkspace(t)
+	toPendingHumanQA(t, ws, "t1")
+	mustRun(t, ws, "human-qa", "reject", "t1", "--reason", "needs error handling")
+	wantState(t, ws, "t1", "active")
+
+	data, err := os.ReadFile(filepath.Join(ws, ".iudex", "worktrees", "t1", ".task", "review.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "needs error handling") {
+		t.Errorf("review.md missing human feedback:\n%s", data)
+	}
+}
+
+func TestCLIRetryFromFailed(t *testing.T) {
+	ws := newWorkspace(t)
+	setConfigInt(t, ws, "qa_reject_limit", 1)
+	toPendingQA(t, ws, "t1")
+	mustRun(t, ws, "qa", "reject", "t1")
+	wantState(t, ws, "t1", "failed")
+	mustRun(t, ws, "retry", "t1")
+	wantState(t, ws, "t1", "active")
+}
+
+func TestCLIApproveRefusesDirtyRoot(t *testing.T) {
+	ws := newWorkspace(t)
+	toPendingHumanQA(t, ws, "t1")
+	if err := os.WriteFile(filepath.Join(ws, "dirty.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mustFail(t, ws, "human-qa", "approve", "t1")
+	wantState(t, ws, "t1", "pending-human-qa")
+}
+
+func TestCLIApproveRefusesOffMain(t *testing.T) {
+	ws := newWorkspace(t)
+	toPendingHumanQA(t, ws, "t1")
+	gitC(t, ws, "checkout", "-b", "feature")
+	mustFail(t, ws, "human-qa", "approve", "t1")
+	wantState(t, ws, "t1", "pending-human-qa")
+}
+
+// gitC runs git in dir with the hermetic test environment.
+func gitC(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	cmd.Env = append(os.Environ(),
+		"GIT_CONFIG_GLOBAL="+gitConfigPath,
+		"GIT_CONFIG_SYSTEM="+os.DevNull,
+	)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %v: %v\n%s", args, err, out)
+	}
+}
+
 // setConfigInt rewrites a `key: <int>` line in the workspace config.
 func setConfigInt(t *testing.T, ws, key string, val int) {
 	t.Helper()

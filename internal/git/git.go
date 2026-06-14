@@ -3,16 +3,12 @@
 package git
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 )
-
-// errNotImplemented marks scaffolded operations whose logic is still pending.
-var errNotImplemented = errors.New("git: not implemented")
 
 // run executes a git command in dir and returns trimmed stdout.
 func run(dir string, args ...string) (string, error) {
@@ -127,11 +123,15 @@ func EnsureExclude(repoRoot, pattern string) error {
 	return err
 }
 
-// RemoveWorktree force-removes a worktree and deletes its branch (best effort).
-//
-// TODO(scaffold): implement.
+// RemoveWorktree force-removes a worktree and deletes its branch.
 func RemoveWorktree(repoRoot, dest, branch string) error {
-	return errNotImplemented
+	if _, err := run(repoRoot, "worktree", "remove", "--force", dest); err != nil {
+		return err
+	}
+	if _, err := run(repoRoot, "branch", "-D", branch); err != nil {
+		return err
+	}
+	return nil
 }
 
 // WIPCommit stages everything in dir and commits with message (a checkpoint).
@@ -144,18 +144,33 @@ func WIPCommit(dir, message string) error {
 	return err
 }
 
-// Diff returns the diff of the worktree's branch against base, excluding .task/.
-//
-// TODO(scaffold): implement (git diff <base>..HEAD -- :(exclude).task).
+// Diff returns the changes the worktree's branch introduced relative to base
+// (three-dot, so changes that landed on base afterwards aren't shown). .task/ is
+// untracked and never appears.
 func Diff(worktreeDir, base string) (string, error) {
-	return "", errNotImplemented
+	return run(worktreeDir, "diff", base+"...HEAD")
 }
 
-// Merge merges branch into the currently checked-out branch at repoRoot using
-// strategy ("no-ff" | "squash") and the given message. Returns the resulting
-// commit hash. On any failure it aborts the merge and returns an error.
-//
-// TODO(scaffold): implement.
-func Merge(repoRoot, branch, strategy, message string) (commit string, err error) {
-	return "", errNotImplemented
+// Merge merges branch into the branch currently checked out at repoRoot using
+// strategy ("squash" or, by default, "no-ff") and message, returning the new
+// commit hash. On any failure it restores the working tree (the caller must
+// ensure it was clean first) and returns an error.
+func Merge(repoRoot, branch, strategy, message string) (string, error) {
+	var mergeErr error
+	switch strategy {
+	case "squash":
+		if _, err := run(repoRoot, "merge", "--squash", branch); err != nil {
+			mergeErr = err
+		} else if _, err := run(repoRoot, "commit", "-m", message); err != nil {
+			mergeErr = err
+		}
+	default: // "no-ff"
+		_, mergeErr = run(repoRoot, "merge", "--no-ff", "-m", message, branch)
+	}
+	if mergeErr != nil {
+		run(repoRoot, "merge", "--abort")        // best effort
+		run(repoRoot, "reset", "--hard", "HEAD") // ensure a clean restore
+		return "", fmt.Errorf("merge %s: %w", branch, mergeErr)
+	}
+	return run(repoRoot, "rev-parse", "HEAD")
 }
