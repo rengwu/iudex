@@ -1,5 +1,7 @@
 # iudex
 
+![Iudex Logo](./docs/assets/logo_small.png)
+
 A CLI that orchestrates AI coding agents across git worktrees. It drives every ticket through a **queue → implement → QA → human review → merge** pipeline, keeping all state file-based and git-native with no runtime dependency beyond `git`.
 
 There's **no daemon and no TUI**. iudex is just rules over an append-only event log: every step is an explicit command you run, and nothing reaches `main` without your approval. Each ticket gets its own git worktree; iudex prints ready-to-paste commands to spawn an agent into it, but never launches one itself.
@@ -49,7 +51,7 @@ Check progress any time with `iudex status`.
 
 ## Before the queue: shaping work
 
-The CLI starts at `iudex queue`. The step *before* that — turning a raw idea into robust, sliced, dependency-ordered tickets — is handled by a set of **bundled skills** that `iudex init` scaffolds into `.iudex/skills/` and indexes in a tracked root `AGENTS.md`. Your agent reads that index and loads the relevant skill on demand:
+The CLI starts at `iudex queue`. The step _before_ that — turning a raw idea into robust, sliced, dependency-ordered tickets — is handled by a set of **bundled skills** that `iudex init` scaffolds into `.iudex/skills/` and indexes in a tracked root `AGENTS.md`. Your agent reads that index and loads the relevant skill on demand:
 
 ```
 grill-me / grill-with-docs → prototype → to-prd → to-issues → iudex queue
@@ -62,24 +64,24 @@ grill-me / grill-with-docs → prototype → to-prd → to-issues → iudex queu
 - **to-issues** — slice a plan/PRD into tickets and register them with `iudex queue tN --deps …` (a slice's blockers become iudex dependencies).
 - **improve-codebase-architecture** — find refactoring opportunities that feed back into the funnel.
 
-The skills only ever *call* iudex; iudex stays unaware of them. `.context/` is tracked project documentation (committed), so its glossary, ADRs, and PRDs travel into ticket worktrees where the impl and QA agents can read them.
+The skills only ever _call_ iudex; iudex stays unaware of them. `.context/` is tracked project documentation (committed), so its glossary, ADRs, and PRDs travel into ticket worktrees where the impl and QA agents can read them.
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `iudex init` | Scaffold the current directory into a workspace |
-| `iudex next-ticket-id` | Print the next ticket id and nothing else |
-| `iudex queue <id> [--deps <ids>]` | Register an authored ticket and its dependencies |
-| `iudex activate <id>` | Start a queued ticket: create its worktree, print the impl spawn command |
-| `iudex finish [id]` | Hand off to QA (auto-commits if dirty); id inferred from the worktree |
-| `iudex spawn [id]` | Reprint the spawn command for a ticket's current state |
-| `iudex qa approve\|reject [id]` | Agent QA decision |
-| `iudex human-qa approve\|reject <id>` | Your decision: merge, or send back for revision (`--reason`) |
-| `iudex retry <id>` | Reset a failed ticket for another attempt |
-| `iudex remove <id>` | Abandon a ticket |
-| `iudex review <id>` | Print brief, log, diff, QA review, state, and next actions |
-| `iudex status [--all]` | Tickets grouped by state |
+| Command                               | Description                                                              |
+| ------------------------------------- | ------------------------------------------------------------------------ |
+| `iudex init`                          | Scaffold the current directory into a workspace                          |
+| `iudex next-ticket-id`                | Print the next ticket id and nothing else                                |
+| `iudex queue <id> [--deps <ids>]`     | Register an authored ticket and its dependencies                         |
+| `iudex activate <id>`                 | Start a queued ticket: create its worktree, print the impl spawn command |
+| `iudex finish [id]`                   | Hand off to QA (auto-commits if dirty); id inferred from the worktree    |
+| `iudex spawn [id]`                    | Reprint the spawn command for a ticket's current state                   |
+| `iudex qa approve\|reject [id]`       | Agent QA decision                                                        |
+| `iudex human-qa approve\|reject <id>` | Your decision: merge, or send back for revision (`--reason`)             |
+| `iudex retry <id>`                    | Reset a failed ticket for another attempt                                |
+| `iudex remove <id>`                   | Abandon a ticket                                                         |
+| `iudex review <id>`                   | Print brief, log, diff, QA review, state, and next actions               |
+| `iudex status [--all]`                | Tickets grouped by state                                                 |
 
 Commands run by an agent inside a worktree (`finish`, `qa`, `spawn`) infer the ticket from the current directory, so no id is needed.
 
@@ -101,15 +103,15 @@ Dependencies must already be registered, which keeps the graph acyclic by constr
 
 `.iudex/config.yml`:
 
-| Field | Meaning |
-|-------|---------|
-| `main_branch` | Branch tickets merge into (your repo's branch at init) |
-| `max_active` | Max tickets active at once (`0` = unlimited) |
-| `qa_reject_limit` | QA rejections before a ticket is marked `failed` |
-| `agent_command` | Command used in spawn lines (e.g. `claude`) |
-| `merge_strategy` | `no-ff` or `squash` |
-| `merge_message_template` | Merge commit message (`{{.Ticket}}` is substituted) |
-| `branch_prefix` | Per-ticket branch prefix (e.g. `work/`) |
+| Field                    | Meaning                                                |
+| ------------------------ | ------------------------------------------------------ |
+| `main_branch`            | Branch tickets merge into (your repo's branch at init) |
+| `max_active`             | Max tickets active at once (`0` = unlimited)           |
+| `qa_reject_limit`        | QA rejections before a ticket is marked `failed`       |
+| `agent_command`          | Command used in spawn lines (e.g. `claude`)            |
+| `merge_strategy`         | `no-ff` or `squash`                                    |
+| `merge_message_template` | Merge commit message (`{{.Ticket}}` is substituted)    |
+| `branch_prefix`          | Per-ticket branch prefix (e.g. `work/`)                |
 
 Edit `.iudex/prompts/impl.md` and `review.md` to customize the instructions baked into spawn commands.
 
