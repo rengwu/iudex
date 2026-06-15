@@ -1,8 +1,12 @@
-# iudex
+<p align="center">
+  <img src="./docs/assets/logo.png" alt="iudex logo" width="260" />
+</p>
 
-Turn a pile of coding agents into a production line. Multi-agent coding without the multi-agent mess.
+<h1 align="center">iudex</h1>
 
-![Iudex Logo](./docs/assets/logo_small.png)
+<p align="center">
+  <strong>Your AI agents, assembly-lined. Multi-agent coding without the mess.</strong>
+</p>
 
 A CLI that orchestrates AI coding agents across git worktrees. It drives every ticket through a **queue → implement → QA → human review → merge** pipeline, keeping all state file-based and git-native with no runtime dependency beyond `git`.
 
