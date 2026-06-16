@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -14,7 +15,9 @@ import (
 
 // newStatusCmd prints tickets grouped by state, with queued tickets annotated
 // ready/blocked and failed tickets showing their reject count. done/removed are
-// hidden unless --all is passed.
+// hidden unless --all is passed. With --json it instead emits the full machine-
+// readable workspace state (every ticket, all derived fields), which is the read
+// path the GUI client binds to.
 func newStatusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status",
@@ -23,6 +26,7 @@ func newStatusCmd() *cobra.Command {
 		RunE:  runStatus,
 	}
 	cmd.Flags().Bool("all", false, "include done and removed tickets")
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON (all tickets; ignores --all)")
 	return cmd
 }
 
@@ -31,9 +35,16 @@ func runStatus(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
+	asJSON, err := cmd.Flags().GetBool("json")
+	if err != nil {
+		return err
+	}
 	ctx, err := loadContext()
 	if err != nil {
 		return err
+	}
+	if asJSON {
+		return runStatusJSON(cmd, ctx)
 	}
 
 	groups := []struct {
@@ -73,6 +84,73 @@ func runStatus(cmd *cobra.Command, _ []string) error {
 		}
 	}
 	return nil
+}
+
+// jsonWorkspace is the machine-readable shape emitted by `iudex status --json`.
+// It is the stable contract the GUI client reads; fields may be added but
+// existing ones should not change meaning.
+type jsonWorkspace struct {
+	MainBranch    string       `json:"mainBranch"`
+	MaxActive     int          `json:"maxActive"`
+	QARejectLimit int          `json:"qaRejectLimit"`
+	Tickets       []jsonTicket `json:"tickets"`
+}
+
+// jsonTicket is one ticket's derived standing, including fields the caller
+// cannot cheaply recompute without replicating the state machine (ready/blocked
+// and the worktree path).
+type jsonTicket struct {
+	ID          string   `json:"id"`
+	State       string   `json:"state"`
+	Deps        []string `json:"deps"`
+	QARejects   int      `json:"qaRejects"`
+	Ready       bool     `json:"ready"`
+	BlockedBy   []string `json:"blockedBy"`
+	HasWorktree bool     `json:"hasWorktree"`
+	Worktree    string   `json:"worktree,omitempty"`
+}
+
+// runStatusJSON emits every ticket in the workspace as JSON, ordered by ticket
+// number. Unlike the human view it never hides done/removed tickets: the GUI is
+// the source of filtering, so the read path always returns the whole truth.
+func runStatusJSON(cmd *cobra.Command, ctx *wsContext) error {
+	ids := make([]string, 0, len(ctx.Statuses))
+	for id := range ctx.Statuses {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool {
+		ni, _ := ticket.ParseID(ids[i])
+		nj, _ := ticket.ParseID(ids[j])
+		return ni < nj
+	})
+
+	out := jsonWorkspace{
+		MainBranch:    ctx.Config.MainBranch,
+		MaxActive:     ctx.Config.MaxActive,
+		QARejectLimit: ctx.Config.QARejectLimit,
+		Tickets:       make([]jsonTicket, 0, len(ids)),
+	}
+	for _, id := range ids {
+		s := ctx.Statuses[id]
+		ready, blocking := ticket.DepsReady(s, ctx.Statuses)
+		jt := jsonTicket{
+			ID:          s.Ticket,
+			State:       string(s.State),
+			Deps:        append([]string{}, s.Deps...),
+			QARejects:   s.QARejects,
+			Ready:       ready,
+			BlockedBy:   append([]string{}, blocking...),
+			HasWorktree: ticket.HasWorktree(s.State),
+		}
+		if jt.HasWorktree {
+			jt.Worktree = workspace.Worktree(ctx.Root, id)
+		}
+		out.Tickets = append(out.Tickets, jt)
+	}
+
+	enc := json.NewEncoder(cmd.OutOrStdout())
+	enc.SetIndent("", "  ")
+	return enc.Encode(out)
 }
 
 // idsInState returns the ticket ids in the given state, ordered by number.

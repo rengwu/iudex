@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -181,6 +182,62 @@ func TestCLIQueueValidation(t *testing.T) {
 	author(t, ws, "t2")
 	mustFail(t, ws, "queue", "t2", "--deps", "t99") // unregistered dep
 	wantState(t, ws, "t2", "")                      // never registered
+}
+
+// TestCLIStatusJSON locks the machine-readable read path the GUI client binds
+// to: `iudex status --json` must emit every ticket (including done/removed,
+// regardless of --all) with its derived ready/blocked and worktree fields.
+func TestCLIStatusJSON(t *testing.T) {
+	ws := newWorkspace(t)
+	author(t, ws, "t1")
+	author(t, ws, "t2")
+	mustRun(t, ws, "queue", "t1")
+	mustRun(t, ws, "queue", "t2", "--deps", "t1")
+	mustRun(t, ws, "activate", "t1")
+
+	var got struct {
+		MainBranch string `json:"mainBranch"`
+		Tickets    []struct {
+			ID          string   `json:"id"`
+			State       string   `json:"state"`
+			Deps        []string `json:"deps"`
+			Ready       bool     `json:"ready"`
+			BlockedBy   []string `json:"blockedBy"`
+			HasWorktree bool     `json:"hasWorktree"`
+			Worktree    string   `json:"worktree"`
+		} `json:"tickets"`
+	}
+	if err := json.Unmarshal([]byte(mustRun(t, ws, "status", "--json")), &got); err != nil {
+		t.Fatalf("status --json is not valid JSON: %v", err)
+	}
+
+	if got.MainBranch != "main" {
+		t.Errorf("mainBranch = %q, want main", got.MainBranch)
+	}
+	if len(got.Tickets) != 2 {
+		t.Fatalf("got %d tickets, want 2: %+v", len(got.Tickets), got.Tickets)
+	}
+
+	t1, t2 := got.Tickets[0], got.Tickets[1] // ordered by ticket number
+	if t1.ID != "t1" || t1.State != "active" || !t1.Ready || !t1.HasWorktree {
+		t.Errorf("t1 = %+v, want active/ready/has-worktree", t1)
+	}
+	// Resolve symlinks: on macOS /var is a symlink to /private/var and the CLI
+	// emits the canonical path.
+	wsReal, err := filepath.EvalSymlinks(ws)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantWorktree := filepath.Join(wsReal, ".iudex", "worktrees", "t1")
+	if t1.Worktree != wantWorktree {
+		t.Errorf("t1.worktree = %q, want %q", t1.Worktree, wantWorktree)
+	}
+	if t2.ID != "t2" || t2.State != "queued" || t2.Ready || t2.HasWorktree {
+		t.Errorf("t2 = %+v, want queued/blocked/no-worktree", t2)
+	}
+	if len(t2.Deps) != 1 || t2.Deps[0] != "t1" || len(t2.BlockedBy) != 1 || t2.BlockedBy[0] != "t1" {
+		t.Errorf("t2 deps/blockedBy = %v/%v, want [t1]/[t1]", t2.Deps, t2.BlockedBy)
+	}
 }
 
 // toPendingQA drives a fresh ticket from authoring through to pending-qa.
