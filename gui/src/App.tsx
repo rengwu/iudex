@@ -95,12 +95,18 @@ export default function App() {
           <section className="view">
             {view === "dashboard" && <Dashboard ws={ws} onJump={setView} />}
             {view === "tickets" && <Tickets ws={ws} root={root} />}
-            {view === "terminal" && (
+            {/* Terminal stays mounted across view switches so its tabs and
+                live PTYs survive; we only toggle its visibility. */}
+            <div
+              style={{ display: view === "terminal" ? "block" : "none" }}
+              className="view-host"
+            >
               <Terminal
+                visible={view === "terminal"}
                 focus={focusSession}
                 onFocusHandled={() => setFocusSession(null)}
               />
-            )}
+            </div>
             {view === "agents" && (
               <Agents
                 onOpenInTerminal={(name) => {

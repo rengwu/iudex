@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useSessions } from "../lib/sessions";
+import { useSessions, sessionTitle } from "../lib/sessions";
 import XtermPane from "./XtermPane";
 
 // The interactive, full-size surface over the tmux pool. Each tab is a live
@@ -8,9 +8,11 @@ import XtermPane from "./XtermPane";
 // so switching tabs never tears down a terminal. `focus` lets another view
 // (Agents "open in Terminal") jump straight to a session's tab.
 export default function Terminal({
+  visible,
   focus,
   onFocusHandled,
 }: {
+  visible: boolean;
   focus?: string | null;
   onFocusHandled?: () => void;
 }) {
@@ -88,7 +90,7 @@ export default function Terminal({
             className={`term-tab${activeTab === name ? " active" : ""}`}
             onClick={() => setActiveTab(name)}
           >
-            <span>{label(sessions, name)}</span>
+            <span>{sessionTitle(name)}</span>
             <button
               className="tab-x"
               title="kill session"
@@ -109,21 +111,7 @@ export default function Terminal({
       {error && <div className="error">{error}</div>}
 
       {open.length === 0 ? (
-        <div className="term-empty">
-          {sessions.length === 0
-            ? "no sessions yet — start one with “+ shell”."
-            : "pick a session below, or start a new shell."}
-          {sessions.length > 0 && (
-            <ul className="term-pick">
-              {sessions.map((s) => (
-                <li key={s.name} onClick={() => openSession(s.name)}>
-                  <span className={`kind kind-${s.kind}`}>{s.kind}</span>{" "}
-                  {s.title}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <div className="term-empty">start a shell with “+ shell”.</div>
       ) : (
         <div className="term-panes">
           {open.map((name) => (
@@ -132,15 +120,14 @@ export default function Terminal({
               className="term-pane"
               style={{ display: activeTab === name ? "block" : "none" }}
             >
-              <XtermPane session={name} active={activeTab === name} />
+              <XtermPane
+                session={name}
+                active={visible && activeTab === name}
+              />
             </div>
           ))}
         </div>
       )}
     </div>
   );
-}
-
-function label(sessions: { name: string; title: string }[], name: string) {
-  return sessions.find((s) => s.name === name)?.title ?? name;
 }

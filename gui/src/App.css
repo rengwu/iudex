@@ -207,6 +207,8 @@ body {
   align-items: center;
   gap: 6px;
   padding: 5px 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
   border: 1px solid #3a3b3f;
   border-bottom: none;
   border-radius: 6px 6px 0 0;
@@ -242,6 +244,8 @@ body {
   background: transparent;
   color: #9db4e0;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
   font-size: 13px;
 }
 
@@ -252,27 +256,6 @@ body {
 .term-empty {
   color: #8a8a90;
   padding: 20px 4px;
-}
-
-.term-pick {
-  list-style: none;
-  margin: 12px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-width: 360px;
-}
-
-.term-pick li {
-  padding: 6px 10px;
-  border: 1px solid #3a3b3f;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.term-pick li:hover {
-  background: #2a2b30;
 }
 
 .term-panes {
@@ -291,23 +274,6 @@ body {
   padding: 6px;
   border: 1px solid #3a3b3f;
   border-radius: 6px;
-}
-
-.kind {
-  display: inline-block;
-  padding: 1px 6px;
-  border-radius: 8px;
-  font-size: 11px;
-}
-
-.kind-shell {
-  background: #2c2d31;
-  color: #c8c8ce;
-}
-
-.kind-agent {
-  background: #2a2f3a;
-  color: #9db4e0;
 }
 
 /* Agents grid */
