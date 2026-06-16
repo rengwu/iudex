@@ -21,6 +21,9 @@ export function sessionLabel(s: Session): string {
     const ticket = s.ticket ?? "agent";
     return s.role ? `${ticket} · ${s.role}` : ticket;
   }
+  if (s.kind === "idea") {
+    return s.role ? `idea: ${s.role}` : "idea";
+  }
   return sessionTitle(s.name);
 }
 

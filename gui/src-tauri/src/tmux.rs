@@ -9,6 +9,7 @@
 
 use std::collections::HashMap;
 use std::io::{Read, Write};
+use std::path::Path;
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
@@ -116,7 +117,7 @@ fn parse_line(line: &str) -> Option<Session> {
     let role = nonempty(cols.next().unwrap_or(""));
     let started = nonempty(cols.next().unwrap_or(""));
 
-    if let Some(_id) = name.strip_prefix(&format!("{PREFIX}agent-")) {
+    if name.starts_with(&format!("{PREFIX}agent-")) {
         let title = match (&ticket, &role) {
             (Some(t), Some(r)) => format!("{t} · {r}"),
             (Some(t), None) => t.clone(),
@@ -126,6 +127,20 @@ fn parse_line(line: &str) -> Option<Session> {
             name: name.to_string(),
             kind: "agent".to_string(),
             ticket,
+            role,
+            started,
+            title,
+        })
+    } else if name.starts_with(&format!("{PREFIX}idea-")) {
+        // Idea-shaping agents: ticket-less, `@iudex_role` holds the skill name.
+        let title = role
+            .as_ref()
+            .map(|r| format!("idea: {r}"))
+            .unwrap_or_else(|| "idea".to_string());
+        Some(Session {
+            name: name.to_string(),
+            kind: "idea".to_string(),
+            ticket: None,
             role,
             started,
             title,
@@ -234,6 +249,86 @@ pub fn spawn_agent(root: String, ticket: String, role: String) -> Result<Session
         role: nonempty(&role),
         started: Some(started),
         title: String::new(),
+    })
+}
+
+/// Wrap a string as a single-quoted POSIX shell token (safe for spaces,
+/// newlines, quotes). `'` becomes `'\''`.
+fn sh_quote(s: &str) -> String {
+    format!("'{}'", s.replace('\'', "'\\''"))
+}
+
+/// The workspace's configured agent binary (`agent_command` in
+/// `.iudex/config.yml`), used to build the idea-agent spawn command. iudex has
+/// no read API for it, so we scan the one well-known line; defaults to `claude`.
+fn agent_command(root: &str) -> String {
+    let path = Path::new(root).join(".iudex").join("config.yml");
+    if let Ok(text) = std::fs::read_to_string(path) {
+        for line in text.lines() {
+            let line = line.trim();
+            if line.starts_with('#') {
+                continue;
+            }
+            if let Some(val) = line.strip_prefix("agent_command:") {
+                let v = val.trim().trim_matches('"').trim_matches('\'').trim();
+                if !v.is_empty() {
+                    return v.to_string();
+                }
+            }
+        }
+    }
+    "claude".to_string()
+}
+
+/// Launch an idea-shaping agent into the pool: run the configured agent at the
+/// workspace root, preloaded with a front-of-funnel skill (grill-me, …) and an
+/// optional seed. The agent loads the skill via AGENTS.md and drives the chain
+/// itself (→ to-prd → to-issues → `iudex queue`), so any tickets it creates show
+/// up through the events.jsonl doorbell. Ticket-less: `@iudex_role` holds the
+/// skill name. The frontend opens this session in the Terminal to converse.
+#[tauri::command]
+pub fn spawn_idea(root: String, skill: String, seed: String) -> Result<Session, String> {
+    let mut prompt = format!(
+        "Use the \"{skill}\" skill (.iudex/skills/{skill}/SKILL.md) to shape work \
+         into iudex tickets. Follow the skill and its chained skills through to \
+         registering tickets with `iudex queue`."
+    );
+    if !seed.trim().is_empty() {
+        prompt.push_str(&format!("\n\nIdea / focus:\n{}", seed.trim()));
+    }
+
+    let agent = agent_command(&root);
+    // Run the agent at the workspace root (skills live there, not in worktrees).
+    let cmd = format!("cd {} && {} {}", sh_quote(&root), agent, sh_quote(&prompt));
+
+    let started = now_millis();
+    let name = format!(
+        "{PREFIX}idea-{started}-{}",
+        SEQ.fetch_add(1, Ordering::Relaxed)
+    );
+    let st = Command::new("tmux")
+        .args(["new-session", "-d", "-s", &name, &cmd])
+        .status()
+        .map_err(|e| format!("tmux new-session: {e}"))?;
+    if !st.success() {
+        return Err("tmux new-session failed".to_string());
+    }
+    let _ = Command::new("tmux")
+        .args(["set-option", "-w", "-t", &name, "remain-on-exit", "on"])
+        .status();
+    for (opt, val) in [("@iudex_role", skill.as_str()), ("@iudex_started", started.as_str())] {
+        let _ = Command::new("tmux")
+            .args(["set-option", "-t", &name, opt, val])
+            .status();
+    }
+
+    Ok(Session {
+        name,
+        kind: "idea".to_string(),
+        ticket: None,
+        role: nonempty(&skill),
+        started: Some(started),
+        title: format!("idea: {skill}"),
     })
 }
 

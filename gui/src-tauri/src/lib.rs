@@ -82,6 +82,68 @@ fn iudex_status(root: String) -> Result<serde_json::Value, String> {
     serde_json::from_slice(&out.stdout).map_err(|e| format!("invalid JSON from iudex: {e}"))
 }
 
+/// Compose a new ticket from the GUI: allocate the next id (`iudex
+/// next-ticket-id`), write the brief to `.iudex/queue/tN.md`, then register it
+/// with `iudex queue [--deps …]`. This is the thin native front-of-funnel for
+/// trivial manual tickets; the heavier shaping path spawns a skill agent
+/// instead. Returns the new ticket id. The doorbell then refreshes the table.
+#[tauri::command]
+fn compose_ticket(
+    root: String,
+    title: String,
+    body: String,
+    deps: Vec<String>,
+) -> Result<String, String> {
+    // Allocate the next id (CLI prints a bare number, e.g. "7").
+    let out = Command::new(iudex_bin())
+        .arg("next-ticket-id")
+        .current_dir(&root)
+        .output()
+        .map_err(|e| format!("iudex next-ticket-id: {e}"))?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
+    let n = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if n.is_empty() {
+        return Err("iudex next-ticket-id returned nothing".to_string());
+    }
+    let ticket = format!("t{n}");
+
+    // Build the brief: a title heading (when given) followed by the body.
+    let title = title.trim();
+    let body = body.trim();
+    let content = match (title.is_empty(), body.is_empty()) {
+        (false, false) => format!("# {ticket}: {title}\n\n{body}\n"),
+        (false, true) => format!("# {ticket}: {title}\n"),
+        (true, false) => format!("{body}\n"),
+        (true, true) => format!("# {ticket}\n"),
+    };
+
+    let queue_file = Path::new(&root)
+        .join(".iudex")
+        .join("queue")
+        .join(format!("{ticket}.md"));
+    std::fs::write(&queue_file, content)
+        .map_err(|e| format!("write {}: {e}", queue_file.display()))?;
+
+    // Register it. On failure, remove the orphan brief so it isn't left behind.
+    let mut args = vec!["queue".to_string(), ticket.clone()];
+    if !deps.is_empty() {
+        args.push("--deps".to_string());
+        args.push(deps.join(","));
+    }
+    let out = Command::new(iudex_bin())
+        .args(&args)
+        .current_dir(&root)
+        .output()
+        .map_err(|e| format!("iudex queue: {e}"))?;
+    if !out.status.success() {
+        let _ = std::fs::remove_file(&queue_file);
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
+    Ok(ticket)
+}
+
 /// Watch `<root>/.iudex/` and emit `events-changed` whenever events.jsonl is
 /// touched. The frontend treats this purely as a doorbell and re-reads status;
 /// it is never the source of data. Watching the directory (not the file) keeps
@@ -130,9 +192,11 @@ pub fn run() {
             discover_workspace,
             iudex_status,
             run_iudex,
+            compose_ticket,
             watch_workspace,
             tmux::tmux_available,
             tmux::spawn_agent,
+            tmux::spawn_idea,
             tmux::clear_finished,
             tmux::session_status,
             tmux::list_sessions,

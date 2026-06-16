@@ -419,6 +419,145 @@ body {
   color: #9db4e0;
 }
 
+.tickets-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tickets-toolbar button {
+  padding: 6px 14px;
+  border: 1px solid #3a3b3f;
+  border-radius: 6px;
+  background: #2d6cdf;
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.tickets-toolbar button:hover {
+  background: #3a78e6;
+}
+
+.tickets-toolbar button.ghost {
+  background: transparent;
+  color: #9db4e0;
+}
+
+.tickets-toolbar button.ghost:hover {
+  background: #2a2b30;
+}
+
+/* Modal dialogs (compose ticket / new idea) */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 8vh;
+  z-index: 50;
+}
+
+.modal {
+  width: 560px;
+  max-width: calc(100vw - 32px);
+  max-height: 84vh;
+  overflow-y: auto;
+  background: #1e1f23;
+  border: 1px solid #3a3b3f;
+  border-radius: 10px;
+  padding: 18px 20px;
+}
+
+.modal h3 {
+  margin: 0 0 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.field > span {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #9a9aa0;
+}
+
+.field input,
+.field textarea,
+.field select {
+  padding: 7px 10px;
+  border: 1px solid #3a3b3f;
+  border-radius: 6px;
+  background: #232427;
+  color: #e6e6e6;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.field textarea {
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.dep-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dep-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: 1px solid #3a3b3f;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.modal-hint {
+  color: #8a8a90;
+  font-size: 12px;
+  line-height: 1.5;
+  margin: -4px 0 14px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.modal-actions button {
+  padding: 6px 16px;
+  border: 1px solid #3a3b3f;
+  border-radius: 6px;
+  background: #2d6cdf;
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.modal-actions button.ghost {
+  background: transparent;
+  color: #9a9aa0;
+}
+
+.modal-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .tickets {
   width: 100%;
   border-collapse: collapse;

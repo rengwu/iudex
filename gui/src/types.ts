@@ -22,7 +22,7 @@ export interface Workspace {
 // A session in the unified tmux pool, mirroring the Rust `Session` struct.
 export interface Session {
   name: string;
-  kind: "agent" | "shell";
+  kind: "agent" | "shell" | "idea";
   ticket: string | null;
   role?: string | null; // agent's role at spawn ("impl" | "qa")
   started?: string | null; // agent spawn time (unix millis string, sortable)
