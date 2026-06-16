@@ -1,39 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { VIEWS, type View, type Workspace } from "./types";
+import Dashboard from "./views/Dashboard";
+import Tickets from "./views/Tickets";
+import Stub from "./views/Stub";
 import "./App.css";
-
-// Mirrors the `iudex status --json` contract. The GUI holds no authoritative
-// state of its own; every field here comes from replaying events.jsonl in the
-// CLI, surfaced through that one read path.
-interface Ticket {
-  id: string;
-  state: string;
-  deps: string[];
-  qaRejects: number;
-  ready: boolean;
-  blockedBy: string[];
-  hasWorktree: boolean;
-  worktree?: string;
-}
-
-interface Workspace {
-  mainBranch: string;
-  maxActive: number;
-  qaRejectLimit: number;
-  tickets: Ticket[];
-}
 
 // Convenience default for local dev; paste any workspace path.
 const DEFAULT_PATH = "/Users/rengwu/Desktop/Projects/iudex-demo";
-
-function detail(t: Ticket): string {
-  if (t.state === "queued") {
-    return t.ready ? "ready" : `blocked by ${t.blockedBy.join(", ")}`;
-  }
-  if (t.hasWorktree && t.worktree) return t.worktree;
-  return "";
-}
 
 export default function App() {
   const [path, setPath] = useState(DEFAULT_PATH);
@@ -41,6 +16,7 @@ export default function App() {
   const [ws, setWs] = useState<Workspace | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<string>("");
+  const [view, setView] = useState<View>("dashboard");
 
   // The sole read path: re-run `iudex status --json` and replace local view.
   const load = useCallback(async (r: string) => {
@@ -99,35 +75,54 @@ export default function App() {
       {error && <div className="error">{error}</div>}
 
       {root && ws && (
-        <table className="tickets">
-          <thead>
-            <tr>
-              <th>id</th>
-              <th>state</th>
-              <th>qa rejects</th>
-              <th>detail</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ws.tickets.length === 0 && (
-              <tr>
-                <td colSpan={4} className="empty">
-                  no tickets yet
-                </td>
-              </tr>
-            )}
-            {ws.tickets.map((t) => (
-              <tr key={t.id}>
-                <td className="id">{t.id}</td>
-                <td>
-                  <span className={`state state-${t.state}`}>{t.state}</span>
-                </td>
-                <td className="num">{t.qaRejects || ""}</td>
-                <td className="muted">{detail(t)}</td>
-              </tr>
+        <>
+          <nav className="nav">
+            {VIEWS.map((v) => (
+              <button
+                key={v.id}
+                className={`nav-item${view === v.id ? " active" : ""}`}
+                onClick={() => setView(v.id)}
+              >
+                {v.label}
+              </button>
             ))}
-          </tbody>
-        </table>
+          </nav>
+
+          <section className="view">
+            {view === "dashboard" && <Dashboard ws={ws} onJump={setView} />}
+            {view === "tickets" && <Tickets ws={ws} />}
+            {view === "terminal" && (
+              <Stub
+                title="Terminal"
+                blurb="Tabbed tmux-backed terminal sessions — ad-hoc shells and the full interactive view of any agent."
+              />
+            )}
+            {view === "agents" && (
+              <Stub
+                title="Agents"
+                blurb="A grid of read-only peeks into live agent sessions, each with a synthesized health status."
+              />
+            )}
+            {view === "worktrees" && (
+              <Stub
+                title="Worktrees"
+                blurb="Read-only, editor-style inspection of any ticket worktree — file tree, Monaco preview, and diff vs main."
+              />
+            )}
+            {view === "review" && (
+              <Stub
+                title="Review"
+                blurb="A deep-review workspace for pending-human-qa items: brief + QA review + diff, with a preflighted approve & merge."
+              />
+            )}
+            {view === "settings" && (
+              <Stub
+                title="Settings"
+                blurb="Edit config.yml fields and the impl/review prompt templates."
+              />
+            )}
+          </section>
+        </>
       )}
     </main>
   );
