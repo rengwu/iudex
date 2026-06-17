@@ -19,6 +19,31 @@ export interface Workspace {
   tickets: Ticket[];
 }
 
+// A physical git worktree (from `list_worktrees`), joined on the frontend with
+// the tickets that map onto it. Keyed by `path`, so it appears once even if more
+// than one ticket references it; the relationship shows as ticket badges.
+export interface Worktree {
+  path: string;
+  branch: string;
+  head: string;
+  tickets: { id: string; state: string }[];
+}
+
+// A changed file in a worktree vs main (from `worktree_changes`).
+export interface FileChange {
+  path: string;
+  status: string; // "A" | "M" | "D" | "R" | "U"
+  additions?: number | null;
+  deletions?: number | null;
+}
+
+// Base vs head content for one file (from `worktree_file_diff`).
+export interface FileDiff {
+  original: string;
+  modified: string;
+  language: string;
+}
+
 // A session in the unified tmux pool, mirroring the Rust `Session` struct.
 export interface Session {
   name: string;

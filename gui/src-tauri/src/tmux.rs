@@ -159,17 +159,24 @@ fn parse_line(line: &str) -> Option<Session> {
     }
 }
 
-/// Create a fresh detached shell session with the lowest free index.
+/// Create a fresh detached shell session with the lowest free index. An optional
+/// `cwd` starts the shell in that directory (used by Worktrees' "Open shell" to
+/// drop into a worktree); omitted, it starts wherever tmux defaults.
 #[tauri::command]
-pub fn create_shell() -> Result<Session, String> {
+pub fn create_shell(cwd: Option<String>) -> Result<Session, String> {
     let existing = list_sessions()?;
     let mut n = 1;
     while existing.iter().any(|s| s.name == format!("{PREFIX}shell-{n}")) {
         n += 1;
     }
     let name = format!("{PREFIX}shell-{n}");
+    let mut args = vec!["new-session", "-d", "-s", &name];
+    if let Some(dir) = cwd.as_deref() {
+        args.push("-c");
+        args.push(dir);
+    }
     let st = Command::new("tmux")
-        .args(["new-session", "-d", "-s", &name])
+        .args(&args)
         .status()
         .map_err(|e| format!("tmux new-session: {e}"))?;
     if !st.success() {

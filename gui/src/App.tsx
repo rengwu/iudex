@@ -6,6 +6,7 @@ import Dashboard from "./views/Dashboard";
 import Tickets from "./views/Tickets";
 import Terminal from "./views/Terminal";
 import Agents from "./views/Agents";
+import Worktrees from "./views/Worktrees";
 import Stub from "./views/Stub";
 import "./App.css";
 
@@ -126,9 +127,13 @@ export default function App() {
               />
             )}
             {view === "worktrees" && (
-              <Stub
-                title="Worktrees"
-                blurb="Read-only, editor-style inspection of any ticket worktree — file tree, Monaco preview, and diff vs main."
+              <Worktrees
+                ws={ws}
+                root={root}
+                onOpenInTerminal={(name) => {
+                  setFocusSession(name);
+                  setView("terminal");
+                }}
               />
             )}
             {view === "review" && (

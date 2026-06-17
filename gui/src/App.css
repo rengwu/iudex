@@ -667,3 +667,256 @@ body {
   background: #2c2d31;
   color: #7a7a80;
 }
+
+/* Worktrees view — three panes: rail | changed files | diff */
+.wt {
+  display: flex;
+  gap: 10px;
+  height: calc(100vh - 150px);
+}
+
+.wt-empty,
+.wt-loading,
+.wt-diff-empty {
+  color: #8a8a90;
+  padding: 20px 4px;
+}
+
+.wt-rail {
+  width: 220px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border: 1px solid #3a3b3f;
+  border-radius: 8px;
+  background: #202125;
+  padding: 6px;
+}
+
+.wt-rail-head,
+.wt-files-head {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9a9aa0;
+  padding: 4px 6px 8px;
+}
+
+.wt-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #e6e6e6;
+  cursor: pointer;
+  text-align: left;
+}
+
+.wt-item:hover {
+  background: #2a2b30;
+}
+
+.wt-item.active {
+  background: #16171a;
+  border-color: #2d6cdf;
+}
+
+.wt-branch {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.wt-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.wt-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 11px;
+  background: #2c2d31;
+  color: #c8c8ce;
+}
+
+.wt-badge.muted {
+  color: #6a6a70;
+  font-style: italic;
+}
+
+.wt-files {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #3a3b3f;
+  border-radius: 8px;
+  background: #202125;
+  overflow: hidden;
+}
+
+.wt-filelist {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.wt-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.wt-file:hover {
+  background: #2a2b30;
+}
+
+.wt-file.active {
+  background: #16171a;
+}
+
+.wt-st {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 700;
+  font-size: 12px;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.wt-st-A {
+  color: #8fd6a4;
+}
+.wt-st-M {
+  color: #e0cf8f;
+}
+.wt-st-D {
+  color: #e09b8f;
+}
+.wt-st-R {
+  color: #9db4e0;
+}
+.wt-st-U {
+  color: #8a8a90;
+}
+
+.wt-path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
+}
+
+.wt-files-foot {
+  padding: 8px 10px;
+  border-top: 1px solid #3a3b3f;
+  font-size: 12px;
+  color: #9a9aa0;
+}
+
+.wt-files-foot .add {
+  color: #8fd6a4;
+}
+.wt-files-foot .del {
+  color: #e09b8f;
+}
+
+.wt-diff {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #3a3b3f;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #16171a;
+}
+
+/* Shared diff surface (DiffViewer) */
+.diff {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.diff-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #202125;
+  border-bottom: 1px solid #3a3b3f;
+}
+
+.diff-title {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: #c8c8ce;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.diff-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.wt-esc {
+  padding: 3px 10px;
+  border: 1px solid #3a3b3f;
+  border-radius: 6px;
+  background: transparent;
+  color: #9db4e0;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.wt-esc:hover {
+  background: #2a2b30;
+}
+
+.seg {
+  display: flex;
+  border: 1px solid #3a3b3f;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.seg button {
+  padding: 3px 10px;
+  border: none;
+  background: transparent;
+  color: #9a9aa0;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.seg button.on {
+  background: #2d6cdf;
+  color: white;
+}
+
+.diff-body {
+  flex: 1;
+  min-height: 0;
+}
