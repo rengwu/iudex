@@ -64,6 +64,28 @@ fn discover_workspace(start: String) -> Result<String, String> {
     }
 }
 
+/// Scaffold a non-iudex folder into a workspace by running `iudex init` there
+/// (git init + initial commit if it has no history, records the current branch
+/// as main_branch, creates `.iudex/`). Offered by the GUI when `discover_workspace`
+/// finds no workspace. Returns the canonical root on success.
+#[tauri::command]
+fn init_workspace(path: String) -> Result<String, String> {
+    let canon =
+        std::fs::canonicalize(&path).map_err(|e| format!("cannot resolve {path}: {e}"))?;
+    if !canon.is_dir() {
+        return Err(format!("{} is not a directory", canon.display()));
+    }
+    let out = Command::new(iudex_bin())
+        .arg("init")
+        .current_dir(&canon)
+        .output()
+        .map_err(|e| format!("failed to run {} init: {e}", iudex_bin()))?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
+    Ok(canon.to_string_lossy().into_owned())
+}
+
 /// Run `iudex status --json` in `root` and return the parsed JSON. This is the
 /// GUI's sole read path; the state machine stays single-sourced in the CLI.
 #[tauri::command]
@@ -658,6 +680,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             discover_workspace,
+            init_workspace,
             iudex_status,
             run_iudex,
             compose_ticket,

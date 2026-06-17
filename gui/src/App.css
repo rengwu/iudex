@@ -75,6 +75,50 @@ body {
   white-space: pre-wrap;
 }
 
+.init-offer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border: 1px solid #2a3a4a;
+  border-radius: 8px;
+  background: #1b2530;
+  color: #cfe0f0;
+}
+
+.init-offer code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #e6e6e6;
+}
+
+.init-hint {
+  color: #8a98a8;
+  font-size: 13px;
+}
+
+.init-offer button {
+  flex-shrink: 0;
+  padding: 7px 16px;
+  border: 1px solid #2d6cdf;
+  border-radius: 6px;
+  background: #2d6cdf;
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.init-offer button:hover:not(:disabled) {
+  background: #3a78e6;
+}
+
+.init-offer button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .nav {
   display: flex;
   gap: 2px;

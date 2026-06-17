@@ -19,6 +19,10 @@ export default function App() {
   const [root, setRoot] = useState<string | null>(null);
   const [ws, setWs] = useState<Workspace | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // True when the typed path exists but holds no iudex workspace — we then offer
+  // to initialize one there instead of just erroring.
+  const [offerInit, setOfferInit] = useState(false);
+  const [initing, setIniting] = useState(false);
   const [lastSync, setLastSync] = useState<string>("");
   const [view, setView] = useState<View>("dashboard");
   // Set when another view (an agent peek) asks Terminal to focus a session.
@@ -38,17 +42,48 @@ export default function App() {
     }
   }, []);
 
-  async function open() {
-    try {
-      const r = await invoke<string>("discover_workspace", { start: path });
+  // Wire up a resolved workspace root: read it and start the doorbell.
+  const enter = useCallback(
+    async (r: string) => {
       setRoot(r);
+      setError(null);
+      setOfferInit(false);
       await load(r);
       // Start the doorbell: any events.jsonl change triggers a re-read.
       await invoke("watch_workspace", { root: r });
+    },
+    [load]
+  );
+
+  async function open() {
+    try {
+      const r = await invoke<string>("discover_workspace", { start: path });
+      await enter(r);
     } catch (e) {
-      setError(String(e));
+      const msg = String(e);
       setRoot(null);
       setWs(null);
+      // A resolvable folder with no workspace → offer to initialize one there;
+      // anything else (e.g. a bad path) is a real error.
+      if (msg.includes("not inside an iudex workspace")) {
+        setOfferInit(true);
+        setError(null);
+      } else {
+        setError(msg);
+        setOfferInit(false);
+      }
+    }
+  }
+
+  async function initHere() {
+    setIniting(true);
+    try {
+      const r = await invoke<string>("init_workspace", { path });
+      await enter(r);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setIniting(false);
     }
   }
 
@@ -66,7 +101,11 @@ export default function App() {
       <header className="bar">
         <input
           value={path}
-          onChange={(e) => setPath(e.target.value)}
+          onChange={(e) => {
+            setPath(e.target.value);
+            setOfferInit(false);
+            setError(null);
+          }}
           placeholder="path to an iudex workspace"
           spellCheck={false}
         />
@@ -81,6 +120,22 @@ export default function App() {
       </header>
 
       {error && <div className="error">{error}</div>}
+
+      {offerInit && (
+        <div className="init-offer">
+          <div>
+            No iudex workspace at <code>{path}</code>.
+            <span className="init-hint">
+              {" "}
+              Initializing creates <code>.iudex/</code> here (and a git repo with an
+              initial commit if there isn’t one).
+            </span>
+          </div>
+          <button disabled={initing} onClick={initHere}>
+            {initing ? "Initializing…" : "Initialize iudex here"}
+          </button>
+        </div>
+      )}
 
       {root && ws && (
         <>
