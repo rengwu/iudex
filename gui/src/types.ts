@@ -51,6 +51,14 @@ export interface TaskDocs {
   review: string;
 }
 
+// One Review-rail card (from `rail_status`): a human title plus a coarse merge
+// badge, so the rail can be triaged without opening each ticket.
+export interface RailCard {
+  worktree: string;
+  title: string;
+  badge: "clean" | "conflicts" | "resolving";
+}
+
 // The merge-preflight for a pending-human-qa ticket (from `merge_preflight`):
 // predicts whether `iudex human-qa approve` would succeed.
 export interface Preflight {

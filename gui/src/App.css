@@ -1253,10 +1253,59 @@ body {
   border-color: #2d6cdf;
 }
 
+.rv-item-top {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
 .rv-item-id {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-weight: 600;
   font-size: 13px;
+  flex-shrink: 0;
+}
+
+.rv-item-title {
+  font-size: 12px;
+  color: #c8c8ce;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rv-item-sub {
+  font-size: 11px;
+  color: #6f8f74;
+}
+
+.rv-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.rv-badge-clean {
+  color: #8fd6a4;
+  background: #16241a;
+  border-color: #285437;
+}
+
+.rv-badge-conflicts {
+  color: #e0cf8f;
+  background: #241f12;
+  border-color: #5a4b2b;
+}
+
+.rv-badge-resolving {
+  color: #8fbce0;
+  background: #14202a;
+  border-color: #2b4a5a;
 }
 
 .rv-main {
@@ -1269,15 +1318,59 @@ body {
 
 .rv-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 12px;
-  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.rv-head-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.rv-head-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
 }
 
 .rv-head-id {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-weight: 600;
   font-size: 15px;
+}
+
+.rv-head-name {
+  font-size: 14px;
+  color: #d6d6dc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rv-head-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.rv-head-verdict {
+  color: #8fd6a4;
+}
+
+.rv-dot {
+  color: #6a6a70;
+}
+
+.rv-head-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .rv-ready.ok {
@@ -1341,29 +1434,61 @@ body {
   cursor: default;
 }
 
-.rv-body {
+.rv-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* The Changes tab: file list | diff. */
+.rv-split {
   flex: 1;
   min-height: 0;
   display: flex;
   gap: 10px;
 }
 
-.rv-docs {
-  width: 38%;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
+.rv-split > .rv-filelist {
+  width: 300px;
+  flex-shrink: 0;
   border: 1px solid #3a3b3f;
   border-radius: 8px;
   background: #202125;
-  overflow: hidden;
 }
 
 .rv-doctabs {
   display: flex;
   gap: 2px;
-  padding: 6px 6px 0;
+  padding: 0 2px;
   border-bottom: 1px solid #3a3b3f;
+  flex-shrink: 0;
+}
+
+.rv-tab-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: #e0cf8f;
+  vertical-align: middle;
+}
+
+.rv-conf-pad {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 16px;
+  border: 1px solid #3a3b3f;
+  border-radius: 8px;
+  background: #202125;
+}
+
+.rv-gate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
 }
 
 .rv-doctab {
@@ -1374,7 +1499,6 @@ body {
   color: #9a9aa0;
   cursor: pointer;
   font-size: 13px;
-  text-transform: capitalize;
 }
 
 .rv-doctab.active {
@@ -1384,23 +1508,18 @@ body {
 
 .rv-doc {
   margin: 0;
-  padding: 12px 14px;
+  padding: 14px 16px;
   overflow: auto;
   flex: 1;
+  border: 1px solid #3a3b3f;
+  border-radius: 8px;
+  background: #202125;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
   line-height: 1.5;
   color: #c8c8ce;
   white-space: pre-wrap;
   word-break: break-word;
-}
-
-.rv-diffwrap {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 
 .rv-filelist {

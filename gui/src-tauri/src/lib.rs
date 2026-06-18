@@ -748,6 +748,138 @@ fn open_in_editor(path: String) -> Result<(), String> {
         .map_err(|e| format!("cannot open {path}: {e}"))
 }
 
+/// Reveal a path in the platform file manager — the Review header escape hatch.
+/// On macOS `open -R` selects it in Finder; elsewhere we open the path (a
+/// directory opens in the file manager). Fire-and-forget.
+#[tauri::command]
+fn reveal_in_finder(path: String) -> Result<(), String> {
+    let mut cmd = if cfg!(target_os = "macos") {
+        let mut c = Command::new("open");
+        c.args(["-R", &path]);
+        c
+    } else {
+        let mut c = Command::new("xdg-open");
+        c.arg(&path);
+        c
+    };
+    cmd.spawn()
+        .map(|_| ())
+        .map_err(|e| format!("cannot reveal {path}: {e}"))
+}
+
+/// Open a folder via the OS "open with…" application picker — the Review header
+/// escape hatch. On macOS this is AppleScript's native `choose application`
+/// dialog, then `open -a <chosen>`; on Linux it falls back to `mimeopen --ask`
+/// if present, else the default opener. The picker is interactive, so we spawn
+/// and return immediately (the script does the open once the user picks).
+#[tauri::command]
+fn open_folder_with(path: String) -> Result<(), String> {
+    if cfg!(target_os = "macos") {
+        let esc = path.replace('\\', "\\\\").replace('"', "\\\"");
+        let script = format!(
+            "set p to \"{esc}\"\n\
+             set theApp to choose application with prompt \"Open folder with…\"\n\
+             do shell script \"open -a \" & quoted form of (name of theApp as text) & \" \" & quoted form of p"
+        );
+        return Command::new("osascript")
+            .arg("-e")
+            .arg(script)
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| format!("open-with: {e}"));
+    }
+    // Linux: mimeopen's chooser if available, otherwise the default opener.
+    if Command::new("mimeopen").args(["--ask", &path]).spawn().is_ok() {
+        return Ok(());
+    }
+    Command::new("xdg-open")
+        .arg(&path)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("open-with: {e}"))
+}
+
+/// The Review rail needs, per pending-human-qa ticket, a human title and a
+/// coarse merge badge — so the human can sequence the clean merges first and
+/// batch the conflicted ones without opening each. `title` is the first content
+/// line of the worktree's `.task/brief.md`; `badge` is one of
+/// `clean` / `conflicts` / `resolving`.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RailCard {
+    worktree: String,
+    title: String,
+    badge: String,
+}
+
+/// First non-empty, non-heading line of a worktree's brief — the ticket title.
+fn brief_title(worktree: &str) -> String {
+    let text = std::fs::read_to_string(Path::new(worktree).join(".task").join("brief.md"))
+        .unwrap_or_default();
+    for line in text.lines() {
+        let l = line.trim();
+        if l.is_empty() || l.starts_with('#') {
+            continue;
+        }
+        return l.to_string();
+    }
+    String::new()
+}
+
+#[tauri::command]
+fn rail_status(
+    root: String,
+    main_branch: String,
+    worktrees: Vec<String>,
+) -> Result<Vec<RailCard>, String> {
+    let mut out = Vec::with_capacity(worktrees.len());
+    for worktree in worktrees {
+        let title = brief_title(&worktree);
+        // A merge already underway in the worktree wins the badge outright.
+        let merging = Command::new("git")
+            .args(["-C", &worktree, "rev-parse", "-q", "--verify", "MERGE_HEAD"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+        let badge = if merging {
+            "resolving"
+        } else {
+            let work_branch = Command::new("git")
+                .args(["-C", &worktree, "rev-parse", "--abbrev-ref", "HEAD"])
+                .output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+                .unwrap_or_default();
+            // Same zero-side-effect prediction as merge_preflight's gate 3.
+            let conflict = Command::new("git")
+                .args([
+                    "-C",
+                    &root,
+                    "merge-tree",
+                    "--write-tree",
+                    "-z",
+                    "--name-only",
+                    &main_branch,
+                    &work_branch,
+                ])
+                .output()
+                .map(|o| !o.status.success())
+                .unwrap_or(false);
+            if conflict {
+                "conflicts"
+            } else {
+                "clean"
+            }
+        }
+        .to_string();
+        out.push(RailCard {
+            worktree,
+            title,
+            badge,
+        });
+    }
+    Ok(out)
+}
+
 /// Watch `<root>/.iudex/` and emit `events-changed` whenever events.jsonl is
 /// touched. The frontend treats this purely as a doorbell and re-reads status;
 /// it is never the source of data. Watching the directory (not the file) keeps
@@ -810,6 +942,9 @@ pub fn run() {
             begin_resolution,
             abort_resolution,
             open_in_editor,
+            reveal_in_finder,
+            open_folder_with,
+            rail_status,
             watch_workspace,
             tmux::tmux_available,
             tmux::spawn_agent,
