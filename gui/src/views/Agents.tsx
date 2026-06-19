@@ -9,7 +9,7 @@ import {
   type AgentStatus,
 } from "../lib/agents";
 import type { FileChange, FileDiff, Session, Ticket, Workspace } from "../types";
-import StateBadge from "../components/StateBadge";
+import { useTicketDocs } from "../lib/tickets";
 import ChangedFilesDiff from "../components/ChangedFilesDiff";
 import XtermPane from "./XtermPane";
 import s from "./Agents.module.scss";
@@ -38,7 +38,17 @@ function StatusPill({ status }: { status: AgentStatus }) {
 // interactive console plus its worktree diff and a ticket summary. Agents
 // accumulate (a ticket can have several: impl, qa, resolve), each a distinct
 // session; idea-shaping sessions are excluded (they're not ticket agents).
-export default function Agents({ ws }: { ws: Workspace }) {
+export default function Agents({
+  ws,
+  root,
+  focusAgent,
+  onFocusHandled,
+}: {
+  ws: Workspace;
+  root: string;
+  focusAgent?: string | null;
+  onFocusHandled?: () => void;
+}) {
   const { sessions, available } = useSessions();
   const agents = sessions
     .filter((x) => x.kind === "agent")
@@ -67,6 +77,14 @@ export default function Agents({ ws }: { ws: Workspace }) {
   useEffect(() => {
     if (selName && !agents.some((a) => a.name === selName)) setSelName(null);
   }, [agents, selName]);
+
+  // Cross-view focus: select a specific agent when jumping from Tickets.
+  useEffect(() => {
+    if (focusAgent && agents.some((a) => a.name === focusAgent)) {
+      setSelName(focusAgent);
+      onFocusHandled?.();
+    }
+  }, [focusAgent, agents, onFocusHandled]);
 
   const kill = async (name: string) => {
     await invoke("kill_session", { name }).catch(() => {});
@@ -135,6 +153,7 @@ export default function Agents({ ws }: { ws: Workspace }) {
             key={selected.name}
             agent={selected}
             ws={ws}
+            root={root}
             status={statuses[selected.name] ?? "idle"}
             title={(worktreeOf(selected) && titles[worktreeOf(selected)!]) || ""}
             worktree={worktreeOf(selected)}
@@ -159,6 +178,7 @@ type Tab = "ticket" | "console" | "worktree";
 function AgentDetail({
   agent,
   ws,
+  root,
   status,
   title,
   worktree,
@@ -167,6 +187,7 @@ function AgentDetail({
 }: {
   agent: Session;
   ws: Workspace;
+  root: string;
   status: AgentStatus;
   title: string;
   worktree: string | null;
@@ -220,38 +241,26 @@ function AgentDetail({
           ) : (
             <div className={`${s.pad} muted`}>This agent has no worktree.</div>
           ))}
-        {tab === "ticket" && <TicketSummary ticket={ticket} role={agent.role ?? "agent"} />}
+        {tab === "ticket" && (
+          ticket
+            ? <TicketBrief root={root} ticket={ticket} />
+            : <div className={`${s.pad} muted`}>No ticket for this agent.</div>
+        )}
       </div>
     </div>
   );
 }
 
-// A minimal read-only ticket summary — a placeholder until the dedicated
-// "ticket details" view lands.
-function TicketSummary({ ticket, role }: { ticket: Ticket | null; role: string }) {
-  if (!ticket) return <div className={`${s.pad} muted`}>No ticket for this agent.</div>;
+
+// The ticket brief shown in the Agents panel ticket tab — a simple read-only
+// display of the brief text, without the full TicketDetail panel chrome.
+function TicketBrief({ root, ticket }: { root: string; ticket: Ticket }) {
+  const { docs, loading } = useTicketDocs(root, ticket);
   return (
-    <div className={`${s.pad} ${s.ticket}`}>
-      <div className={s.kv}>
-        <span>ticket</span>
-        <b>{ticket.id}</b>
-      </div>
-      <div className={s.kv}>
-        <span>state</span>
-        <StateBadge state={ticket.state} />
-      </div>
-      <div className={s.kv}>
-        <span>agent role</span>
-        <b>{role}</b>
-      </div>
-      <div className={s.kv}>
-        <span>deps</span>
-        <b>{ticket.deps.length ? ticket.deps.join(", ") : "—"}</b>
-      </div>
-      <div className={s.kv}>
-        <span>qa rejects</span>
-        <b>{ticket.qaRejects}</b>
-      </div>
+    <div className={s.pad}>
+      {loading && <span className="muted">loading…</span>}
+      {!loading && docs?.brief?.trim() && <pre className={s.doc}>{docs.brief}</pre>}
+      {!loading && !docs?.brief?.trim() && <span className="muted">(no brief)</span>}
     </div>
   );
 }

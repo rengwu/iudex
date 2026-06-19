@@ -8,6 +8,7 @@ export interface Ticket {
   qaRejects: number;
   ready: boolean;
   blockedBy: string[];
+  blocks?: string[];
   hasWorktree: boolean;
   worktree?: string;
 }

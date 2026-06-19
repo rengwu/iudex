@@ -30,6 +30,8 @@ export default function App() {
   const [focusSession, setFocusSession] = useState<string | null>(null);
   // Set when the Dashboard opens a specific ticket straight into Review.
   const [focusTicket, setFocusTicket] = useState<string | null>(null);
+  // Set when a ticket detail panel wants to jump to a specific agent in Agents.
+  const [focusAgent, setFocusAgent] = useState<string | null>(null);
 
   // The sole read path: re-run `iudex status --json` and replace local view.
   const load = useCallback(async (r: string) => {
@@ -171,6 +173,10 @@ export default function App() {
                   setFocusSession(name);
                   setView("terminal");
                 }}
+                onJumpToAgent={(name) => {
+                  setFocusAgent(name);
+                  setView("agents");
+                }}
               />
             )}
             {/* Terminal stays mounted across view switches so its tabs and
@@ -185,7 +191,14 @@ export default function App() {
                 onFocusHandled={() => setFocusSession(null)}
               />
             </div>
-            {view === "agents" && <Agents ws={ws} />}
+            {view === "agents" && (
+              <Agents
+                ws={ws}
+                root={root}
+                focusAgent={focusAgent}
+                onFocusHandled={() => setFocusAgent(null)}
+              />
+            )}
             {view === "worktrees" && (
               <Worktrees
                 ws={ws}

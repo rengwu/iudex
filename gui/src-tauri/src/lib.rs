@@ -561,6 +561,26 @@ struct TaskDocs {
 }
 
 #[tauri::command]
+fn read_queue_brief(root: String, id: String) -> Result<String, String> {
+    let path = Path::new(&root)
+        .join(".iudex")
+        .join("queue")
+        .join(format!("{}.md", id));
+    std::fs::read_to_string(&path)
+        .map_err(|e| format!("cannot read queue brief for {id}: {e}"))
+}
+
+#[tauri::command]
+fn write_queue_brief(root: String, id: String, content: String) -> Result<(), String> {
+    let path = Path::new(&root)
+        .join(".iudex")
+        .join("queue")
+        .join(format!("{}.md", id));
+    std::fs::write(&path, content)
+        .map_err(|e| format!("cannot write queue brief for {id}: {e}"))
+}
+
+#[tauri::command]
 fn worktree_task_docs(worktree: String) -> Result<TaskDocs, String> {
     let read = |name: &str| {
         std::fs::read_to_string(Path::new(&worktree).join(".task").join(name)).unwrap_or_default()
@@ -1125,6 +1145,8 @@ pub fn run() {
             list_worktrees,
             worktree_changes,
             worktree_file_diff,
+            read_queue_brief,
+            write_queue_brief,
             worktree_task_docs,
             merge_preflight,
             begin_resolution,

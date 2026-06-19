@@ -224,21 +224,14 @@
   overflow-y: auto;
 }
 
-.ticket {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.kv {
-  display: flex;
-  gap: 12px;
-  font-size: 13px;
-
-  > span:first-child {
-    width: 90px;
-    color: t.$muted;
-  }
+.doc {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: t.$text-dim;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 // Synthesized agent status pill (Agents-local vocabulary).

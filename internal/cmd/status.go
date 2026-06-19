@@ -106,6 +106,7 @@ type jsonTicket struct {
 	QARejects   int      `json:"qaRejects"`
 	Ready       bool     `json:"ready"`
 	BlockedBy   []string `json:"blockedBy"`
+	Blocks      []string `json:"blocks"`
 	HasWorktree bool     `json:"hasWorktree"`
 	Worktree    string   `json:"worktree,omitempty"`
 }
@@ -124,6 +125,21 @@ func runStatusJSON(cmd *cobra.Command, ctx *wsContext) error {
 		return ni < nj
 	})
 
+	// Build inverse dep map: which tickets does each ticket unblock / block?
+	blocksMap := make(map[string][]string)
+	for _, s := range ctx.Statuses {
+		for _, dep := range s.Deps {
+			blocksMap[dep] = append(blocksMap[dep], s.Ticket)
+		}
+	}
+	for k := range blocksMap {
+		sort.Slice(blocksMap[k], func(i, j int) bool {
+			ni, _ := ticket.ParseID(blocksMap[k][i])
+			nj, _ := ticket.ParseID(blocksMap[k][j])
+			return ni < nj
+		})
+	}
+
 	out := jsonWorkspace{
 		MainBranch:    ctx.Config.MainBranch,
 		MaxActive:     ctx.Config.MaxActive,
@@ -133,6 +149,10 @@ func runStatusJSON(cmd *cobra.Command, ctx *wsContext) error {
 	for _, id := range ids {
 		s := ctx.Statuses[id]
 		ready, blocking := ticket.DepsReady(s, ctx.Statuses)
+		blocks := blocksMap[id]
+		if blocks == nil {
+			blocks = []string{}
+		}
 		jt := jsonTicket{
 			ID:          s.Ticket,
 			State:       string(s.State),
@@ -140,6 +160,7 @@ func runStatusJSON(cmd *cobra.Command, ctx *wsContext) error {
 			QARejects:   s.QARejects,
 			Ready:       ready,
 			BlockedBy:   append([]string{}, blocking...),
+			Blocks:      blocks,
 			HasWorktree: ticket.HasWorktree(s.State),
 		}
 		if jt.HasWorktree {

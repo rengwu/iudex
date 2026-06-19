@@ -4,6 +4,7 @@ import type { Session, Ticket, Workspace } from "../types";
 import { IDEA_SKILLS } from "../lib/skills";
 import StateBadge from "../components/StateBadge";
 import Modal from "../components/Modal";
+import TicketDetail from "../components/TicketDetail";
 import s from "./Tickets.module.scss";
 
 // What to show in the trailing "detail" column for a ticket.
@@ -23,15 +24,22 @@ export default function Tickets({
   ws,
   root,
   onOpenInTerminal,
+  onJumpToAgent,
 }: {
   ws: Workspace;
   root: string;
   onOpenInTerminal: (session: string) => void;
+  onJumpToAgent: (sessionName: string) => void;
 }) {
   const [busy, setBusy] = useState<string | null>(null); // ticket id mid-action
   const [error, setError] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
   const [ideating, setIdeating] = useState(false);
+  const [selId, setSelId] = useState<string | null>(null);
+
+  const sel = selId ? (ws.tickets.find((t) => t.id === selId) ?? null) : null;
+  // Drop selection if the ticket disappears (e.g. removed).
+  if (selId && !sel) setSelId(null);
 
   const act = async (id: string, fn: () => Promise<void>) => {
     setBusy(id);
@@ -48,14 +56,21 @@ export default function Tickets({
   const activate = (id: string) =>
     act(id, async () => {
       await invoke("run_iudex", { root, args: ["activate", id] });
-      await invoke("spawn_agent", { root, ticket: id, role: "impl" });
+      const s = await invoke<Session>("spawn_agent", { root, ticket: id, role: "impl" });
+      onJumpToAgent(s.name);
     });
   const finish = (id: string) =>
     act(id, () => invoke("run_iudex", { root, args: ["finish", id] }));
   const spawnImpl = (id: string) =>
-    act(id, () => invoke("spawn_agent", { root, ticket: id, role: "impl" }));
+    act(id, async () => {
+      const s = await invoke<Session>("spawn_agent", { root, ticket: id, role: "impl" });
+      onJumpToAgent(s.name);
+    });
   const spawnQa = (id: string) =>
-    act(id, () => invoke("spawn_agent", { root, ticket: id, role: "qa" }));
+    act(id, async () => {
+      const s = await invoke<Session>("spawn_agent", { root, ticket: id, role: "qa" });
+      onJumpToAgent(s.name);
+    });
   const retry = (id: string) =>
     act(id, () => invoke("run_iudex", { root, args: ["retry", id] }));
 
@@ -106,49 +121,68 @@ export default function Tickets({
   };
 
   return (
-    <div>
-      <div className={s.toolbar}>
-        <button onClick={() => setComposing(true)}>New ticket</button>
-        <button className="ghost" onClick={() => setIdeating(true)}>
-          New idea
-        </button>
+    <div className={s.root}>
+      <div className={s.listPane}>
+        <div className={s.toolbar}>
+          <button onClick={() => setComposing(true)}>New ticket</button>
+          <button className="ghost" onClick={() => setIdeating(true)}>
+            New idea
+          </button>
+        </div>
+
+        {error && <div className="error">{error}</div>}
+
+        <table className={s.table}>
+          <thead>
+            <tr>
+              <th>id</th>
+              <th>state</th>
+              <th>qa rejects</th>
+              <th>detail</th>
+              <th>actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ws.tickets.length === 0 && (
+              <tr>
+                <td colSpan={5} className={s.empty}>
+                  no tickets yet
+                </td>
+              </tr>
+            )}
+            {ws.tickets.map((t) => (
+              <tr
+                key={t.id}
+                className={t.id === selId ? s.selRow : ""}
+                onClick={() => setSelId(t.id === selId ? null : t.id)}
+                style={{ cursor: "pointer" }}
+              >
+                <td className={s.id}>{t.id}</td>
+                <td>
+                  <StateBadge state={t.state} />
+                </td>
+                <td className={s.num}>{t.qaRejects || ""}</td>
+                <td className={s.muted}>{detail(t)}</td>
+                <td className={s.actions} onClick={(e) => e.stopPropagation()}>
+                  {busy === t.id ? <span className="muted">…</span> : actionsFor(t)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
-      {error && <div className="error">{error}</div>}
-
-      <table className={s.table}>
-        <thead>
-          <tr>
-            <th>id</th>
-            <th>state</th>
-            <th>qa rejects</th>
-            <th>detail</th>
-            <th>actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {ws.tickets.length === 0 && (
-            <tr>
-              <td colSpan={5} className={s.empty}>
-                no tickets yet
-              </td>
-            </tr>
-          )}
-          {ws.tickets.map((t) => (
-            <tr key={t.id}>
-              <td className={s.id}>{t.id}</td>
-              <td>
-                <StateBadge state={t.state} />
-              </td>
-              <td className={s.num}>{t.qaRejects || ""}</td>
-              <td className={s.muted}>{detail(t)}</td>
-              <td className={s.actions}>
-                {busy === t.id ? <span className="muted">…</span> : actionsFor(t)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {sel && (
+        <div className={s.panel}>
+          <TicketDetail
+            root={root}
+            ticket={sel}
+            ws={ws}
+            onClose={() => setSelId(null)}
+            onJumpToAgent={onJumpToAgent}
+          />
+        </div>
+      )}
 
       {composing && (
         <ComposeTicketModal

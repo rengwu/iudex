@@ -1,0 +1,364 @@
+@use "../styles/tokens" as t;
+
+.root {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+// ── Header ────────────────────────────────────────────
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid t.$border;
+  flex-shrink: 0;
+}
+
+.headId {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.headClose {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: t.$muted;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 6px;
+
+  &:hover {
+    background: t.$hover;
+    color: t.$text;
+  }
+}
+
+// ── Title row ─────────────────────────────────────────
+.titleRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px 6px;
+  flex-shrink: 0;
+}
+
+.titleText {
+  flex: 1;
+  font-size: 17px;
+  font-weight: 600;
+  color: t.$text;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.titleInput {
+  flex: 1;
+  font-size: 17px;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: t.$text;
+  padding: 2px 6px;
+  margin: -2px -6px;
+
+  &:hover {
+    border-color: t.$border;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: t.$accent;
+    background: t.$bg;
+  }
+}
+
+// ── Actions menu ──────────────────────────────────────
+.menuWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.menuBtn {
+  border: 1px solid t.$border;
+  background: transparent;
+  color: t.$muted;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 8px;
+  border-radius: 6px;
+
+  &:hover {
+    background: t.$hover;
+    color: t.$text;
+  }
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 160px;
+  background: t.$panel;
+  border: 1px solid t.$border;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  z-index: 10;
+  overflow: hidden;
+}
+
+.menuItem {
+  display: block;
+  width: 100%;
+  padding: 8px 14px;
+  border: none;
+  background: transparent;
+  color: t.$text;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+
+  &:hover {
+    background: t.$hover;
+  }
+
+  &.danger {
+    color: t.$red;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+// ── Scrollable body ───────────────────────────────────
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+// ── Labeled section (fieldset-style) ──────────────────
+.section {
+  border: 1px solid t.$border;
+  border-radius: 8px;
+  padding: 12px;
+  position: relative;
+  margin-top: 6px;
+}
+
+.sectionLabel {
+  position: absolute;
+  top: -9px;
+  left: 10px;
+  background: t.$panel;
+  padding: 0 6px;
+  font-size: 11px;
+  color: t.$muted;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+
+// ── Brief section ─────────────────────────────────────
+.briefDoc {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: t.$text-dim;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.briefTextarea {
+  width: 100%;
+  min-height: 120px;
+  background: transparent;
+  border: none;
+  color: t.$text-dim;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+  padding: 0;
+
+  &:focus {
+    color: t.$text;
+  }
+}
+
+.placeholder {
+  color: t.$muted-3;
+  font-size: 12px;
+}
+
+// ── Two-column grid (info + agents) ───────────────────
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+// ── Info section ──────────────────────────────────────
+.kv {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  margin-bottom: 6px;
+  align-items: flex-start;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  > span:first-child {
+    width: 80px;
+    flex-shrink: 0;
+    color: t.$muted;
+  }
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.chip {
+  padding: 1px 7px;
+  border: 1px solid t.$border;
+  border-radius: 5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: t.$text-dim;
+}
+
+.wt {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: t.$muted-2;
+  word-break: break-all;
+}
+
+// ── Agents section ────────────────────────────────────
+.agentRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-bottom: 2px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  &:hover {
+    background: t.$hover;
+  }
+}
+
+.agentRole {
+  flex: 1;
+  color: t.$text-dim;
+}
+
+.agentStatus {
+  font-size: 11px;
+  color: t.$muted;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &.green { background: t.$green; }
+  &.grey  { background: t.$muted-3; }
+  &.red   { background: t.$red; }
+  &.blue  { background: t.$blue; }
+}
+
+// ── Log section ───────────────────────────────────────
+.logTabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.logTab {
+  padding: 3px 10px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: t.$muted;
+  cursor: pointer;
+  font-size: 12px;
+
+  &.active {
+    border-color: t.$border;
+    background: t.$hover;
+    color: t.$text;
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+}
+
+.logDoc {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: t.$text-dim;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+// ── Save footer (queued only) ─────────────────────────
+.footer {
+  padding: 8px 12px 10px;
+  border-top: 1px solid t.$border;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.saveBtn {
+  padding: 5px 16px;
+  border: 1px solid t.$border;
+  border-radius: 6px;
+  background: t.$accent;
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+
+  &:hover:not(:disabled) { background: #3a78e6; }
+  &:disabled { opacity: 0.5; cursor: default; }
+}
+
+.saveStatus {
+  font-size: 12px;
+  color: t.$muted;
+}
