@@ -3,6 +3,7 @@ import { DiffEditor, Editor } from "@monaco-editor/react";
 import { invoke } from "@tauri-apps/api/core";
 import type { ConflictFile } from "../types";
 import "../lib/monacoSetup";
+import s from "./MergeEditor.module.scss";
 
 const REF_OPTS = {
   readOnly: true,
@@ -97,36 +98,36 @@ export default function MergeEditor({
   const markersLeft = MARKER.test(result);
 
   return (
-    <div className="merge">
-      <div className="merge-head">
-        <span className="merge-path">{path}</span>
-        <div className="merge-actions">
+    <div className={s.merge}>
+      <div className={s.head}>
+        <span className={s.path}>{path}</span>
+        <div className={s.actions}>
           <button
-            className="wt-esc"
+            className="esc"
             disabled={!cf}
             onClick={() => setResult((r) => pickHunks(r, "theirs"))}
           >
             Use main
           </button>
           <button
-            className="wt-esc"
+            className="esc"
             disabled={!cf}
             onClick={() => setResult((r) => pickHunks(r, "ours"))}
           >
             Use this ticket
           </button>
           <button
-            className="wt-esc"
+            className="esc"
             disabled={!cf}
             onClick={() => setResult((r) => pickHunks(r, "both"))}
           >
             Use both
           </button>
-          <button className="wt-esc" onClick={onCancel}>
+          <button className="esc" onClick={onCancel}>
             Cancel
           </button>
           <button
-            className="merge-save"
+            className="go"
             disabled={saving || busy || !cf || markersLeft}
             title={markersLeft ? "remove the conflict markers first" : "stage this resolution"}
             onClick={markResolved}
@@ -137,15 +138,15 @@ export default function MergeEditor({
       </div>
       {err && <div className="error">{err}</div>}
       {markersLeft && (
-        <div className="merge-warn">
+        <div className={s.warn}>
           ⚠ Conflict markers still present — finish editing the result before marking
           resolved.
         </div>
       )}
-      <div className="merge-body">
-        <div className="merge-pane">
-          <div className="merge-pane-label">reference · main (incoming) ↔ this ticket</div>
-          <div className="merge-editor">
+      <div className={s.body}>
+        <div className={s.pane}>
+          <div className={s.label}>reference · main (incoming) ↔ this ticket</div>
+          <div className={s.editor}>
             {cf && (
               <DiffEditor
                 original={cf.theirs}
@@ -157,9 +158,9 @@ export default function MergeEditor({
             )}
           </div>
         </div>
-        <div className="merge-pane">
-          <div className="merge-pane-label">result · editable</div>
-          <div className="merge-editor">
+        <div className={s.pane}>
+          <div className={s.label}>result · editable</div>
+          <div className={s.editor}>
             <Editor
               value={result}
               onChange={(v) => setResult(v ?? "")}

@@ -10,7 +10,6 @@ import Worktrees from "./views/Worktrees";
 import Review from "./views/Review";
 import Settings from "./views/Settings";
 import "./styles/base.scss";
-import "./App.css";
 import a from "./App.module.scss";
 
 // Convenience default for local dev; paste any workspace path.

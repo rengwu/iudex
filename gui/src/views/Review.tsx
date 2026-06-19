@@ -3,8 +3,10 @@ import { invoke } from "@tauri-apps/api/core";
 import type { FileDiff, Preflight, Resolution, Session, Ticket, Workspace } from "../types";
 import { useRailStatus, useReview } from "../lib/review";
 import { useSessions } from "../lib/sessions";
+import ChangedFilesDiff from "../components/ChangedFilesDiff";
+import Modal from "../components/Modal";
+import s from "./Review.module.scss";
 
-const DiffViewer = lazy(() => import("./DiffViewer"));
 const MergeEditor = lazy(() => import("./MergeEditor"));
 
 type Tab = "brief" | "log" | "review" | "changes" | "conflicts";
@@ -201,7 +203,7 @@ export default function Review({
   };
 
   if (pending.length === 0)
-    return <div className="rv-empty">Nothing awaiting human review.</div>;
+    return <div className={s.empty}>Nothing awaiting human review.</div>;
 
   const docText =
     tab === "brief" ? docs?.brief : tab === "log" ? docs?.log : docs?.review;
@@ -209,49 +211,49 @@ export default function Review({
   const hb = headerBadge(preflight);
 
   return (
-    <div className="rv">
-      <aside className="rv-rail">
-        <div className="rv-rail-head">PENDING HUMAN QA</div>
+    <div className={s.root}>
+      <aside className={s.rail}>
+        <div className={s.railHead}>PENDING HUMAN QA</div>
         {pending.map((t) => {
           const b = railBadge(t.worktree ? rail[t.worktree]?.badge : undefined);
           return (
             <button
               key={t.id}
-              className={`rv-item${t.id === selId ? " active" : ""}`}
+              className={`${s.item} ${t.id === selId ? s.active : ""}`}
               onClick={() => setSelId(t.id)}
             >
-              <span className="rv-item-top">
-                <span className="rv-item-id">{t.id}</span>
-                <span className="rv-item-title">
+              <span className={s.itemTop}>
+                <span className={s.itemId}>{t.id}</span>
+                <span className={s.itemTitle}>
                   {(t.worktree && rail[t.worktree]?.title) || "…"}
                 </span>
               </span>
-              <span className="rv-item-sub">qa&nbsp;✓</span>
-              <span className={`rv-badge rv-badge-${b.cls}`}>{b.label}</span>
+              <span className={s.itemSub}>qa&nbsp;✓</span>
+              <span className={`${s.badge} ${badgeCls(b.cls)}`}>{b.label}</span>
             </button>
           );
         })}
       </aside>
 
-      <div className="rv-main">
-        <header className="rv-head">
-          <div className="rv-head-info">
-            <div className="rv-head-title">
-              <span className="rv-head-id">{selId}</span>
-              <span className="rv-head-name">{title}</span>
+      <div className={s.main}>
+        <header className={s.head}>
+          <div className={s.headInfo}>
+            <div className={s.headTitle}>
+              <span className={s.headId}>{selId}</span>
+              <span className={s.headName}>{title}</span>
             </div>
-            <div className="rv-head-sub">
-              <span className="rv-head-verdict">qa&nbsp;✓ approved</span>
-              <span className="rv-dot">·</span>
-              <span className={`rv-badge rv-badge-${hb.cls}`}>{hb.label}</span>
+            <div className={s.headSub}>
+              <span className={s.headVerdict}>qa&nbsp;✓ approved</span>
+              <span className={s.dot}>·</span>
+              <span className={`${s.badge} ${badgeCls(hb.cls)}`}>{hb.label}</span>
             </div>
           </div>
           {worktree && (
-            <div className="rv-head-actions">
-              <button className="wt-esc" onClick={() => revealInFinder(worktree)}>
+            <div className={s.headActions}>
+              <button className="esc" onClick={() => revealInFinder(worktree)}>
                 Reveal in Finder
               </button>
-              <button className="wt-esc" onClick={() => openFolderWith(worktree)}>
+              <button className="esc" onClick={() => openFolderWith(worktree)}>
                 Open with…
               </button>
             </div>
@@ -260,65 +262,41 @@ export default function Review({
 
         {error && <div className="error">{error}</div>}
 
-        <nav className="rv-doctabs">
+        <nav className={s.doctabs}>
           {(["brief", "log", "review", "changes", "conflicts"] as Tab[]).map((d) => (
             <button
               key={d}
-              className={`rv-doctab${tab === d ? " active" : ""}`}
+              className={`${s.doctab} ${tab === d ? s.active : ""}`}
               onClick={() => setTab(d)}
             >
               {d === "changes"
                 ? `changes (${changes.length})`
                 : TAB_LABELS[d]}
-              {d === "conflicts" && conflictsFlagged && <span className="rv-tab-dot" />}
+              {d === "conflicts" && conflictsFlagged && <span className={s.tabDot} />}
             </button>
           ))}
         </nav>
 
-        <div className="rv-content">
+        <div className={s.content}>
           {tab === "changes" ? (
-            <div className="rv-split">
-              <ul className="rv-filelist">
-                {changes.length === 0 && <li className="muted">no changes vs merge-base</li>}
-                {changes.map((c) => (
-                  <li
-                    key={c.path}
-                    className={`wt-file${c.path === selFile ? " active" : ""}`}
-                    onClick={() => setSelFile(c.path)}
-                  >
-                    <span className={`wt-st wt-st-${c.status}`}>{c.status}</span>
-                    <span className="wt-path">{c.path}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="rv-diff">
-                {selFile && diff ? (
-                  <Suspense fallback={<div className="wt-loading">loading editor…</div>}>
-                    <DiffViewer
-                      original={diff.original}
-                      modified={diff.modified}
-                      language={diff.language}
-                      title={selFile}
-                      actions={
-                        <button
-                          className="wt-esc"
-                          onClick={() => worktree && openInEditor(`${worktree}/${selFile}`)}
-                        >
-                          Open in editor
-                        </button>
-                      }
-                    />
-                  </Suspense>
-                ) : (
-                  <div className="wt-diff-empty">
-                    {changes.length > 0 ? "Pick a file to view its diff." : ""}
-                  </div>
-                )}
-              </div>
-            </div>
+            <ChangedFilesDiff
+              changes={changes}
+              selected={selFile}
+              onSelect={setSelFile}
+              diff={diff}
+              noChangesHint="no changes vs merge-base"
+              fileActions={
+                <button
+                  className="esc"
+                  onClick={() => worktree && selFile && openInEditor(`${worktree}/${selFile}`)}
+                >
+                  Open in editor
+                </button>
+              }
+            />
           ) : tab === "conflicts" ? (
             mergeFile && worktree ? (
-              <Suspense fallback={<div className="wt-loading">loading editor…</div>}>
+              <Suspense fallback={<div className="muted">loading editor…</div>}>
                 <MergeEditor
                   worktree={worktree}
                   path={mergeFile}
@@ -350,16 +328,16 @@ export default function Review({
               />
             )
           ) : (
-            <pre className="rv-doc">{docText?.trim() ? docText : `(no ${TAB_LABELS[tab]})`}</pre>
+            <pre className={s.doc}>{docText?.trim() ? docText : `(no ${TAB_LABELS[tab]})`}</pre>
           )}
         </div>
 
         {actErr && <div className="error">{actErr}</div>}
 
-        <div className="rv-actions">
+        <div className={s.actions}>
           <RejectButton disabled={busy} onReject={reject} />
           <button
-            className="rv-approve"
+            className={s.approve}
             disabled={busy || !preflight?.ready}
             title={preflight?.ready ? "merge into main" : "blocked — see the Conflicts tab"}
             onClick={approve}
@@ -409,11 +387,11 @@ function ConflictsTab({
   onPickConflict: (f: string) => void;
   onOpenFlagged: (f: string) => void;
 }) {
-  if (!pf) return <div className="rv-conf-pad muted">Checking merge readiness…</div>;
+  if (!pf) return <div className={`${s.confPad} muted`}>Checking merge readiness…</div>;
   if (pf.ready)
     return (
-      <div className="rv-conf-pad">
-        <p className="rv-ready ok">✓ Ready to merge — no conflicts.</p>
+      <div className={s.confPad}>
+        <p className={s.ready}>✓ Ready to merge — no conflicts.</p>
         <p className="muted">Review the changes, then Approve &amp; merge below.</p>
       </div>
     );
@@ -421,9 +399,9 @@ function ConflictsTab({
   // Root-level gates apply regardless of conflicts.
   if (!pf.onMain)
     return (
-      <div className="rv-conf-pad rv-blocked">
-        <div className="rv-gate">
-          <span className="rv-gate-msg">
+      <div className={`${s.confPad} ${s.blocked}`}>
+        <div className={s.gate}>
+          <span className={s.gateMsg}>
             ⚠ Repo root is on <b>{pf.currentBranch}</b>, not the main branch — switch it first.
           </span>
         </div>
@@ -431,13 +409,13 @@ function ConflictsTab({
     );
   if (!pf.clean)
     return (
-      <div className="rv-conf-pad rv-blocked">
-        <div className="rv-gate">
-          <span className="rv-gate-msg">
+      <div className={`${s.confPad} ${s.blocked}`}>
+        <div className={s.gate}>
+          <span className={s.gateMsg}>
             ⚠ Repo root has {pf.dirtyFiles.length} uncommitted change
             {pf.dirtyFiles.length === 1 ? "" : "s"} — commit or stash first.
           </span>
-          <button className="wt-esc" disabled={busy} onClick={onShellRoot}>
+          <button className="esc" disabled={busy} onClick={onShellRoot}>
             Open shell at root
           </button>
         </div>
@@ -450,37 +428,37 @@ function ConflictsTab({
     const allResolved = flagged.length === 0;
     const resolved = resolution?.resolved ?? [];
     return (
-      <div className="rv-conf-pad rv-blocked">
+      <div className={`${s.confPad} ${s.blocked}`}>
         {resolverActive && (
-          <div className="rv-resolver">
-            <span className="rv-gate-msg">◐ Resolver agent working in the worktree…</span>
-            <button className="wt-esc" disabled={busy} onClick={onWatch}>
+          <div className={s.resolver}>
+            <span className={s.gateMsg}>◐ Resolver agent working in the worktree…</span>
+            <button className="esc" disabled={busy} onClick={onWatch}>
               Watch
             </button>
-            <button className="wt-esc danger" disabled={busy} onClick={onStop}>
+            <button className="esc danger" disabled={busy} onClick={onStop}>
               Stop
             </button>
-            <button className="wt-esc" disabled={busy} onClick={onRecheck}>
+            <button className="esc" disabled={busy} onClick={onRecheck}>
               Re-check
             </button>
           </div>
         )}
 
         {allResolved ? (
-          <div className="rv-gate">
-            <span className="rv-gate-msg">
+          <div className={s.gate}>
+            <span className={s.gateMsg}>
               ✓ All conflicts resolved — commit to finish the merge.
             </span>
-            <button className="merge-save" disabled={busy} onClick={onCommit}>
+            <button className="go" disabled={busy} onClick={onCommit}>
               Commit resolution
             </button>
-            <button className="wt-esc danger" disabled={busy} onClick={onAbort}>
+            <button className="esc danger" disabled={busy} onClick={onAbort}>
               Abort
             </button>
           </div>
         ) : (
           <>
-            <p className="rv-flag-head">
+            <p className={s.flagHead}>
               {resolution?.hasReport
                 ? `Agent flagged ${flagged.length} conflict${
                     flagged.length === 1 ? "" : "s"
@@ -489,29 +467,29 @@ function ConflictsTab({
                     flagged.length === 1 ? "" : "s"
                   } — open one to resolve it:`}
             </p>
-            <ul className="rv-flaglist">
+            <ul className={s.flaglist}>
               {flagged.map((f) => (
                 <li key={f.file}>
-                  <button className="rv-flag-open" onClick={() => onOpenFlagged(f.file)}>
-                    <span className="rv-flag-file">{f.file}</span>
-                    {f.reason && <span className="rv-flag-reason">{f.reason}</span>}
+                  <button className={s.flagOpen} onClick={() => onOpenFlagged(f.file)}>
+                    <span className={s.flagFile}>{f.file}</span>
+                    {f.reason && <span className={s.flagReason}>{f.reason}</span>}
                   </button>
                 </li>
               ))}
             </ul>
             {resolved.length > 0 && (
-              <p className="muted rv-resolved-note">
+              <p className={`muted ${s.resolvedNote}`}>
                 Agent already resolved: {resolved.map((r) => r.file).join(", ")}
               </p>
             )}
-            <div className="rv-gate-actions">
-              <button className="wt-esc" disabled={busy} onClick={onShellWorktree}>
+            <div className={s.gateActions}>
+              <button className="esc" disabled={busy} onClick={onShellWorktree}>
                 Open worktree shell
               </button>
-              <button className="wt-esc danger" disabled={busy} onClick={onAbort}>
+              <button className="esc danger" disabled={busy} onClick={onAbort}>
                 Abort resolution
               </button>
-              <button className="wt-esc" disabled={busy} onClick={onRecheck}>
+              <button className="esc" disabled={busy} onClick={onRecheck}>
                 Re-check
               </button>
             </div>
@@ -523,36 +501,45 @@ function ConflictsTab({
 
   // Predicted conflict, not yet started.
   return (
-    <div className="rv-conf-pad rv-blocked">
-      <div className="rv-gate">
-        <span className="rv-gate-msg">
+    <div className={`${s.confPad} ${s.blocked}`}>
+      <div className={s.gate}>
+        <span className={s.gateMsg}>
           ⚠ Would conflict in {pf.conflictFiles.length} file
           {pf.conflictFiles.length === 1 ? "" : "s"}:
         </span>
-        <span className="rv-conflicts">
+        <span className={s.conflicts}>
           {pf.conflictFiles.map((f) => (
-            <button key={f} className="rv-conflict" onClick={() => onPickConflict(f)}>
+            <button key={f} className={s.conflict} onClick={() => onPickConflict(f)}>
               {f}
             </button>
           ))}
         </span>
       </div>
-      <div className="rv-gate-actions">
-        <button className="merge-save" disabled={busy} onClick={onResolveAgent}>
+      <div className={s.gateActions}>
+        <button className="go" disabled={busy} onClick={onResolveAgent}>
           Resolve with agent
         </button>
-        <button className="wt-esc" disabled={busy} onClick={onBegin}>
+        <button className="esc" disabled={busy} onClick={onBegin}>
           Resolve manually
         </button>
-        <button className="wt-esc" disabled={busy} onClick={onShellWorktree}>
+        <button className="esc" disabled={busy} onClick={onShellWorktree}>
           Open worktree shell
         </button>
-        <button className="wt-esc" disabled={busy} onClick={onRecheck}>
+        <button className="esc" disabled={busy} onClick={onRecheck}>
           Re-check
         </button>
       </div>
     </div>
   );
+}
+
+// Maps a badge cls token (clean / conflicts / resolving) to its scoped class.
+function badgeCls(cls: string): string {
+  return cls === "conflicts"
+    ? s.badgeConflicts
+    : cls === "resolving"
+      ? s.badgeResolving
+      : s.badgeClean;
 }
 
 // Header/rail badge helpers — both render the same vocabulary so the rail card
@@ -596,24 +583,15 @@ function RejectButton({
 
   return (
     <>
-      <button className="rv-reject" disabled={disabled} onClick={() => setOpen(true)}>
+      <button className={s.reject} disabled={disabled} onClick={() => setOpen(true)}>
         Reject…
       </button>
       {open && (
-        <div className="modal-backdrop" onClick={() => setOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Reject — back to active</h3>
-            <label className="field">
-              <span>Reason (appended to review.md)</span>
-              <textarea
-                autoFocus
-                rows={5}
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="what needs to change…"
-              />
-            </label>
-            <div className="modal-actions">
+        <Modal
+          title="Reject — back to active"
+          onClose={() => setOpen(false)}
+          actions={
+            <>
               <button className="ghost" onClick={() => setOpen(false)}>
                 Cancel
               </button>
@@ -626,9 +604,20 @@ function RejectButton({
               >
                 Reject
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        >
+          <label className="field">
+            <span>Reason (appended to review.md)</span>
+            <textarea
+              autoFocus
+              rows={5}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="what needs to change…"
+            />
+          </label>
+        </Modal>
       )}
     </>
   );

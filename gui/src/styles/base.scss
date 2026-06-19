@@ -106,6 +106,27 @@ body {
   color: t.$link;
 }
 
+// Affirmative "do it" button — the small green action (Resolve with agent /
+// Commit / Mark resolved), shared by Review's conflicts tab and the merge editor.
+.go {
+  padding: 5px 14px;
+  border: 1px solid #2f8f4e;
+  border-radius: 6px;
+  background: #2f8f4e;
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+
+  &:hover:not(:disabled) {
+    background: #36a259;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
 // Form field — a label-over-control wrapper used by every form (Settings,
 // compose-ticket, reject-reason).
 .field {
