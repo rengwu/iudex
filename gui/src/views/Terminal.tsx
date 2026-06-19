@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useSessions, sessionTitle, sessionLabel } from "../lib/sessions";
 import type { Session } from "../types";
 import XtermPane from "./XtermPane";
+import s from "./Terminal.module.scss";
 
 // The interactive, full-size surface over the tmux pool. Each tab is a live
 // attach to one session. Panes stay mounted once opened (hidden when inactive)
@@ -83,17 +84,17 @@ export default function Terminal({
   }
 
   return (
-    <div className="term">
-      <div className="term-tabs">
+    <div className={s.term}>
+      <div className={s.tabs}>
         {open.map((name) => (
           <div
             key={name}
-            className={`term-tab${activeTab === name ? " active" : ""}`}
+            className={`${s.tab} ${activeTab === name ? s.active : ""}`}
             onClick={() => setActiveTab(name)}
           >
             <span>{tabLabel(sessions, name)}</span>
             <button
-              className="tab-x"
+              className={s.x}
               title="kill session"
               onClick={(e) => {
                 e.stopPropagation();
@@ -104,7 +105,7 @@ export default function Terminal({
             </button>
           </div>
         ))}
-        <button className="term-new" onClick={newShell}>
+        <button className={s.new} onClick={newShell}>
           + shell
         </button>
       </div>
@@ -112,13 +113,13 @@ export default function Terminal({
       {error && <div className="error">{error}</div>}
 
       {open.length === 0 ? (
-        <div className="term-empty">start a shell with “+ shell”.</div>
+        <div className={s.empty}>start a shell with “+ shell”.</div>
       ) : (
-        <div className="term-panes">
+        <div className={s.panes}>
           {open.map((name) => (
             <div
               key={name}
-              className="term-pane"
+              className={s.pane}
               style={{ display: activeTab === name ? "block" : "none" }}
             >
               <XtermPane

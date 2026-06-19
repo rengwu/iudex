@@ -1,0 +1,81 @@
+@use "../styles/tokens" as t;
+
+.term {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-bottom: 1px solid t.$border;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border: 1px solid t.$border;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: t.$panel;
+  color: t.$muted;
+  cursor: pointer;
+  font-size: 13px;
+
+  &.active {
+    background: t.$bg;
+    color: t.$text;
+  }
+}
+
+.x {
+  border: none;
+  background: transparent;
+  color: #7a7a80;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+
+  &:hover {
+    color: t.$red;
+  }
+}
+
+.new {
+  padding: 5px 12px;
+  border: 1px dashed t.$border;
+  border-radius: 6px;
+  background: transparent;
+  color: t.$link;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-size: 13px;
+
+  &:hover {
+    background: t.$hover;
+  }
+}
+
+.empty {
+  color: t.$muted-2;
+  padding: 20px 4px;
+}
+
+.panes {
+  flex: 1;
+  min-height: 0;
+}
+
+.pane {
+  height: 100%;
+}

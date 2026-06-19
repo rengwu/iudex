@@ -13,6 +13,12 @@ const CLASS: Record<string, string> = {
   removed: s.removed,
 };
 
+// The scoped state-color class, for badges that aren't the standard pill (e.g.
+// the Worktrees rail's "tN · state" chip) but want the same color vocabulary.
+export function stateColor(state: string): string {
+  return CLASS[state] ?? "";
+}
+
 export default function StateBadge({ state }: { state: string }) {
-  return <span className={`${s.badge} ${CLASS[state] ?? ""}`}>{state}</span>;
+  return <span className={`${s.badge} ${stateColor(state)}`}>{state}</span>;
 }

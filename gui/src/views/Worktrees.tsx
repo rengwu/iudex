@@ -2,6 +2,8 @@ import { Suspense, lazy, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { FileChange, FileDiff, Session, Workspace, Worktree } from "../types";
 import { useWorktrees } from "../lib/worktrees";
+import { stateColor } from "../components/StateBadge";
+import s from "./Worktrees.module.scss";
 
 // Monaco is heavy; load it only when this view first needs a diff.
 const DiffViewer = lazy(() => import("./DiffViewer"));
@@ -112,25 +114,25 @@ export default function Worktrees({
 
   if (error) return <div className="error">{error}</div>;
   if (worktrees.length === 0)
-    return <div className="wt-empty">No active worktrees. Activate a ticket to create one.</div>;
+    return <div className={s.empty}>No active worktrees. Activate a ticket to create one.</div>;
 
   return (
-    <div className="wt">
-      <aside className="wt-rail">
-        <div className="wt-rail-head">WORKTREES</div>
+    <div className={s.root}>
+      <aside className={s.rail}>
+        <div className={s.railHead}>WORKTREES</div>
         {worktrees.map((w) => (
           <button
             key={w.path}
-            className={`wt-item${w.path === selPath ? " active" : ""}`}
+            className={`${s.item} ${w.path === selPath ? s.active : ""}`}
             onClick={() => setSelPath(w.path)}
           >
-            <span className="wt-branch">{wtLabel(w)}</span>
-            <span className="wt-badges">
+            <span className={s.branch}>{wtLabel(w)}</span>
+            <span className={s.badges}>
               {w.tickets.length === 0 ? (
-                <span className="wt-badge muted">no ticket</span>
+                <span className={`${s.badge} ${s.badgeMuted}`}>no ticket</span>
               ) : (
                 w.tickets.map((t) => (
-                  <span key={t.id} className={`wt-badge state-${t.state}`}>
+                  <span key={t.id} className={`${s.badge} ${stateColor(t.state)}`}>
                     {t.id} · {t.state}
                   </span>
                 ))
@@ -140,41 +142,41 @@ export default function Worktrees({
         ))}
       </aside>
 
-      <div className="wt-files">
-        <div className="wt-files-head">
+      <div className={s.files}>
+        <div className={s.filesHead}>
           {selected ? wtLabel(selected) : ""} <span className="muted">· vs {ws.mainBranch}</span>
         </div>
-        <ul className="wt-filelist">
+        <ul className={s.filelist}>
           {changes.length === 0 && <li className="muted">no changes vs {ws.mainBranch}</li>}
           {changes.map((c) => (
             <li
               key={c.path}
-              className={`wt-file${c.path === selFile ? " active" : ""}`}
+              className={`${s.file} ${c.path === selFile ? s.active : ""}`}
               onClick={() => setSelFile(c.path)}
             >
-              <span className={`wt-st wt-st-${c.status}`}>{c.status}</span>
-              <span className="wt-path">{c.path}</span>
+              <span className={`${s.st} ${s[`st${c.status}`] ?? ""}`}>{c.status}</span>
+              <span className={s.path}>{c.path}</span>
             </li>
           ))}
         </ul>
         {changes.length > 0 && (
-          <div className="wt-files-foot">
+          <div className={s.filesFoot}>
             {changes.length} file{changes.length === 1 ? "" : "s"}
             {(totals.add > 0 || totals.del > 0) && (
               <>
                 {" "}
-                <span className="add">+{totals.add}</span>{" "}
-                <span className="del">−{totals.del}</span>
+                <span className={s.add}>+{totals.add}</span>{" "}
+                <span className={s.del}>−{totals.del}</span>
               </>
             )}
           </div>
         )}
       </div>
 
-      <div className="wt-diff">
+      <div className={s.diff}>
         {paneErr && <div className="error">{paneErr}</div>}
         {selFile && diff ? (
-          <Suspense fallback={<div className="wt-loading">loading editor…</div>}>
+          <Suspense fallback={<div className={s.loading}>loading editor…</div>}>
             <DiffViewer
               original={diff.original}
               modified={diff.modified}
@@ -182,10 +184,10 @@ export default function Worktrees({
               title={selFile}
               actions={
                 <>
-                  <button className="wt-esc" onClick={() => openInEditor(selFile)}>
+                  <button className="esc" onClick={() => openInEditor(selFile)}>
                     Open in editor
                   </button>
-                  <button className="wt-esc" onClick={openShell}>
+                  <button className="esc" onClick={openShell}>
                     Shell
                   </button>
                 </>
@@ -193,7 +195,7 @@ export default function Worktrees({
             />
           </Suspense>
         ) : (
-          <div className="wt-diff-empty">
+          <div className={s.diffEmpty}>
             {changes.length > 0 ? "Select a file to view its diff." : ""}
           </div>
         )}

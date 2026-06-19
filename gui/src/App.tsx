@@ -11,6 +11,7 @@ import Review from "./views/Review";
 import Settings from "./views/Settings";
 import "./styles/base.scss";
 import "./App.css";
+import a from "./App.module.scss";
 
 // Convenience default for local dev; paste any workspace path.
 const DEFAULT_PATH = "/Users/rengwu/Desktop/Projects/iudex-demo";
@@ -98,8 +99,8 @@ export default function App() {
   }, [root, load]);
 
   return (
-    <main className="app">
-      <header className="bar">
+    <main className={a.app}>
+      <header className={a.bar}>
         <input
           value={path}
           onChange={(e) => {
@@ -112,10 +113,10 @@ export default function App() {
         />
         <button onClick={open}>Open</button>
         {ws && (
-          <span className="meta">
+          <span className={a.meta}>
             main: <b>{ws.mainBranch}</b> · max-active: <b>{ws.maxActive}</b> · qa-limit:{" "}
             <b>{ws.qaRejectLimit}</b>
-            {lastSync && <span className="sync"> · synced {lastSync}</span>}
+            {lastSync && <span className={a.sync}> · synced {lastSync}</span>}
           </span>
         )}
       </header>
@@ -123,10 +124,10 @@ export default function App() {
       {error && <div className="error">{error}</div>}
 
       {offerInit && (
-        <div className="init-offer">
+        <div className={a.initOffer}>
           <div>
             No iudex workspace at <code>{path}</code>.
-            <span className="init-hint">
+            <span className={a.initHint}>
               {" "}
               Initializing creates <code>.iudex/</code> here (and a git repo with an
               initial commit if there isn’t one).
@@ -140,11 +141,11 @@ export default function App() {
 
       {root && ws && (
         <>
-          <nav className="nav">
+          <nav className={a.nav}>
             {VIEWS.map((v) => (
               <button
                 key={v.id}
-                className={`nav-item${view === v.id ? " active" : ""}`}
+                className={`${a.navItem} ${view === v.id ? a.active : ""}`}
                 onClick={() => setView(v.id)}
               >
                 {v.label}
@@ -152,7 +153,7 @@ export default function App() {
             ))}
           </nav>
 
-          <section className="view">
+          <section className={a.view}>
             {view === "dashboard" && (
               <Dashboard
                 ws={ws}
@@ -177,7 +178,7 @@ export default function App() {
                 live PTYs survive; we only toggle its visibility. */}
             <div
               style={{ display: view === "terminal" ? "block" : "none" }}
-              className="view-host"
+              className={a.viewHost}
             >
               <Terminal
                 visible={view === "terminal"}

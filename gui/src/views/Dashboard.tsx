@@ -1,4 +1,6 @@
 import type { View, Workspace } from "../types";
+import StateBadge from "../components/StateBadge";
+import s from "./Dashboard.module.scss";
 
 // The light, glanceable router: "what needs me right now?". It derives every
 // pile from the latest status --json (no authoritative state of its own) and
@@ -23,7 +25,7 @@ export default function Dashboard({
   const failed = ws.tickets.filter((t) => t.state === "failed");
 
   return (
-    <div className="dash">
+    <div className={s.dash}>
       <Pile
         title="Ready to activate"
         hint={
@@ -84,20 +86,20 @@ function Pile({
   muted?: boolean;
 }) {
   return (
-    <section className={`pile${accent ? ` pile-${accent}` : ""}`}>
+    <section className={`${s.pile} ${accent ? s[accent] : ""}`}>
       <header>
-        <span className="pile-title">{title}</span>
-        <span className="pile-count">{tickets.length}</span>
+        <span className={s.title}>{title}</span>
+        <span className={s.count}>{tickets.length}</span>
       </header>
-      <div className="pile-hint">{hint}</div>
+      <div className={s.hint}>{hint}</div>
       {tickets.length === 0 ? (
-        <div className="pile-empty">{emptyText}</div>
+        <div className={s.empty}>{emptyText}</div>
       ) : (
-        <ul className="pile-items">
+        <ul className={s.items}>
           {tickets.map((t) => (
             <li
               key={t.id}
-              className={muted ? "muted" : ""}
+              className={muted ? s.dimmed : ""}
               onClick={(e) => {
                 if (onItem) {
                   e.stopPropagation();
@@ -108,8 +110,8 @@ function Pile({
               }}
               title="open"
             >
-              <span className="id">{t.id}</span>
-              <span className={`state state-${t.state}`}>{t.state}</span>
+              <span className={s.id}>{t.id}</span>
+              <StateBadge state={t.state} />
             </li>
           ))}
         </ul>

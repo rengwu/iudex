@@ -1,0 +1,191 @@
+@use "../styles/tokens" as t;
+
+.empty {
+  color: t.$muted-2;
+  padding: 20px 4px;
+}
+
+.root {
+  display: flex;
+  gap: 10px;
+  height: 100%;
+}
+
+.rail {
+  width: 220px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border: 1px solid t.$border;
+  border-radius: 8px;
+  background: t.$panel;
+  padding: 6px;
+}
+
+.railHead {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: t.$muted;
+  padding: 4px 6px 8px;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: t.$text;
+  cursor: pointer;
+  text-align: left;
+
+  &:hover {
+    background: t.$hover;
+  }
+
+  &.active {
+    background: t.$bg;
+    border-color: t.$accent;
+  }
+}
+
+.branch {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 11px;
+  background: t.$chip-bg;
+  color: t.$text-dim;
+}
+
+.badgeMuted {
+  color: t.$muted-3;
+  font-style: italic;
+}
+
+.files {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid t.$border;
+  border-radius: 8px;
+  background: t.$panel;
+  overflow: hidden;
+}
+
+.filesHead {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: t.$muted;
+  padding: 4px 6px 8px;
+}
+
+.filelist {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+
+  &:hover {
+    background: t.$hover;
+  }
+
+  &.active {
+    background: t.$bg;
+  }
+}
+
+.st {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 700;
+  font-size: 12px;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.stA {
+  color: t.$green;
+}
+.stM {
+  color: t.$yellow;
+}
+.stD {
+  color: t.$red;
+}
+.stR {
+  color: t.$link;
+}
+.stU {
+  color: t.$muted-2;
+}
+
+.path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
+}
+
+.filesFoot {
+  padding: 8px 10px;
+  border-top: 1px solid t.$border;
+  font-size: 12px;
+  color: t.$muted;
+
+  .add {
+    color: t.$green;
+  }
+  .del {
+    color: t.$red;
+  }
+}
+
+.diff {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid t.$border;
+  border-radius: 8px;
+  overflow: hidden;
+  background: t.$bg;
+}
+
+.diffEmpty,
+.loading {
+  color: t.$muted-2;
+  padding: 20px 4px;
+}

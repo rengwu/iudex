@@ -1,0 +1,139 @@
+@use "./styles/tokens" as t;
+
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 16px;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  margin-bottom: 16px;
+
+  input {
+    flex: 1;
+    min-width: 240px;
+    padding: 6px 10px;
+    border: 1px solid t.$border;
+    border-radius: 6px;
+    background: #232427;
+    color: t.$text;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  button {
+    padding: 6px 14px;
+    border: 1px solid t.$border;
+    border-radius: 6px;
+    background: t.$accent;
+    color: white;
+    cursor: pointer;
+
+    &:hover {
+      background: #3a78e6;
+    }
+  }
+}
+
+.meta {
+  color: t.$muted;
+  font-size: 13px;
+
+  b {
+    color: t.$text;
+    font-weight: 600;
+  }
+}
+
+.sync {
+  color: t.$muted-3;
+}
+
+.initOffer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border: 1px solid #2a3a4a;
+  border-radius: 8px;
+  background: #1b2530;
+  color: #cfe0f0;
+
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: t.$text;
+  }
+
+  button {
+    flex-shrink: 0;
+    padding: 7px 16px;
+    border: 1px solid t.$accent;
+    border-radius: 6px;
+    background: t.$accent;
+    color: white;
+    cursor: pointer;
+    font-size: 13px;
+
+    &:hover:not(:disabled) {
+      background: #3a78e6;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+  }
+}
+
+.initHint {
+  color: #8a98a8;
+  font-size: 13px;
+}
+
+.nav {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-bottom: 16px;
+  border-bottom: 1px solid t.$border;
+}
+
+.navItem {
+  padding: 8px 14px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: t.$muted;
+  cursor: pointer;
+  font-size: 13px;
+
+  &:hover {
+    color: t.$text;
+  }
+
+  &.active {
+    color: t.$text;
+    border-bottom-color: t.$accent;
+  }
+}
+
+.view {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.viewHost {
+  height: 100%;
+}

@@ -4,6 +4,21 @@
 // Imported once (App.tsx) so these names are available app-wide.
 @use "tokens" as t;
 
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  color: t.$text;
+  background: #1a1b1e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
 .muted {
   color: t.$muted-2;
 }
