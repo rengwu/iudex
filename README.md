@@ -40,7 +40,7 @@ iudex queue t1                          # or: iudex queue t2 --deps t1
 
 # 2. Start work: creates a worktree and prints the impl spawn command
 iudex activate t1
-#   → cd .iudex/worktrees/t1 && claude "$(cat .iudex/prompts/impl.md)"
+#   → cd .iudex/worktrees/t1 && pi "$(cat .iudex/prompts/impl.md)"
 
 # 3. The agent (or you) implements, commits, then from inside the worktree:
 iudex finish                            # → pending-qa, prints the QA spawn command
@@ -87,7 +87,7 @@ The skills only ever _call_ iudex; iudex stays unaware of them. `.context/` is t
 | `iudex retry <id>`                    | Reset a failed ticket for another attempt                                |
 | `iudex remove <id>`                   | Abandon a ticket                                                         |
 | `iudex review <id>`                   | Print brief, log, diff, QA review, state, and next actions               |
-| `iudex status [--all] [--json]`       | Tickets grouped by state (`--json` emits the machine-readable read path)  |
+| `iudex status [--all] [--json]`       | Tickets grouped by state (`--json` emits the machine-readable read path) |
 
 Commands run by an agent inside a worktree (`finish`, `qa`, `spawn`) infer the ticket from the current directory, so no id is needed.
 
@@ -114,7 +114,7 @@ Dependencies must already be registered, which keeps the graph acyclic by constr
 | `main_branch`            | Branch tickets merge into (your repo's branch at init) |
 | `max_active`             | Max tickets active at once (`0` = unlimited)           |
 | `qa_reject_limit`        | QA rejections before a ticket is marked `failed`       |
-| `agent_command`          | Command used in spawn lines (e.g. `claude`)            |
+| `agent_command`          | Command used in spawn lines (e.g. `pi`)                |
 | `merge_strategy`         | `no-ff` or `squash`                                    |
 | `merge_message_template` | Merge commit message (`{{.Ticket}}` is substituted)    |
 | `branch_prefix`          | Per-ticket branch prefix (e.g. `work/`)                |

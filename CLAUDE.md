@@ -29,7 +29,7 @@ Requires Go 1.22+. Dependencies are just `github.com/spf13/cobra` and `gopkg.in/
 
 ## Mental model
 
-- **`events.jsonl` is the single source of truth.** Ticket state, dependencies, and the QA-reject counter are all *derived* by replaying it. Nothing is stored anywhere else.
+- **`events.jsonl` is the single source of truth.** Ticket state, dependencies, and the QA-reject counter are all _derived_ by replaying it. Nothing is stored anywhere else.
 - **Nothing advances on its own.** A ticket only changes state when someone runs a command.
 - **In-place workspace.** iudex runs inside your project, like `git`. Everything it owns lives under a single gitignored `.iudex/` directory; the existing repo is the canonical `main` worktree.
 - **iudex is agent-agnostic.** It computes spawn commands from config + prompt templates and prints them; the human launches the agent.
@@ -65,7 +65,7 @@ Requires Go 1.22+. Dependencies are just `github.com/spf13/cobra` and `gopkg.in/
 
 ### Work-shaping skills (the front of the funnel)
 
-Everything *before* `iudex queue` — turning a raw idea into robust, sliced, dependency-ordered tickets — is handled by bundled skills, not by the CLI. They are embedded in the binary, scaffolded to `.iudex/skills/` on `init`, and indexed in a tracked root `AGENTS.md` so the user's agent loads the relevant `SKILL.md` on demand (no cat-injection). The funnel:
+Everything _before_ `iudex queue` — turning a raw idea into robust, sliced, dependency-ordered tickets — is handled by bundled skills, not by the CLI. They are embedded in the binary, scaffolded to `.iudex/skills/` on `init`, and indexed in a tracked root `AGENTS.md` so the user's agent loads the relevant `SKILL.md` on demand (no cat-injection). The funnel:
 
 ```
 grill-me / grill-with-docs → prototype → to-prd → to-issues → iudex queue
@@ -127,20 +127,20 @@ failed --retry-------------------> active  [counter reset]
 
 ## CLI commands (12)
 
-| Command | Description |
-|---------|-------------|
-| `iudex init` | Scaffold the current directory into a workspace (git init + initial commit only if no history; records the current branch as `main_branch`; gitignores `.iudex/`) |
-| `iudex next-ticket-id` | Print the next ticket id `N` (highest ever + 1) and nothing else |
-| `iudex queue <id> [--deps <ids>]` | Register a queued ticket and its deps; rejects reused ids and deps that aren't already registered (or are removed/failed) |
-| `iudex activate <id>` | queued → active: create worktree + `.task/`, print impl spawn command |
-| `iudex finish [id]` | active → pending-qa; auto-commit if dirty; print QA spawn command (id inferred from cwd) |
-| `iudex spawn [id]` | Print the spawn command for the ticket's current state (impl/QA); never launches |
-| `iudex qa approve\|reject [id]` | Agent QA gate (id inferred from cwd) |
-| `iudex human-qa approve\|reject <id>` | Human gate: approve merges/archives/removes; reject (`--reason`) returns to active |
-| `iudex retry <id>` | failed → active, reset the QA-reject counter |
-| `iudex remove <id>` | Abandon from any non-terminal state → removed |
-| `iudex review <id>` | Read-only: print brief, log, diff, review, state, next actions |
-| `iudex status [--all] [--json]` | Tickets grouped by state; queued annotated ready/blocked; done/removed hidden unless `--all`. `--json` emits a machine-readable object (`{mainBranch,maxActive,qaRejectLimit,tickets[]}`, always all tickets) — the GUI's read path |
+| Command                               | Description                                                                                                                                                                                                                         |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `iudex init`                          | Scaffold the current directory into a workspace (git init + initial commit only if no history; records the current branch as `main_branch`; gitignores `.iudex/`)                                                                   |
+| `iudex next-ticket-id`                | Print the next ticket id `N` (highest ever + 1) and nothing else                                                                                                                                                                    |
+| `iudex queue <id> [--deps <ids>]`     | Register a queued ticket and its deps; rejects reused ids and deps that aren't already registered (or are removed/failed)                                                                                                           |
+| `iudex activate <id>`                 | queued → active: create worktree + `.task/`, print impl spawn command                                                                                                                                                               |
+| `iudex finish [id]`                   | active → pending-qa; auto-commit if dirty; print QA spawn command (id inferred from cwd)                                                                                                                                            |
+| `iudex spawn [id]`                    | Print the spawn command for the ticket's current state (impl/QA); never launches                                                                                                                                                    |
+| `iudex qa approve\|reject [id]`       | Agent QA gate (id inferred from cwd)                                                                                                                                                                                                |
+| `iudex human-qa approve\|reject <id>` | Human gate: approve merges/archives/removes; reject (`--reason`) returns to active                                                                                                                                                  |
+| `iudex retry <id>`                    | failed → active, reset the QA-reject counter                                                                                                                                                                                        |
+| `iudex remove <id>`                   | Abandon from any non-terminal state → removed                                                                                                                                                                                       |
+| `iudex review <id>`                   | Read-only: print brief, log, diff, review, state, next actions                                                                                                                                                                      |
+| `iudex status [--all] [--json]`       | Tickets grouped by state; queued annotated ready/blocked; done/removed hidden unless `--all`. `--json` emits a machine-readable object (`{mainBranch,maxActive,qaRejectLimit,tickets[]}`, always all tickets) — the GUI's read path |
 
 Worktree-scoped commands (`finish`, `qa`, `spawn`) infer the ticket from the current directory when run inside a worktree; an explicit id always overrides.
 
@@ -177,32 +177,32 @@ iudex/
 
 ## Key design decisions
 
-| Decision | Rationale |
-|----------|-----------|
-| `events.jsonl` as sole source of truth | Concurrent-safe POSIX `O_APPEND`; status is a pure projection via replay |
-| Deps recorded in the queue event, not markdown | No file-vs-state drift; deps must be pre-registered → dependency graph is a DAG by construction (no cycle detection needed) |
-| In-place workspace under a gitignored `.iudex/` | Run iudex inside your project; nothing pollutes project history |
-| Merge happens in the repo root | git forbids `main` checked out in two worktrees, so `human-qa approve` merges at the root and refuses unless it is on `main_branch` and clean |
-| Mark `done` immediately after the merge | The merge is the irreversible step; archive + worktree removal are best-effort cleanup whose failure is reported but never blocks |
-| `.task/` ignored via the shared exclude | Keeps it out of any tracked `.gitignore` and out of the merge; the worktree stays pristine |
-| iudex prints spawn commands, never execs | Stays agent-agnostic; the human launches the agent |
-| cwd-based ticket inference | An agent inside a worktree runs `iudex finish`/`qa …` without knowing its ticket id |
-| All git via `exec.Command` | No libgit2; works wherever `git` is installed |
-| `//go:embed templates` (no `all:`) | Bundles the scaffold while excluding dot-prefixed junk (e.g. `.DS_Store`) |
+| Decision                                        | Rationale                                                                                                                                     |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `events.jsonl` as sole source of truth          | Concurrent-safe POSIX `O_APPEND`; status is a pure projection via replay                                                                      |
+| Deps recorded in the queue event, not markdown  | No file-vs-state drift; deps must be pre-registered → dependency graph is a DAG by construction (no cycle detection needed)                   |
+| In-place workspace under a gitignored `.iudex/` | Run iudex inside your project; nothing pollutes project history                                                                               |
+| Merge happens in the repo root                  | git forbids `main` checked out in two worktrees, so `human-qa approve` merges at the root and refuses unless it is on `main_branch` and clean |
+| Mark `done` immediately after the merge         | The merge is the irreversible step; archive + worktree removal are best-effort cleanup whose failure is reported but never blocks             |
+| `.task/` ignored via the shared exclude         | Keeps it out of any tracked `.gitignore` and out of the merge; the worktree stays pristine                                                    |
+| iudex prints spawn commands, never execs        | Stays agent-agnostic; the human launches the agent                                                                                            |
+| cwd-based ticket inference                      | An agent inside a worktree runs `iudex finish`/`qa …` without knowing its ticket id                                                           |
+| All git via `exec.Command`                      | No libgit2; works wherever `git` is installed                                                                                                 |
+| `//go:embed templates` (no `all:`)              | Bundles the scaffold while excluding dot-prefixed junk (e.g. `.DS_Store`)                                                                     |
 
 ---
 
 ## Configuration (`.iudex/config.yml`)
 
-| Field | Meaning |
-|-------|---------|
-| `main_branch` | Canonical merge target (set to the repo's current branch at init) |
-| `max_active` | Cap on tickets in the `active` state (`0` = unlimited) |
-| `qa_reject_limit` | QA rejections before a ticket becomes `failed` (`<= 0` = unlimited) |
-| `agent_command` | Binary used to build spawn commands (e.g. `claude`) |
-| `merge_strategy` | `no-ff` (default) or `squash` |
-| `merge_message_template` | Merge commit message; `{{.Ticket}}` is substituted |
-| `branch_prefix` | Per-ticket branch prefix (e.g. `work/`) |
+| Field                    | Meaning                                                             |
+| ------------------------ | ------------------------------------------------------------------- |
+| `main_branch`            | Canonical merge target (set to the repo's current branch at init)   |
+| `max_active`             | Cap on tickets in the `active` state (`0` = unlimited)              |
+| `qa_reject_limit`        | QA rejections before a ticket becomes `failed` (`<= 0` = unlimited) |
+| `agent_command`          | Binary used to build spawn commands (e.g. `claude` or `pi`)         |
+| `merge_strategy`         | `no-ff` (default) or `squash`                                       |
+| `merge_message_template` | Merge commit message; `{{.Ticket}}` is substituted                  |
+| `branch_prefix`          | Per-ticket branch prefix (e.g. `work/`)                             |
 
 ---
 
@@ -221,7 +221,7 @@ go test ./...
 
 A native **Tauri desktop client** that drives this CLI the way a git client drives `git`. It is a **separate in-repo project** (its own build: `cd gui && pnpm tauri dev`), not part of the Go binary. See `gui/README.md` for the full description; the design is `.context/prd/gui-client.md`.
 
-**The core invariant:** the GUI holds **no authoritative state**. It **reads** derived truth via `iudex status --json`, **writes** by shelling every mutation through the `iudex` binary, and watches `.iudex/events.jsonl` as a *doorbell* (re-reads on any change). It never reimplements `Derive` (the state machine stays single-sourced in the CLI), so GUI and CLI cannot diverge. It does own the one thing the CLI won't — **agent process supervision** — via a tmux session pool.
+**The core invariant:** the GUI holds **no authoritative state**. It **reads** derived truth via `iudex status --json`, **writes** by shelling every mutation through the `iudex` binary, and watches `.iudex/events.jsonl` as a _doorbell_ (re-reads on any change). It never reimplements `Derive` (the state machine stays single-sourced in the CLI), so GUI and CLI cannot diverge. It does own the one thing the CLI won't — **agent process supervision** — via a tmux session pool.
 
 - **The one upstream change it required** is `iudex status --json` (already landed). Git reads it needs (worktree diffs, the merge-preflight via `git merge-tree`) shell `git -C <dir>` directly from the GUI's Rust backend — plain plumbing, not state-machine logic, so they deliberately stay out of the CLI.
 - **Seven views:** Dashboard, Terminal, Tickets, Agents, Worktrees, Review (preflighted approve & merge), Settings.

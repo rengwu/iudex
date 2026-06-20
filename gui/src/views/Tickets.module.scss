@@ -77,9 +77,12 @@
     letter-spacing: 0.04em;
   }
 
+  tr {
+    border-bottom: 1px solid #26272a;
+  }
+
   td {
     padding: 8px 10px;
-    border-bottom: 1px solid #26272a;
   }
 }
 

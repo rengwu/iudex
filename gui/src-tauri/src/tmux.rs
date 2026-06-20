@@ -267,7 +267,7 @@ fn sh_quote(s: &str) -> String {
 
 /// The workspace's configured agent binary (`agent_command` in
 /// `.iudex/config.yml`), used to build the idea-agent spawn command. iudex has
-/// no read API for it, so we scan the one well-known line; defaults to `claude`.
+/// no read API for it, so we scan the one well-known line; defaults to `pi`.
 fn agent_command(root: &str) -> String {
     let path = Path::new(root).join(".iudex").join("config.yml");
     if let Ok(text) = std::fs::read_to_string(path) {
@@ -284,7 +284,7 @@ fn agent_command(root: &str) -> String {
             }
         }
     }
-    "claude".to_string()
+    "pi".to_string()
 }
 
 /// Launch an idea-shaping agent into the pool: run the configured agent at the

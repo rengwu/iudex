@@ -17,7 +17,7 @@ qa_reject_limit: 3
 
 # Command used to build agent spawn commands. iudex never launches the agent
 # itself — it only prints the command for you to run.
-agent_command: claude
+agent_command: pi
 
 # How `iudex human-qa approve` lands a ticket on main_branch: "no-ff" | "squash".
 merge_strategy: no-ff
