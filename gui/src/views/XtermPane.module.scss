@@ -3,8 +3,9 @@
 .host {
   height: 100%;
   width: 100%;
-  background: t.$bg;
+  background: t.$module;
   padding: 6px;
-  border: 1px solid t.$border;
-  border-radius: 6px;
+  border: none;
+  border-radius: 0;
+  overflow: hidden;
 }

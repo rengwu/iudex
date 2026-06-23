@@ -22,6 +22,7 @@ export default function XtermPane({
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const idRef = useRef<string>(crypto.randomUUID());
+  const floorFitRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     const host = hostRef.current;
@@ -29,9 +30,9 @@ export default function XtermPane({
     const id = idRef.current;
 
     const term = new Terminal({
-      fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+      fontFamily: '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace',
       fontSize: 13,
-      theme: { background: "#16171a", foreground: "#e6e6e6" },
+      theme: { background: "#1d1d1d", foreground: "#c9ccd1" },
       cursorBlink: true,
     });
     const fit = new FitAddon();
@@ -46,6 +47,42 @@ export default function XtermPane({
 
     let disposed = false;
     const unlisteners: Array<() => void> = [];
+
+    // Size the host to a WHOLE number of rows so the last line never clips.
+    // xterm derives its row count from the measured cell height; if the host
+    // isn't an exact multiple of that (sub-pixel cell heights, or the IBM Plex
+    // Mono webfont loading after the first fit), the bottom row overflows the
+    // box. Fit once, read the real cell height, then floor the host to
+    // rows*cellHeight (+ padding). The leftover sub-row gap shows the pane's
+    // dark background — same color as the terminal, so it's invisible.
+    const floorFit = () => {
+      if (disposed) return;
+      const parent = host.parentElement;
+      const avail = parent ? parent.clientHeight : host.clientHeight;
+      if (avail <= 0) return; // hidden tab — refloored when it becomes active
+      const padY = 12; // host padding: 6px top + 6px bottom
+      host.style.height = `${avail}px`;
+      try {
+        fit.fit();
+      } catch {
+        return;
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cell = (term as any)._core?._renderService?.dimensions?.css?.cell?.height;
+      if (cell > 0) {
+        const rows = Math.max(1, Math.floor((avail - padY) / cell));
+        host.style.height = `${Math.round(rows * cell + padY)}px`;
+        try {
+          fit.fit();
+        } catch {
+          /* ignore */
+        }
+      }
+      invoke("resize_terminal", { id, cols: term.cols, rows: term.rows }).catch(() => {});
+    };
+    floorFitRef.current = floorFit;
+    // Refloor once the webfont is measured (metrics change after first paint).
+    document.fonts?.ready.then(() => requestAnimationFrame(floorFit));
 
     (async () => {
       // Subscribe first, then start the attach, so the initial screen dump
@@ -73,21 +110,10 @@ export default function XtermPane({
       });
     })();
 
-    // Keep the PTY sized to the pane.
-    const ro = new ResizeObserver(() => {
-      if (!active) return;
-      try {
-        fit.fit();
-        invoke("resize_terminal", {
-          id,
-          cols: term.cols,
-          rows: term.rows,
-        }).catch(() => {});
-      } catch {
-        /* element hidden / zero-size */
-      }
-    });
-    ro.observe(host);
+    // Keep the PTY sized to the pane. Observe the PARENT, not the host —
+    // floorFit mutates host.style.height, which would otherwise feed back in.
+    const ro = new ResizeObserver(() => floorFit());
+    ro.observe(host.parentElement ?? host);
 
     return () => {
       disposed = true;
@@ -105,20 +131,10 @@ export default function XtermPane({
   useEffect(() => {
     if (!active) return;
     const term = termRef.current;
-    const fit = fitRef.current;
-    if (!term || !fit) return;
+    if (!term) return;
     requestAnimationFrame(() => {
-      try {
-        fit.fit();
-        term.focus();
-        invoke("resize_terminal", {
-          id: idRef.current,
-          cols: term.cols,
-          rows: term.rows,
-        }).catch(() => {});
-      } catch {
-        /* ignore */
-      }
+      floorFitRef.current();
+      term.focus();
     });
   }, [active]);
 

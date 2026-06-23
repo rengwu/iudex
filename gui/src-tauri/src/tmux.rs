@@ -159,6 +159,16 @@ fn parse_line(line: &str) -> Option<Session> {
     }
 }
 
+/// Enable mouse mode on a session so the wheel scrolls tmux history (copy-mode)
+/// inside the attached xterm. Without it tmux holds the alternate screen and the
+/// pane can't be scrolled at all. Set per-session so we never touch the user's
+/// global/default tmux configuration.
+fn enable_mouse(name: &str) {
+    let _ = Command::new("tmux")
+        .args(["set-option", "-t", name, "mouse", "on"])
+        .status();
+}
+
 /// Create a fresh detached shell session with the lowest free index. An optional
 /// `cwd` starts the shell in that directory (used by Worktrees' "Open shell" to
 /// drop into a worktree); omitted, it starts wherever tmux defaults.
@@ -182,6 +192,7 @@ pub fn create_shell(cwd: Option<String>) -> Result<Session, String> {
     if !st.success() {
         return Err("tmux new-session failed".to_string());
     }
+    enable_mouse(&name);
     Ok(Session {
         name,
         kind: "shell".to_string(),
@@ -238,6 +249,7 @@ pub fn spawn_agent(root: String, ticket: String, role: String) -> Result<Session
     let _ = Command::new("tmux")
         .args(["set-option", "-w", "-t", &name, "remain-on-exit", "on"])
         .status();
+    enable_mouse(&name);
     // Stamp identity/metadata as user-options (read back by list_sessions).
     for (opt, val) in [
         ("@iudex_ticket", ticket.as_str()),
@@ -323,6 +335,7 @@ pub fn spawn_idea(root: String, skill: String, seed: String) -> Result<Session, 
     let _ = Command::new("tmux")
         .args(["set-option", "-w", "-t", &name, "remain-on-exit", "on"])
         .status();
+    enable_mouse(&name);
     for (opt, val) in [("@iudex_role", skill.as_str()), ("@iudex_started", started.as_str())] {
         let _ = Command::new("tmux")
             .args(["set-option", "-t", &name, opt, val])
@@ -390,6 +403,7 @@ pub fn spawn_resolver(root: String, ticket: String, worktree: String) -> Result<
     let _ = Command::new("tmux")
         .args(["set-option", "-w", "-t", &name, "remain-on-exit", "on"])
         .status();
+    enable_mouse(&name);
     for (opt, val) in [
         ("@iudex_ticket", ticket.as_str()),
         ("@iudex_role", "resolve"),
@@ -535,6 +549,10 @@ pub fn open_terminal(
             pixel_height: 0,
         })
         .map_err(|e| format!("openpty: {e}"))?;
+
+    // Ensure mouse-wheel scrolling works, covering sessions created before this
+    // was set at spawn time (applies on the next attach, no recreation needed).
+    enable_mouse(&name);
 
     let mut cmd = CommandBuilder::new("tmux");
     if readonly {
