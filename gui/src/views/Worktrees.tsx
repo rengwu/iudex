@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Fragment, Suspense, lazy, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { FileChange, FileDiff, Session, Workspace, Worktree } from "../types";
 import { useWorktrees } from "../lib/worktrees";
@@ -157,9 +157,10 @@ export default function Worktrees({
                 </Badge>
               ) : (
                 w.tickets.map((t) => (
-                  <Badge key={t.id} kind="state" value={t.state}>
-                    {t.id} · {t.state}
-                  </Badge>
+                  <Fragment key={t.id}>
+                    <Badge>{t.id}</Badge>
+                    <Badge kind="state" value={t.state} />
+                  </Fragment>
                 ))
               )}
             </span>
