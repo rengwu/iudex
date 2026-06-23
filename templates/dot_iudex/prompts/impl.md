@@ -16,7 +16,7 @@ You are implementing a single iudex ticket inside its dedicated git worktree.
 
 ## When done
 
-Commit everything, then run:
+Commit everything, then execute the following command:
 
 ```
 iudex finish

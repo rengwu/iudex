@@ -14,13 +14,13 @@ Write a structured review to `.task/review.md` covering correctness, completenes
 
 ## When done
 
-If the work meets the brief:
+If the work meets the brief, execute the following command:
 
 ```
 iudex qa approve
 ```
 
-If it needs revision (your review.md is the feedback the next implementation session reads):
+If it needs revision, execute the following command (your review.md is the feedback the next implementation session reads):
 
 ```
 iudex qa reject
