@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
@@ -15,6 +15,10 @@ import Settings from "./views/Settings";
 import SectionHeader from "./components/SectionHeader";
 import "./styles/base.scss";
 import a from "./App.module.scss";
+
+// Keep a view mounted (state preserved) after switching away; prune it only
+// after this much inactivity — a separate timer per view.
+const KEEP_ALIVE_MS = 10 * 60 * 1000;
 
 function basename(p: string): string {
   const parts = p.split("/").filter(Boolean);
@@ -38,6 +42,39 @@ export default function App() {
   const [focusAgent, setFocusAgent] = useState<string | null>(null);
   // When set alongside focusAgent, the Agents view opens that agent on this tab.
   const [focusAgentTab, setFocusAgentTab] = useState<string | null>(null);
+
+  // ── View keep-alive ─────────────────────────────────────────────────────────
+  // Views stay mounted (state intact) when switched away, and unmount only after
+  // KEEP_ALIVE_MS of inactivity — one timer per view, reset on re-visit.
+  const [mounted, setMounted] = useState<View[]>(["tickets"]);
+  const prevViewRef = useRef<View>("tickets");
+  const pruneTimers = useRef<Partial<Record<View, ReturnType<typeof setTimeout>>>>({});
+
+  useEffect(() => {
+    // Keep the active view mounted; cancel any pending prune for it.
+    setMounted((m) => (m.includes(view) ? m : [...m, view]));
+    const active = pruneTimers.current[view];
+    if (active) {
+      clearTimeout(active);
+      delete pruneTimers.current[view];
+    }
+    // Start the inactivity timer for the view we just left.
+    const prev = prevViewRef.current;
+    if (prev !== view) {
+      if (pruneTimers.current[prev]) clearTimeout(pruneTimers.current[prev]);
+      pruneTimers.current[prev] = setTimeout(() => {
+        setMounted((m) => m.filter((v) => v !== prev));
+        delete pruneTimers.current[prev];
+      }, KEEP_ALIVE_MS);
+    }
+    prevViewRef.current = view;
+  }, [view]);
+
+  // Clear all pending timers if the app itself unmounts.
+  useEffect(() => {
+    const timers = pruneTimers.current;
+    return () => Object.values(timers).forEach((t) => t && clearTimeout(t));
+  }, []);
   const [autoActivate, setAutoActivate] = useState(false);
   const autoActivateRef = useRef(false);
   const drainingRef = useRef(false);
@@ -283,6 +320,19 @@ export default function App() {
   ];
   const maxActive = ws?.maxActive ?? 0;
 
+  // Render a view inside a keep-alive host: present while mounted (or active),
+  // shown only when it's the current view, hidden (not unmounted) otherwise.
+  const renderView = (id: View, node: ReactNode) =>
+    id === view || mounted.includes(id) ? (
+      <div
+        key={id}
+        className={a.viewHost}
+        style={{ display: view === id ? "block" : "none" }}
+      >
+        {node}
+      </div>
+    ) : null;
+
   return (
     <main className={a.app}>
       <header className={a.topbar}>
@@ -425,7 +475,8 @@ export default function App() {
 
           <section className={a.main}>
             {error && <div className="error">{error}</div>}
-            {view === "dashboard" && (
+            {renderView(
+              "dashboard",
               <Dashboard
                 ws={ws}
                 onJump={setView}
@@ -437,9 +488,10 @@ export default function App() {
                 onToggleAutoActivate={toggleAutoActivate}
                 autoQA={autoQA}
                 onToggleAutoQA={toggleAutoQA}
-              />
+              />,
             )}
-            {view === "tickets" && (
+            {renderView(
+              "tickets",
               <Tickets
                 ws={ws}
                 root={root}
@@ -451,19 +503,18 @@ export default function App() {
                   setFocusAgent(name);
                   setView("agents");
                 }}
-              />
+              />,
             )}
-            <div
-              style={{ display: view === "terminal" ? "block" : "none" }}
-              className={a.viewHost}
-            >
+            {renderView(
+              "terminal",
               <Terminal
                 visible={view === "terminal"}
                 focus={focusSession}
                 onFocusHandled={() => setFocusSession(null)}
-              />
-            </div>
-            {view === "agents" && (
+              />,
+            )}
+            {renderView(
+              "agents",
               <Agents
                 ws={ws}
                 root={root}
@@ -473,9 +524,10 @@ export default function App() {
                   setFocusAgent(null);
                   setFocusAgentTab(null);
                 }}
-              />
+              />,
             )}
-            {view === "worktrees" && (
+            {renderView(
+              "worktrees",
               <Worktrees
                 ws={ws}
                 root={root}
@@ -483,9 +535,10 @@ export default function App() {
                   setFocusSession(name);
                   setView("terminal");
                 }}
-              />
+              />,
             )}
-            {view === "review" && (
+            {renderView(
+              "review",
               <Review
                 ws={ws}
                 root={root}
@@ -500,11 +553,12 @@ export default function App() {
                   setFocusAgentTab("console");
                   setView("agents");
                 }}
-              />
+              />,
             )}
-            {view === "archive" && <Archive root={root} />}
-            {view === "settings" && (
-              <Settings root={root} onConfigSaved={() => load(root)} />
+            {renderView("archive", <Archive root={root} />)}
+            {renderView(
+              "settings",
+              <Settings root={root} onConfigSaved={() => load(root)} />,
             )}
           </section>
         </div>
