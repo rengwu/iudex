@@ -235,6 +235,14 @@ function AgentDetail({
   // Follow a new seed when the parent re-targets this same agent (e.g. a second
   // "watch"); a different agent remounts (keyed by name) and picks it up anyway.
   useEffect(() => setTab(initialTab), [initialTab]);
+  // Mount the console only once it's actually been shown — a hidden mount fits
+  // xterm at zero, attaches tmux at a default 80×24, and the later resize leaves
+  // the screen dump garbled. Once shown it stays mounted (PTY persists across tab
+  // switches); AgentDetail is keyed by agent, so this resets per agent.
+  const [consoleSeen, setConsoleSeen] = useState(initialTab === "console");
+  useEffect(() => {
+    if (tab === "console") setConsoleSeen(true);
+  }, [tab]);
   const ticket = agent.ticket
     ? (ws.tickets.find((t) => t.id === agent.ticket) ?? null)
     : null;
@@ -285,7 +293,7 @@ function AgentDetail({
           className={s.console}
           style={{ display: tab === "console" ? "block" : "none" }}
         >
-          <XtermPane session={agent.name} active={tab === "console"} />
+          {consoleSeen && <XtermPane session={agent.name} active={tab === "console"} />}
         </div>
         {tab === "worktree" &&
           (worktree ? (
