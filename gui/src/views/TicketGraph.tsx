@@ -107,7 +107,21 @@ export default function TicketGraph({
 
   return (
     <div
-      style={{ flex: 1, minHeight: 0, position: "relative", overflow: "hidden", background: "#1d1d1d", cursor: "grab", height: "100%" }}
+      style={{
+        flex: 1,
+        minHeight: 0,
+        position: "relative",
+        overflow: "hidden",
+        height: "100%",
+        cursor: "grab",
+        backgroundColor: "#1d1d1d",
+        // Grid lives on the viewport-sized container and scrolls via
+        // background-position, so it tiles infinitely under any pan.
+        backgroundImage:
+          "linear-gradient(#2b2f38 1px, transparent 1px), linear-gradient(90deg, #2b2f38 1px, transparent 1px)",
+        backgroundSize: "22px 22px",
+        backgroundPosition: `${pan.x}px ${pan.y}px`,
+      }}
       onMouseDown={panDown}
     >
       <div style={{ position: "absolute", top: 10, right: 12, zIndex: 5, display: "flex", gap: 14, alignItems: "center" }}>
@@ -133,9 +147,6 @@ export default function TicketGraph({
           width: 1400,
           height: 900,
           transform: `translate(${pan.x}px, ${pan.y}px)`,
-          backgroundImage:
-            "linear-gradient(#2b2f38 1px, transparent 1px), linear-gradient(90deg, #2b2f38 1px, transparent 1px)",
-          backgroundSize: "22px 22px",
         }}
       >
         <svg style={{ position: "absolute", top: 0, left: 0, width: 1400, height: 900, pointerEvents: "none", overflow: "visible" }}>
