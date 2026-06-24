@@ -1,9 +1,19 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { FileDiff, Preflight, Resolution, Session, Ticket, Workspace } from "../types";
+import type {
+  FileChange,
+  FileDiff,
+  Preflight,
+  Resolution,
+  ResolutionSummary,
+  Session,
+  Ticket,
+  Workspace,
+} from "../types";
 import { useRailStatus, useReview } from "../lib/review";
 import { useSessions } from "../lib/sessions";
 import ChangedFilesDiff from "../components/ChangedFilesDiff";
+import DiffPatch from "../components/DiffPatch";
 import Modal from "../components/Modal";
 import ViewHeader from "../components/ViewHeader";
 import Badge from "../components/Badge";
@@ -334,6 +344,8 @@ export default function Review({
                 pf={preflight}
                 resolution={resolution}
                 resolverActive={!!resolver}
+                worktree={worktree}
+                mainBranch={ws.mainBranch}
                 busy={busy}
                 onResolveAgent={resolveWithAgent}
                 onWatch={watchResolver}
@@ -376,10 +388,98 @@ export default function Review({
 // through its phases: ready → root-gate → predicted-conflict (Resolve with agent
 // / manually) → resolving (agent triaging) → flagged (open the merge editor) →
 // all-resolved (commit). A flagged conflict keeps Approve blocked until cleared.
+// The Conflicts tab in the ready state. Two parts: (1) a resolution breakdown —
+// the lines a committed conflict resolution kept/removed (from `resolution_summary`,
+// rendered as a patch) — or, for a genuinely clean merge, a one-line summary; and
+// (2) the full merge preview below: the net effect on main (two-dot changes) via
+// the shared ChangedFilesDiff.
+function ReadySummary({ worktree, mainBranch }: { worktree: string | null; mainBranch: string }) {
+  const [summary, setSummary] = useState<ResolutionSummary | null>(null);
+  const [changes, setChanges] = useState<FileChange[]>([]);
+  const [selFile, setSelFile] = useState<string | null>(null);
+  const [diff, setDiff] = useState<FileDiff | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!worktree) return;
+    let alive = true;
+    setSelFile(null);
+    setDiff(null);
+    Promise.all([
+      invoke<ResolutionSummary>("resolution_summary", { worktree, mainBranch }),
+      // Net effect on main (two-dot) = what Approve lands; distinct from the
+      // Changes tab's three-dot (the ticket's authored changes).
+      invoke<FileChange[]>("worktree_changes", { worktree, mainBranch, threeDot: false }),
+    ])
+      .then(([rs, ch]) => {
+        if (!alive) return;
+        setSummary(rs);
+        setChanges(ch);
+        setErr(null);
+      })
+      .catch((e) => alive && setErr(String(e)));
+    return () => {
+      alive = false;
+    };
+  }, [worktree, mainBranch]);
+
+  useEffect(() => {
+    if (!worktree || !selFile) {
+      setDiff(null);
+      return;
+    }
+    let alive = true;
+    invoke<FileDiff>("worktree_file_diff", { worktree, path: selFile, mainBranch, threeDot: false })
+      .then((d) => alive && setDiff(d))
+      .catch(() => alive && setDiff(null));
+    return () => {
+      alive = false;
+    };
+  }, [worktree, selFile, mainBranch]);
+
+  const n = changes.length;
+  return (
+    <div className={s.readyWrap}>
+      <div className={s.readyText}>
+        {err && <div className="error">{err}</div>}
+        {summary?.resolved ? (
+          <p className={s.ready}>✓ Conflicts resolved — kept (+) and removed (−) below.</p>
+        ) : (
+          <p className={s.ready}>✓ Ready to merge — no conflicts.</p>
+        )}
+        {summary && !summary.resolved && (
+          <p className="muted">
+            Merges cleanly — {n} file{n === 1 ? "" : "s"} changed on {mainBranch}.
+          </p>
+        )}
+      </div>
+
+      {summary?.resolved && (
+        <div className={s.resPatch}>
+          <DiffPatch text={summary.patch} />
+        </div>
+      )}
+
+      <div className={s.previewHead}>Merge preview · what Approve lands on {mainBranch}</div>
+      <div className={s.previewWrap}>
+        <ChangedFilesDiff
+          changes={changes}
+          selected={selFile}
+          onSelect={setSelFile}
+          diff={diff}
+          noChangesHint="no changes vs main"
+        />
+      </div>
+    </div>
+  );
+}
+
 function ConflictsTab({
   pf,
   resolution,
   resolverActive,
+  worktree,
+  mainBranch,
   busy,
   onResolveAgent,
   onWatch,
@@ -396,6 +496,8 @@ function ConflictsTab({
   pf: Preflight | null;
   resolution: Resolution | null;
   resolverActive: boolean;
+  worktree: string | null;
+  mainBranch: string;
   busy: boolean;
   onResolveAgent: () => void;
   onWatch: () => void;
@@ -410,13 +512,7 @@ function ConflictsTab({
   onOpenFlagged: (f: string) => void;
 }) {
   if (!pf) return <div className={`${s.confPad} muted`}>Checking merge readiness…</div>;
-  if (pf.ready)
-    return (
-      <div className={s.confPad}>
-        <p className={s.ready}>✓ Ready to merge — no conflicts.</p>
-        <p className="muted">Review the changes, then Approve &amp; merge below.</p>
-      </div>
-    );
+  if (pf.ready) return <ReadySummary worktree={worktree} mainBranch={mainBranch} />;
 
   // Root-level gates apply regardless of conflicts.
   if (!pf.onMain)

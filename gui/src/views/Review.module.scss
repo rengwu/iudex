@@ -210,6 +210,39 @@
   padding: 14px 16px;
   background: t.$panel-light;
 }
+
+// Ready-state layout: summary text, optional resolution patch, then the merge
+// preview — a fill-height flex column so the patch and preview each scroll.
+.readyWrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: t.$panel-light;
+}
+.readyText {
+  flex: none;
+  padding: 12px 16px 10px;
+}
+.resPatch {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  border-top: 1px solid t.$divider-mid;
+}
+.previewHead {
+  flex: none;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: t.$text-muted;
+  background: t.$panel-rail;
+  border-top: 1px solid t.$divider-mid;
+}
+.previewWrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
 .doc {
   margin: 0;
   padding: 12px 14px;

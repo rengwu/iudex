@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { ArchiveDocs, ArchiveEntry } from "../types";
 import TabSwitcher from "../components/TabSwitcher";
+import DiffPatch from "../components/DiffPatch";
 import s from "./Archive.module.scss";
 
 type Tab = "tickets" | "review";
@@ -142,36 +143,6 @@ function ArchiveReview({ root }: { root: string }) {
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-// Render a unified diff.patch with per-line coloring (the archive stores a
-// patch, not base/head pairs, so this isn't a Monaco diff).
-function DiffPatch({ text }: { text: string }) {
-  if (!text.trim()) return <div className={s.empty}>(no diff)</div>;
-  return (
-    <div className={s.patch}>
-      {text.split("\n").map((line, i) => {
-        const cls =
-          line.startsWith("+") && !line.startsWith("+++")
-            ? s.add
-            : line.startsWith("-") && !line.startsWith("---")
-              ? s.del
-              : line.startsWith("@@")
-                ? s.hunk
-                : line.startsWith("diff ") ||
-                    line.startsWith("index ") ||
-                    line.startsWith("+++") ||
-                    line.startsWith("---")
-                  ? s.meta
-                  : undefined;
-        return (
-          <div key={i} className={cls}>
-            {line || " "}
-          </div>
-        );
-      })}
     </div>
   );
 }

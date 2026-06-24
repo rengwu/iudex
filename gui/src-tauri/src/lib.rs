@@ -1263,6 +1263,57 @@ fn read_resolution(worktree: String) -> Result<Resolution, String> {
     })
 }
 
+/// A committed conflict resolution, summarized for the ready/Conflicts tab.
+/// `resolved` is true only when the worktree HEAD is a merge that pulled main in
+/// AND there were manual edits to resolve it; `patch` is those edits as a
+/// standard unified diff (the lines kept/removed by the resolution).
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ResolutionSummary {
+    resolved: bool,
+    patch: String,
+}
+
+#[tauri::command]
+fn resolution_summary(worktree: String, main_branch: String) -> Result<ResolutionSummary, String> {
+    // Is HEAD a merge commit (>1 parent) that merged main in? That's the shape of
+    // a conflict-resolution merge done in the worktree before approve.
+    let parents = Command::new("git")
+        .args(["-C", &worktree, "rev-list", "--parents", "-n", "1", "HEAD"])
+        .output()
+        .map_err(|e| format!("git rev-list: {e}"))?;
+    let is_merge = String::from_utf8_lossy(&parents.stdout)
+        .split_whitespace()
+        .count()
+        > 2;
+    let main_merged = Command::new("git")
+        .args(["-C", &worktree, "merge-base", "--is-ancestor", &main_branch, "HEAD"])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+    if !is_merge || !main_merged {
+        return Ok(ResolutionSummary { resolved: false, patch: String::new() });
+    }
+
+    // The resolution edits as a standard unified diff: `--remerge-diff` (result vs
+    // the mechanical re-merge) shows exactly what the resolver changed. Fall back
+    // to the combined diff on git too old to know it.
+    let patch = ["--remerge-diff", "--cc"]
+        .into_iter()
+        .find_map(|mode| {
+            Command::new("git")
+                .args(["-C", &worktree, "show", mode, "--format=", "HEAD"])
+                .output()
+                .ok()
+                .filter(|o| o.status.success())
+                .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+                .filter(|s| !s.trim().is_empty())
+        })
+        .unwrap_or_default();
+
+    Ok(ResolutionSummary { resolved: !patch.trim().is_empty(), patch })
+}
+
 /// One conflicted file's three sides, for the editable merge editor: `ours` (the
 /// ticket branch, stage 2), `theirs` (main, stage 3), and `merged` (the current
 /// working file, still carrying conflict markers — the editor's starting point).
@@ -1586,6 +1637,7 @@ pub fn run() {
             begin_resolution,
             abort_resolution,
             read_resolution,
+            resolution_summary,
             read_conflict_file,
             write_resolved_file,
             commit_resolution,

@@ -209,29 +209,3 @@
 }
 
 // ── Unified patch (per-line coloring) ─────────────────────────────────────────
-.patch {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: 8px 10px;
-  background: t.$panel-light;
-  font-family: t.$font-mono;
-  font-size: 11px;
-  line-height: 1.5;
-  color: t.$text;
-  white-space: pre;
-}
-.add {
-  background: #cdeccd;
-  color: #15692f;
-}
-.del {
-  background: #f0d4cf;
-  color: #a82d22;
-}
-.hunk {
-  color: #1c6f78;
-}
-.meta {
-  color: t.$text-muted;
-}

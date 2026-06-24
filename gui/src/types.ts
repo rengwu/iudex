@@ -84,6 +84,13 @@ export interface Resolution {
   hasReport: boolean;
 }
 
+// A committed conflict resolution, summarized for the ready/Conflicts tab (from
+// `resolution_summary`). `patch` is the resolver's edits as a unified diff.
+export interface ResolutionSummary {
+  resolved: boolean;
+  patch: string;
+}
+
 // One conflicted file's three sides for the merge editor (from
 // `read_conflict_file`): `merged` is the working file with conflict markers.
 export interface ConflictFile {
