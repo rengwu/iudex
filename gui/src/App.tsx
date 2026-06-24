@@ -575,18 +575,7 @@ export default function App() {
             {error && <div className="error">{error}</div>}
             {renderView(
               "dashboard",
-              <Dashboard
-                ws={ws}
-                onJump={setView}
-                onOpenReview={(id) => {
-                  setFocusTicket(id);
-                  setView("review");
-                }}
-                autoActivate={autoActivate}
-                onToggleAutoActivate={toggleAutoActivate}
-                autoQA={autoQA}
-                onToggleAutoQA={toggleAutoQA}
-              />,
+              <Dashboard />,
             )}
             {renderView(
               "tickets",
