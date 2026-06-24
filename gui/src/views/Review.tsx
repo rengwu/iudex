@@ -240,18 +240,7 @@ export default function Review({
 
   return (
     <div className={s.view}>
-      <ViewHeader dot="#836ddd" title="Review" subtitle="deep review · pending-human-qa">
-        {worktree && (
-          <>
-            <button className="esc" onClick={() => revealInFinder(worktree)}>
-              Reveal in Finder
-            </button>
-            <button className="esc" onClick={() => openFolderWith(worktree)}>
-              Open with…
-            </button>
-          </>
-        )}
-      </ViewHeader>
+      <ViewHeader dot="#836ddd" title="Review" subtitle="deep review · pending-human-qa" />
       <div className={s.root}>
       <aside className={s.rail}>
         <div className={s.railHead}>PENDING HUMAN QA</div>
@@ -289,6 +278,16 @@ export default function Review({
               <Badge kind="merge" value={hb.cls}>{hb.label}</Badge>
             </div>
           </div>
+          {worktree && (
+            <div className={s.headActions}>
+              <button className="esc" onClick={() => revealInFinder(worktree)}>
+                Reveal in Finder
+              </button>
+              <button className="esc" onClick={() => openFolderWith(worktree)}>
+                Open with…
+              </button>
+            </div>
+          )}
         </header>
 
         {error && <div className="error">{error}</div>}

@@ -119,10 +119,16 @@
 }
 .headInfo {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
   min-width: 0;
   flex: 1;
+}
+.headActions {
+  flex: none;
+  display: flex;
+  gap: 6px;
 }
 .headTitle {
   display: flex;
