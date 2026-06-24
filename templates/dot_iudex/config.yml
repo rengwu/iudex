@@ -15,9 +15,19 @@ max_active: 4
 # is moved to "failed" for human intervention. Reset by `iudex retry`.
 qa_reject_limit: 3
 
-# Command used to build agent spawn commands. iudex never launches the agent
-# itself — it only prints the command for you to run.
-agent_command: pi
+# Pool of named agent commands used to build spawn commands. iudex never
+# launches the agent itself — it only prints the command for you to run. Exactly
+# one entry should be marked `default: true`; it backs any role left unmapped.
+agent_commands:
+  - name: pi
+    command: pi
+    default: true
+
+# Per-role agent selection. Maps a role to a command name from the pool above.
+# Roles: impl (active ticket), qa (pending-qa review), resolve (merge-conflict
+# resolver), idea (front-of-funnel skill shaping). Any role omitted here uses the
+# default pool entry. The map is open — extra roles are simply ignored.
+agent_roles: {}
 
 # How `iudex human-qa approve` lands a ticket on main_branch: "no-ff" | "squash".
 merge_strategy: no-ff

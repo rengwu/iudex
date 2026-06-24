@@ -128,6 +128,87 @@ func TestCLIVersion(t *testing.T) {
 	}
 }
 
+// writeConfig overwrites a workspace's config.yml.
+func writeConfig(t *testing.T, ws, body string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(ws, ".iudex", "config.yml"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestCLISpawnPerRole verifies `iudex spawn` resolves the agent binary per role
+// from the command pool: an unmapped role (impl) uses the default entry, while a
+// mapped role (qa) uses its entry.
+func TestCLISpawnPerRole(t *testing.T) {
+	ws := newWorkspace(t)
+	writeConfig(t, ws, `main_branch: main
+max_active: 4
+qa_reject_limit: 3
+agent_commands:
+  - name: pi
+    command: pi
+    default: true
+  - name: claude
+    command: claude
+agent_roles:
+  qa: claude
+merge_strategy: no-ff
+branch_prefix: "work/"
+`)
+	author(t, ws, "t1")
+	mustRun(t, ws, "queue", "t1")
+	mustRun(t, ws, "activate", "t1")
+
+	if out := mustRun(t, ws, "spawn", "t1"); !strings.Contains(out, "&& pi ") {
+		t.Errorf("active spawn should use the default entry (pi); got: %s", out)
+	}
+	mustRun(t, filepath.Join(ws, ".iudex", "worktrees", "t1"), "finish")
+	if out := mustRun(t, ws, "spawn", "t1"); !strings.Contains(out, "&& claude ") {
+		t.Errorf("pending-qa spawn should use the qa entry (claude); got: %s", out)
+	}
+}
+
+// TestCLISpawnLegacyAgentCommand verifies a pre-pool `agent_command` is migrated
+// into the pool as the default on load, so old workspaces still resolve.
+func TestCLISpawnLegacyAgentCommand(t *testing.T) {
+	ws := newWorkspace(t)
+	writeConfig(t, ws, `main_branch: main
+max_active: 4
+qa_reject_limit: 3
+agent_command: claude
+merge_strategy: no-ff
+branch_prefix: "work/"
+`)
+	author(t, ws, "t1")
+	mustRun(t, ws, "queue", "t1")
+	mustRun(t, ws, "activate", "t1")
+	if out := mustRun(t, ws, "spawn", "t1"); !strings.Contains(out, "&& claude ") {
+		t.Errorf("legacy agent_command should migrate to the default; got: %s", out)
+	}
+}
+
+// TestCLISpawnNoAgentCommand verifies spawn errors (rather than emitting a
+// command with an empty binary slot, which would make the shell execute the
+// prompt) when no agent command resolves.
+func TestCLISpawnNoAgentCommand(t *testing.T) {
+	ws := newWorkspace(t)
+	writeConfig(t, ws, `main_branch: main
+max_active: 4
+qa_reject_limit: 3
+agent_commands: []
+agent_roles: {}
+merge_strategy: no-ff
+branch_prefix: "work/"
+`)
+	author(t, ws, "t1")
+	mustRun(t, ws, "queue", "t1")
+	mustRun(t, ws, "activate", "t1")
+	out := mustFail(t, ws, "spawn", "t1")
+	if !strings.Contains(out, "no agent command configured") {
+		t.Errorf("expected a clear no-agent-command error; got: %s", out)
+	}
+}
+
 func TestCLILifecycleToPendingQA(t *testing.T) {
 	ws := newWorkspace(t)
 	author(t, ws, "t1")

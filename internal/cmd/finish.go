@@ -67,6 +67,6 @@ func runFinish(cmd *cobra.Command, args []string) error {
 
 	fmt.Fprintf(out, "✓ %s handed off to QA (pending-qa)\n", id)
 	fmt.Fprintln(out, "  spawn the QA agent:")
-	fmt.Fprintf(out, "    %s\n", spawnCommand(ctx.Root, ctx.Config, id, "review.md"))
+	fprintSpawnHint(out, ctx.Root, ctx.Config, id, "review.md")
 	return nil
 }

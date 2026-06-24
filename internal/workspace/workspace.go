@@ -18,15 +18,69 @@ import (
 // workspace root.
 const Dir = ".iudex"
 
+// AgentCommand is one named entry in the agent-command pool. Exactly one entry
+// is the Default; roles without an explicit mapping use it.
+type AgentCommand struct {
+	Name    string `yaml:"name"`
+	Command string `yaml:"command"`
+	Default bool   `yaml:"default,omitempty"`
+}
+
 // Config mirrors .iudex/config.yml.
 type Config struct {
-	MainBranch           string `yaml:"main_branch"`
-	MaxActive            int    `yaml:"max_active"`
-	QARejectLimit        int    `yaml:"qa_reject_limit"`
-	AgentCommand         string `yaml:"agent_command"`
-	MergeStrategy        string `yaml:"merge_strategy"`
-	MergeMessageTemplate string `yaml:"merge_message_template"`
-	BranchPrefix         string `yaml:"branch_prefix"`
+	MainBranch    string `yaml:"main_branch"`
+	MaxActive     int    `yaml:"max_active"`
+	QARejectLimit int    `yaml:"qa_reject_limit"`
+	// AgentCommands is the pool of named agent commands; AgentRoles maps a role
+	// (impl, qa, resolve, idea, …) to a pool entry's name. The map is open by
+	// design — unknown roles are ignored by consumers that don't use them.
+	AgentCommands        []AgentCommand    `yaml:"agent_commands"`
+	AgentRoles           map[string]string `yaml:"agent_roles"`
+	MergeStrategy        string            `yaml:"merge_strategy"`
+	MergeMessageTemplate string            `yaml:"merge_message_template"`
+	BranchPrefix         string            `yaml:"branch_prefix"`
+
+	// LegacyAgentCommand is the pre-pool single `agent_command`. It is folded
+	// into the pool on load (see migrate) so old workspaces keep working.
+	LegacyAgentCommand string `yaml:"agent_command,omitempty"`
+}
+
+// migrate folds a legacy single agent_command into the pool when no pool is
+// present, so pre-pool workspaces resolve commands unchanged.
+func (c *Config) migrate() {
+	if len(c.AgentCommands) == 0 && c.LegacyAgentCommand != "" {
+		c.AgentCommands = []AgentCommand{
+			{Name: c.LegacyAgentCommand, Command: c.LegacyAgentCommand, Default: true},
+		}
+	}
+}
+
+// DefaultAgentCommand returns the command of the entry marked default, else the
+// first entry, else "".
+func (c *Config) DefaultAgentCommand() string {
+	for _, a := range c.AgentCommands {
+		if a.Default {
+			return a.Command
+		}
+	}
+	if len(c.AgentCommands) > 0 {
+		return c.AgentCommands[0].Command
+	}
+	return ""
+}
+
+// AgentCommandForRole resolves the command for a role: the role's mapped pool
+// entry by name, falling back to the default entry when the role is unmapped or
+// names an entry that no longer exists.
+func (c *Config) AgentCommandForRole(role string) string {
+	if name := c.AgentRoles[role]; name != "" {
+		for _, a := range c.AgentCommands {
+			if a.Name == name {
+				return a.Command
+			}
+		}
+	}
+	return c.DefaultAgentCommand()
 }
 
 // Find walks up from start (or the cwd when start is "") looking for a directory
@@ -68,6 +122,7 @@ func LoadConfig(root string) (*Config, error) {
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
+	cfg.migrate()
 	return &cfg, nil
 }
 

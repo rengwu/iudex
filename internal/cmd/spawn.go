@@ -45,6 +45,10 @@ func runSpawn(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("ticket %s is %s — spawn applies only to active (impl) or pending-qa (QA)", id, s.State)
 	}
 
-	fmt.Fprintln(cmd.OutOrStdout(), spawnCommand(ctx.Root, ctx.Config, id, promptFile))
+	out, err := spawnCommand(ctx.Root, ctx.Config, id, promptFile)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(cmd.OutOrStdout(), out)
 	return nil
 }

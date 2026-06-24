@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -60,9 +61,33 @@ func resolveTicket(root string, args []string) (string, error) {
 }
 
 // spawnCommand builds a ready-to-paste agent command that drops the user into a
-// ticket's worktree with the given prompt template. iudex never runs it.
-func spawnCommand(root string, cfg *workspace.Config, id, promptFile string) string {
+// ticket's worktree with the given prompt template. iudex never runs it. The
+// agent binary is resolved per role from the config's command pool; the prompt
+// file identifies the role (review.md → qa, otherwise impl).
+//
+// It errors when no command resolves rather than emitting one with an empty
+// binary slot: `cd … && "$(cat prompt)"` would make the shell execute the prompt
+// text itself (a footgun seen when an old iudex reads a pool-format config).
+func spawnCommand(root string, cfg *workspace.Config, id, promptFile string) (string, error) {
+	role := "impl"
+	if promptFile == "review.md" {
+		role = "qa"
+	}
+	agent := cfg.AgentCommandForRole(role)
+	if agent == "" {
+		return "", fmt.Errorf("no agent command configured for role %q — add an entry under agent_commands in .iudex/config.yml", role)
+	}
 	wt := workspace.Worktree(root, id)
 	prompt := filepath.Join(workspace.PromptsDir(root), promptFile)
-	return fmt.Sprintf(`cd %s && %s "$(cat %s)"`, wt, cfg.AgentCommand, prompt)
+	return fmt.Sprintf(`cd %s && %s "$(cat %s)"`, wt, agent, prompt), nil
+}
+
+// fprintSpawnHint writes the indented spawn command for a "next steps" block, or
+// a short note when no agent command is configured — never a broken command.
+func fprintSpawnHint(out io.Writer, root string, cfg *workspace.Config, id, promptFile string) {
+	if c, err := spawnCommand(root, cfg, id, promptFile); err == nil {
+		fmt.Fprintf(out, "    %s\n", c)
+	} else {
+		fmt.Fprintf(out, "    (%v)\n", err)
+	}
 }
