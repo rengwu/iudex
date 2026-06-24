@@ -8,20 +8,159 @@
 
 mod tmux;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 /// Holds the live file watcher so it is not dropped (dropping stops watching).
 #[derive(Default)]
 struct WatcherState(Mutex<Option<RecommendedWatcher>>);
 
-/// The iudex binary to invoke: $IUDEX_BIN if set, else `iudex` from PATH.
+/// User-chosen iudex binary path, persisted in ~/.iudex/settings.json and loaded
+/// once at startup. Kept in a process-global so the plain `iudex_bin()` (called
+/// from many sites + tmux.rs) needs no AppHandle. `None`/empty means "no
+/// override" — fall through to $IUDEX_BIN, then PATH.
+fn iudex_bin_override() -> &'static Mutex<Option<String>> {
+    static OVERRIDE: OnceLock<Mutex<Option<String>>> = OnceLock::new();
+    OVERRIDE.get_or_init(|| Mutex::new(None))
+}
+
+/// The iudex binary to invoke: the saved override if set, else $IUDEX_BIN, else
+/// `iudex` from PATH.
 pub(crate) fn iudex_bin() -> String {
+    if let Some(p) = iudex_bin_override().lock().unwrap().clone() {
+        if !p.is_empty() {
+            return p;
+        }
+    }
     std::env::var("IUDEX_BIN").unwrap_or_else(|_| "iudex".to_string())
+}
+
+/// GUI-level settings, stored globally (not per-workspace) at
+/// ~/.iudex/settings.json — distinct from a project's per-workspace `.iudex/`.
+#[derive(serde::Serialize, serde::Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct Settings {
+    #[serde(default)]
+    iudex_bin: String,
+}
+
+/// Path to the global settings file: ~/.iudex/settings.json.
+fn settings_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let home = app
+        .path()
+        .home_dir()
+        .map_err(|e| format!("cannot resolve home dir: {e}"))?;
+    Ok(home.join(".iudex").join("settings.json"))
+}
+
+fn read_settings(app: &AppHandle) -> Settings {
+    settings_path(app)
+        .ok()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|t| serde_json::from_str(&t).ok())
+        .unwrap_or_default()
+}
+
+fn write_settings(app: &AppHandle, s: &Settings) -> Result<(), String> {
+    let path = settings_path(app)?;
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
+    }
+    let json = serde_json::to_string_pretty(s).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| format!("cannot write {}: {e}", path.display()))
+}
+
+/// Load the persisted iudex binary path into the global override. Called once at
+/// startup, before any command runs.
+fn load_iudex_override(app: &AppHandle) {
+    let saved = read_settings(app).iudex_bin;
+    if !saved.is_empty() {
+        *iudex_bin_override().lock().unwrap() = Some(saved);
+    }
+}
+
+/// Probe a candidate binary for its version line. Shared by the startup check and
+/// save-validation so both judge "is this a working iudex" identically.
+///
+/// Two failure modes are distinct: a NotFound spawn error means the binary is
+/// missing from PATH; a non-zero exit means it's present but broken (or too old
+/// to know `--version`, which cobra answers with an unknown-flag error). Both
+/// block the GUI, so both return Err — but with messages that point the user at
+/// the right fix.
+fn iudex_version(bin: &str) -> Result<String, String> {
+    match Command::new(bin).arg("--version").output() {
+        Ok(out) if out.status.success() => {
+            let v = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            Ok(if v.is_empty() { bin.to_string() } else { v })
+        }
+        Ok(out) => {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            let detail = stderr.trim();
+            Err(if detail.is_empty() {
+                format!("'{bin}' failed to report its version ({})", out.status)
+            } else {
+                format!("'{bin}' failed to report its version: {detail}")
+            })
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            Err(format!("'{bin}' was not found on your PATH"))
+        }
+        Err(e) => Err(format!("could not run '{bin}': {e}")),
+    }
+}
+
+/// Check that the iudex CLI is reachable, returning its version line. The GUI
+/// drives iudex the way a git client drives git, so without it nothing works —
+/// checked at startup to fail with a clear message instead of opaque errors from
+/// every command.
+#[tauri::command]
+fn check_iudex() -> Result<String, String> {
+    iudex_version(&iudex_bin())
+}
+
+/// What the iudex-CLI settings tab needs to render: the saved override (or ""),
+/// the $IUDEX_BIN env value (or null), and the effective resolution string — so
+/// the active source is never a mystery.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct IudexSettings {
+    saved_path: String,
+    env_bin: Option<String>,
+    resolved: Result<String, String>,
+}
+
+#[tauri::command]
+fn get_iudex_settings(app: AppHandle) -> IudexSettings {
+    let saved_path = read_settings(&app).iudex_bin;
+    IudexSettings {
+        saved_path,
+        env_bin: std::env::var("IUDEX_BIN").ok(),
+        resolved: check_iudex(),
+    }
+}
+
+/// Persist the user's iudex binary path. A non-empty path is validated first and
+/// the save is refused (old value kept) if it doesn't resolve, so a typo can't
+/// strand the app. An empty path clears the override (fall back to env/PATH).
+/// Returns the resolved version line on success.
+#[tauri::command]
+fn set_iudex_bin(app: AppHandle, path: String) -> Result<String, String> {
+    let path = path.trim().to_string();
+    let resolved = if path.is_empty() {
+        // Cleared: validate whatever env/PATH now resolves to, for feedback.
+        iudex_version(&std::env::var("IUDEX_BIN").unwrap_or_else(|_| "iudex".to_string()))
+    } else {
+        iudex_version(&path)
+    }?;
+    let mut s = read_settings(&app);
+    s.iudex_bin = path.clone();
+    write_settings(&app, &s)?;
+    *iudex_bin_override().lock().unwrap() = if path.is_empty() { None } else { Some(path) };
+    Ok(resolved)
 }
 
 /// Run an arbitrary `iudex` subcommand in the workspace and return its stdout.
@@ -1241,7 +1380,15 @@ pub fn run() {
         .manage(tmux::PtyState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            // Load the saved iudex binary path before any command can run.
+            load_iudex_override(app.handle());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
+            check_iudex,
+            get_iudex_settings,
+            set_iudex_bin,
             discover_workspace,
             init_workspace,
             read_config,

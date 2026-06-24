@@ -13,6 +13,8 @@ import Review from "./views/Review";
 import Archive from "./views/Archive";
 import Settings from "./views/Settings";
 import SectionHeader from "./components/SectionHeader";
+import Button from "./components/Button";
+import Badge from "./components/Badge";
 import "./styles/base.scss";
 import a from "./App.module.scss";
 
@@ -29,6 +31,14 @@ export default function App() {
   // The last folder the user selected — retained for initHere even when it's
   // not a valid workspace yet.
   const [pickedPath, setPickedPath] = useState<string | null>(null);
+  // iudex CLI availability: null while checking, then the version line or null
+  // once we know it's missing (the GUI is useless without the binary).
+  const [iudexVersion, setIudexVersion] = useState<string | null>(null);
+  const [iudexErr, setIudexErr] = useState<string | null>(null);
+  const [checkingIudex, setCheckingIudex] = useState(true);
+  // Standalone (workspace-less) Settings opened from the missing-binary splash,
+  // so the user can point the GUI at an iudex binary and recover in place.
+  const [showGlobalSettings, setShowGlobalSettings] = useState(false);
   const [root, setRoot] = useState<string | null>(null);
   const [ws, setWs] = useState<Workspace | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +85,26 @@ export default function App() {
     const timers = pruneTimers.current;
     return () => Object.values(timers).forEach((t) => t && clearTimeout(t));
   }, []);
+
+  // The GUI shells every operation through the iudex CLI, so verify it's on PATH
+  // before anything else — otherwise every command fails with an opaque error.
+  const checkIudex = useCallback(async () => {
+    setCheckingIudex(true);
+    try {
+      const v = await invoke<string>("check_iudex");
+      setIudexVersion(v);
+      setIudexErr(null);
+    } catch (e) {
+      setIudexVersion(null);
+      setIudexErr(String(e));
+    } finally {
+      setCheckingIudex(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkIudex();
+  }, [checkIudex]);
   const [autoActivate, setAutoActivate] = useState(false);
   const autoActivateRef = useRef(false);
   const drainingRef = useRef(false);
@@ -263,6 +293,77 @@ export default function App() {
     const h = setInterval(() => load(root), 7000);
     return () => clearInterval(h);
   }, [autoActivate, autoQA, root, load]);
+
+  // ── First paint blocks on the iudex check; the GUI does nothing without it ──
+  if (checkingIudex && !iudexVersion && !iudexErr) {
+    return (
+      <main className={a.app}>
+        <div className={a.splash}>
+          <h1 className={a.logo}>iudex</h1>
+        </div>
+      </main>
+    );
+  }
+
+  // ── Standalone Settings (no workspace): recover the binary path from here ────
+  if (showGlobalSettings) {
+    return (
+      <main className={a.app}>
+        <Settings
+          root={null}
+          onConfigSaved={() => {}}
+          onClose={() => {
+            setShowGlobalSettings(false);
+            checkIudex();
+          }}
+        />
+      </main>
+    );
+  }
+
+  // ── iudex CLI missing: the GUI can't function without it ────────────────────
+  // Guard on the error alone (not !checkingIudex) so the screen stays mounted
+  // during a Re-check — checkIudex keeps iudexErr until the new result lands —
+  // making the button's disabled/"Checking…" state live instead of a flicker.
+  if (iudexErr) {
+    return (
+      <main className={a.app}>
+        <div className={a.splash}>
+          <section className={a.errPanel}>
+            <header className={a.errHead}>
+              <span className={a.errBrand}>
+                <span className={a.errDot} />
+                iudex
+              </span>
+              <Badge bg="#e0584c" fg="#ffffff">
+                CLI unavailable
+              </Badge>
+            </header>
+
+            <div className={a.errBody}>
+              <p className={a.errLede}>The iudex command-line tool isn’t available.</p>
+              <pre className={a.errCode}>{iudexErr}</pre>
+              <p className={a.errHint}>
+                iudex drives this app the way git drives a git client. Install the{" "}
+                <code>iudex</code> binary and point the GUI at it — set the path in Settings,
+                or put <code>iudex</code> on your PATH (or set <code>IUDEX_BIN</code>) and
+                re-check.
+              </p>
+            </div>
+
+            <footer className={a.errActions}>
+              <Button variant="quiet" disabled={checkingIudex} onClick={checkIudex}>
+                {checkingIudex ? "Checking…" : "Re-check"}
+              </Button>
+              <Button variant="primary" onClick={() => setShowGlobalSettings(true)}>
+                Open Settings
+              </Button>
+            </footer>
+          </section>
+        </div>
+      </main>
+    );
+  }
 
   // ── Splash: no workspace open yet ──────────────────────────────────────────
   if (!root && !offerInit) {
@@ -469,6 +570,11 @@ export default function App() {
                     {Array.from({ length: maxActive }).map((_, i) => (
                       <span key={i} className={`${a.sysSeg} ${i < activeCount ? a.on : ""}`} />
                     ))}
+                  </div>
+                )}
+                {iudexVersion && (
+                  <div className={a.sysVer} title={iudexVersion}>
+                    {iudexVersion.replace(/^iudex /, "")}
                   </div>
                 )}
               </div>
