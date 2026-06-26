@@ -22,6 +22,10 @@ import a from "./App.module.scss";
 // after this much inactivity — a separate timer per view.
 const KEEP_ALIVE_MS = 10 * 60 * 1000;
 
+// GUI version: no real versioning scheme yet — placeholder until we wire one up
+// (e.g. inject from package.json / git at build time, like the iudex binary).
+const GUI_VERSION = "dev";
+
 function basename(p: string): string {
   const parts = p.split("/").filter(Boolean);
   return parts[parts.length - 1] ?? p;
@@ -374,6 +378,10 @@ export default function App() {
           <button className={a.openBtn} onClick={pickAndOpen}>
             Open Folder
           </button>
+          <div className={a.versions}>
+            <span>{iudexVersion ?? "iudex —"}</span>
+            <span>gui {GUI_VERSION}</span>
+          </div>
           {error && <div className="error">{error}</div>}
         </div>
       </main>

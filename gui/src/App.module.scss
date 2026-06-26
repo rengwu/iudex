@@ -67,6 +67,20 @@
   font-size: 13px;
 }
 
+// Version caption under the Open Folder action. Mono (these are values), and
+// $text-muted — the secondary-text token for the *light* canvas, matching
+// .notWs above. ($text-meta is dim-on-dark; it would vanish on this surface.)
+// Spacing comes from .splash's gap; no margin here.
+.versions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-family: t.$font-mono;
+  font-size: 11px;
+  color: t.$text-muted;
+}
+
 // ── iudex-missing panel (flat, square, DAW-style) ─────────────────────────────
 .errPanel {
   width: 460px;
