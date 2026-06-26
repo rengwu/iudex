@@ -232,7 +232,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: t.$panel-light;
+  background: t.$panel-mid;
 }
 .readyText {
   flex: none;
@@ -251,6 +251,7 @@
   color: t.$text-muted;
   background: t.$panel-rail;
   border-top: 1px solid t.$divider-mid;
+  border-bottom: 1px solid t.$divider-mid;
 }
 .previewWrap {
   flex: 1;

@@ -145,7 +145,7 @@ Three-pane read-only inspection: rail keyed on **physical worktrees** (one entry
 
 ### Review → deep-review workspace (pending-human-qa)
 
-Triage **rail** of cards (`tN · title · qa✓ · merge-badge`: ✓ clean / ⚠ conflicts / ◐ resolving) so clean merges can be sequenced ahead of conflicted ones. Header with escape hatches (Reveal in Finder, Open with…). Tab strip: **brief · impl log · qa review · changes (N) · conflicts**.
+Triage **rail** of cards (`tN · title · qa✓ · merge-badge`: ✓ clean / ⚠ conflicts / ◐ resolving) so clean merges can be sequenced ahead of conflicted ones. Header with escape hatches (Reveal in Finder, Open with…). Tab strip: **brief · implementation log · qa review · changes (N) · conflicts**.
 
 - **changes** — three-dot diff (what the ticket authored) via files-list + Monaco.
 - **conflicts** — a full in-GUI merge-readiness + resolution workspace. Phases: predicted-conflict (**Resolve with agent** / Resolve manually / Open shell / Re-check) → resolving (◐ banner, Watch / Stop, live unmerged list) → flagged (agent-flagged files with reasons → editable **MergeEditor** per file) → all-resolved (Commit resolution / Abort) → ready. A flagged conflict **blocks Approve**.
@@ -184,15 +184,15 @@ Shared lazy-loaded read-only Monaco diff (inline/split toggle, `title` + `action
 
 ## 7. Deviations & extensions vs the original PRD
 
-| Original design                                     | As-built reality                                                                                                                                                                                       |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Agents = grid of `capture-pane` **peeks**           | Replaced with a **master-detail cockpit** (rail + interactive console + worktree diff + ticket tab).                                                                                                   |
-| Ticket detail = "side panel"                        | A **floating overlay** panel, 520px, that does not compress the list.                                                                                                                                  |
-| Diff via tmux read-only `-r` attach for peeks       | Peeks were dropped; the console is a single interactive PTY attach (avoids tmux's smallest-client resize war).                                                                                         |
-| Merge conflicts **out of scope** (resolve manually) | **In-GUI agent-assisted resolution** + an editable merge editor were added — the agent triages (resolves trivial, flags ambiguous), a flagged conflict blocks Approve, the human-QA gate is unchanged. |
-| Worktrees three-dot diff                            | Worktrees uses **two-dot** (shows uncommitted edits); Review uses **three-dot** (what would merge).                                                                                                    |
+| Original design                                     | As-built reality                                                                                                                                                                                                                |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Agents = grid of `capture-pane` **peeks**           | Replaced with a **master-detail cockpit** (rail + interactive console + worktree diff + ticket tab).                                                                                                                            |
+| Ticket detail = "side panel"                        | A **floating overlay** panel, 520px, that does not compress the list.                                                                                                                                                           |
+| Diff via tmux read-only `-r` attach for peeks       | Peeks were dropped; the console is a single interactive PTY attach (avoids tmux's smallest-client resize war).                                                                                                                  |
+| Merge conflicts **out of scope** (resolve manually) | **In-GUI agent-assisted resolution** + an editable merge editor were added — the agent triages (resolves trivial, flags ambiguous), a flagged conflict blocks Approve, the human-QA gate is unchanged.                          |
+| Worktrees three-dot diff                            | Worktrees uses **two-dot** (shows uncommitted edits); Review uses **three-dot** (what would merge).                                                                                                                             |
 | Single `agent_command`                              | Replaced by a **pool** (`agent_commands` + per-role `agent_roles`: impl/qa/resolve/idea). The GUI reads it via `iudex config --json` and resolves a role via `iudex agent-command <role>` — no Rust-side parsing or resolution. |
-| Read path possibly needs `export --json` too        | The read path is `status --json` + `config --json` + `agent-command` (all CLI-sourced); `export --json` never required. `blocks` field added to `status --json` for the ticket panel.                  |
+| Read path possibly needs `export --json` too        | The read path is `status --json` + `config --json` + `agent-command` (all CLI-sourced); `export --json` never required. `blocks` field added to `status --json` for the ticket panel.                                           |
 
 **Accepted-as-is (deliberate):** agent spawning has zero guards (a stray double-click fires real billable `pi`); synthesized status can mislead (it's a heuristic); dead sessions accumulate (manual clear-finished); binary/huge files render blank in the diff.
 

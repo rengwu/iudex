@@ -24,17 +24,17 @@ const MergeEditor = lazy(() => import("./MergeEditor"));
 type Tab = "brief" | "log" | "review" | "changes" | "conflicts";
 
 const TAB_LABELS: Record<Tab, string> = {
-  brief: "brief",
-  log: "impl log",
-  review: "qa review",
-  changes: "changes",
-  conflicts: "conflicts",
+  brief: "Ticket Brief",
+  log: "Implementation Log",
+  review: "Agent Review",
+  changes: "Changes",
+  conflicts: "Conflicts",
 };
 
 // The deep-review workspace for pending-human-qa tickets. The rail is the merge
 // to-do list (each card carries a title + merge badge so clean merges can be
 // sequenced ahead of conflicted ones); the main pane is tabbed — read-only
-// inspection (brief / impl log / qa review / changes) plus a `conflicts` tab
+// inspection (brief / implementation log / qa review / changes) plus a `conflicts` tab
 // that holds the merge-readiness workspace. Approve only ever fires when the
 // preflight guarantees the merge succeeds.
 export default function Review({
@@ -83,7 +83,11 @@ export default function Review({
 
   const selected: Ticket | null = pending.find((t) => t.id === selId) ?? null;
   const worktree = selected?.worktree ?? null;
-  const { docs, changes, preflight, resolution, error, recheck } = useReview(root, worktree, ws);
+  const { docs, changes, preflight, resolution, error, recheck } = useReview(
+    root,
+    worktree,
+    ws,
+  );
   const rail = useRailStatus(
     root,
     ws.mainBranch,
@@ -95,7 +99,9 @@ export default function Review({
 
   // A live conflict-resolution agent for this ticket, if one is running.
   const resolver =
-    sessions.find((s) => s.kind === "agent" && s.ticket === selId && s.role === "resolve") ?? null;
+    sessions.find(
+      (s) => s.kind === "agent" && s.ticket === selId && s.role === "resolve",
+    ) ?? null;
 
   // Reset the open file / tab / merge editor when switching tickets.
   useEffect(() => {
@@ -165,7 +171,13 @@ export default function Review({
   const reject = (reason: string) =>
     act(async () => {
       if (!selId) return;
-      await api.runIudex(root, ["human-qa", "reject", selId, "--reason", reason]);
+      await api.runIudex(root, [
+        "human-qa",
+        "reject",
+        selId,
+        "--reason",
+        reason,
+      ]);
     });
 
   const beginResolution = () =>
@@ -229,7 +241,11 @@ export default function Review({
   if (pending.length === 0)
     return (
       <div className={s.view}>
-        <ViewHeader dot={VIEWS.review.dot} title="Review" subtitle="deep review · pending-human-qa" />
+        <ViewHeader
+          dot={VIEWS.review.dot}
+          title="Review"
+          subtitle="deep review · pending-human-qa"
+        />
         <div className={s.empty}>Nothing awaiting human review.</div>
       </div>
     );
@@ -241,144 +257,176 @@ export default function Review({
 
   return (
     <div className={s.view}>
-      <ViewHeader dot={VIEWS.review.dot} title="Review" subtitle="deep review · pending-human-qa" />
+      <ViewHeader
+        dot={VIEWS.review.dot}
+        title="Review"
+        subtitle="deep review · pending-human-qa"
+      />
       <div className={s.root}>
-      <aside className={s.rail}>
-        <div className={s.railHead}>PENDING HUMAN QA</div>
-        {pending.map((t) => {
-          const b = railBadge(t.worktree ? rail[t.worktree]?.badge : undefined);
-          return (
-            <button
-              key={t.id}
-              className={`${s.item} ${t.id === selId ? s.active : ""}`}
-              onClick={() => setSelId(t.id)}
-            >
-              <span className={s.itemTop}>
-                <span className={s.itemId}>{t.id}</span>
-                <span className={s.itemTitle}>
-                  {(t.worktree && rail[t.worktree]?.title) || "…"}
+        <aside className={s.rail}>
+          <div className={s.railHead}>PENDING HUMAN QA</div>
+          {pending.map((t) => {
+            const b = railBadge(
+              t.worktree ? rail[t.worktree]?.badge : undefined,
+            );
+            return (
+              <button
+                key={t.id}
+                className={`${s.item} ${t.id === selId ? s.active : ""}`}
+                onClick={() => setSelId(t.id)}
+              >
+                <span className={s.itemTop}>
+                  <span className={s.itemId}>{t.id}</span>
+                  <span className={s.itemTitle}>
+                    {(t.worktree && rail[t.worktree]?.title) || "…"}
+                  </span>
                 </span>
-              </span>
-              <span className={s.itemSub}>qa&nbsp;✓</span>
-              <Badge kind="merge" value={b.cls}>{b.label}</Badge>
-            </button>
-          );
-        })}
-      </aside>
-
-      <div className={s.main}>
-        <header className={s.head}>
-          <div className={s.headInfo}>
-            <div className={s.headTitle}>
-              <span className={s.headId}>{selId}</span>
-              <span className={s.headName}>{title}</span>
-            </div>
-            <div className={s.headSub}>
-              <span className={s.headVerdict}>qa&nbsp;✓ approved</span>
-              <span className={s.dot}>·</span>
-              <Badge kind="merge" value={hb.cls}>{hb.label}</Badge>
-            </div>
-          </div>
-          {worktree && (
-            <div className={s.headActions}>
-              <button className="esc" onClick={() => revealInFinder(worktree)}>
-                Reveal in Finder
+                <span className={s.itemSub}>qa&nbsp;✓</span>
+                <Badge kind="merge" value={b.cls}>
+                  {b.label}
+                </Badge>
               </button>
-              <button className="esc" onClick={() => openFolderWith(worktree)}>
-                Open with…
-              </button>
+            );
+          })}
+        </aside>
+
+        <div className={s.main}>
+          <header className={s.head}>
+            <div className={s.headInfo}>
+              <div className={s.headTitle}>
+                <span className={s.headId}>{selId}</span>
+                <span className={s.headName}>{title}</span>
+              </div>
+              <div className={s.headSub}>
+                <span className={s.headVerdict}>qa&nbsp;✓ approved</span>
+                <span className={s.dot}>·</span>
+                <Badge kind="merge" value={hb.cls}>
+                  {hb.label}
+                </Badge>
+              </div>
             </div>
-          )}
-        </header>
-
-        {error && <div className="error">{error}</div>}
-
-        <nav className={s.doctabs}>
-          {(["brief", "log", "review", "changes", "conflicts"] as Tab[]).map((d) => (
-            <button
-              key={d}
-              className={`${s.doctab} ${tab === d ? s.active : ""}`}
-              onClick={() => setTab(d)}
-            >
-              {d === "changes"
-                ? `changes (${changes.length})`
-                : TAB_LABELS[d]}
-              {d === "conflicts" && conflictsFlagged && <span className={s.tabDot} />}
-            </button>
-          ))}
-        </nav>
-
-        <div className={s.content}>
-          {tab === "changes" ? (
-            <ChangedFilesDiff
-              changes={changes}
-              selected={selFile}
-              onSelect={setSelFile}
-              diff={diff}
-              noChangesHint="no changes vs merge-base"
-              fileActions={
+            {worktree && (
+              <div className={s.headActions}>
                 <button
                   className="esc"
-                  onClick={() => worktree && selFile && openInEditor(`${worktree}/${selFile}`)}
+                  onClick={() => revealInFinder(worktree)}
                 >
-                  Open in editor
+                  Reveal in Finder
                 </button>
-              }
-            />
-          ) : tab === "conflicts" ? (
-            mergeFile && worktree ? (
-              <Suspense fallback={<div className="muted">loading editor…</div>}>
-                <MergeEditor
-                  worktree={worktree}
-                  path={mergeFile}
-                  busy={busy}
-                  onResolved={() => {
-                    setMergeFile(null);
-                    recheck();
-                  }}
-                  onCancel={() => setMergeFile(null)}
-                />
-              </Suspense>
-            ) : (
-              <ConflictsTab
-                pf={preflight}
-                resolution={resolution}
-                resolverActive={!!resolver}
-                worktree={worktree}
-                mainBranch={ws.mainBranch}
-                busy={busy}
-                onResolveAgent={resolveWithAgent}
-                onWatch={watchResolver}
-                onStop={stopResolver}
-                onCommit={commitResolution}
-                onShellRoot={() => openShell(root)}
-                onShellWorktree={() => worktree && openShell(worktree)}
-                onBegin={beginResolution}
-                onAbort={abortResolution}
-                onRecheck={recheck}
-                onPickConflict={pickConflict}
-                onOpenFlagged={(f) => setMergeFile(f)}
+                <button
+                  className="esc"
+                  onClick={() => openFolderWith(worktree)}
+                >
+                  Open with…
+                </button>
+              </div>
+            )}
+          </header>
+
+          {error && <div className="error">{error}</div>}
+
+          <nav className={s.doctabs}>
+            {(["brief", "log", "review", "changes", "conflicts"] as Tab[]).map(
+              (d) => (
+                <button
+                  key={d}
+                  className={`${s.doctab} ${tab === d ? s.active : ""}`}
+                  onClick={() => setTab(d)}
+                >
+                  {d === "changes"
+                    ? `Changes (${changes.length})`
+                    : TAB_LABELS[d]}
+                  {d === "conflicts" && conflictsFlagged && (
+                    <span className={s.tabDot} />
+                  )}
+                </button>
+              ),
+            )}
+          </nav>
+
+          <div className={s.content}>
+            {tab === "changes" ? (
+              <ChangedFilesDiff
+                changes={changes}
+                selected={selFile}
+                onSelect={setSelFile}
+                diff={diff}
+                noChangesHint="no changes vs merge-base"
+                fileActions={
+                  <button
+                    className="esc"
+                    onClick={() =>
+                      worktree &&
+                      selFile &&
+                      openInEditor(`${worktree}/${selFile}`)
+                    }
+                  >
+                    Open in editor
+                  </button>
+                }
               />
-            )
-          ) : (
-            <pre className={s.doc}>{docText?.trim() ? docText : `(no ${TAB_LABELS[tab]})`}</pre>
-          )}
-        </div>
+            ) : tab === "conflicts" ? (
+              mergeFile && worktree ? (
+                <Suspense
+                  fallback={<div className="muted">loading editor…</div>}
+                >
+                  <MergeEditor
+                    worktree={worktree}
+                    path={mergeFile}
+                    busy={busy}
+                    onResolved={() => {
+                      setMergeFile(null);
+                      recheck();
+                    }}
+                    onCancel={() => setMergeFile(null)}
+                  />
+                </Suspense>
+              ) : (
+                <ConflictsTab
+                  pf={preflight}
+                  resolution={resolution}
+                  resolverActive={!!resolver}
+                  worktree={worktree}
+                  mainBranch={ws.mainBranch}
+                  busy={busy}
+                  onResolveAgent={resolveWithAgent}
+                  onWatch={watchResolver}
+                  onStop={stopResolver}
+                  onCommit={commitResolution}
+                  onShellRoot={() => openShell(root)}
+                  onShellWorktree={() => worktree && openShell(worktree)}
+                  onBegin={beginResolution}
+                  onAbort={abortResolution}
+                  onRecheck={recheck}
+                  onPickConflict={pickConflict}
+                  onOpenFlagged={(f) => setMergeFile(f)}
+                />
+              )
+            ) : (
+              <pre className={s.doc}>
+                {docText?.trim() ? docText : `(no ${TAB_LABELS[tab]})`}
+              </pre>
+            )}
+          </div>
 
-        {actErr && <div className="error">{actErr}</div>}
+          {actErr && <div className="error">{actErr}</div>}
 
-        <div className={s.actions}>
-          <RejectButton disabled={busy} onReject={reject} />
-          <button
-            className={s.approve}
-            disabled={busy || !preflight?.ready}
-            title={preflight?.ready ? "merge into main" : "blocked — see the Conflicts tab"}
-            onClick={approve}
-          >
-            {busy ? "…" : "Approve & merge"}
-          </button>
+          <div className={s.actions}>
+            <RejectButton disabled={busy} onReject={reject} />
+            <button
+              className={s.approve}
+              disabled={busy || !preflight?.ready}
+              title={
+                preflight?.ready
+                  ? "merge into main"
+                  : "blocked — see the Conflicts tab"
+              }
+              onClick={approve}
+            >
+              {busy ? "…" : "Approve & merge"}
+            </button>
+          </div>
         </div>
-      </div>
       </div>
     </div>
   );
@@ -393,7 +441,13 @@ export default function Review({
 // rendered as a patch) — or, for a genuinely clean merge, a one-line summary; and
 // (2) the full merge preview below: the net effect on main (two-dot changes) via
 // the shared ChangedFilesDiff.
-function ReadySummary({ worktree, mainBranch }: { worktree: string | null; mainBranch: string }) {
+function ReadySummary({
+  worktree,
+  mainBranch,
+}: {
+  worktree: string | null;
+  mainBranch: string;
+}) {
   const [summary, setSummary] = useState<ResolutionSummary | null>(null);
   const [changes, setChanges] = useState<FileChange[]>([]);
   const [selFile, setSelFile] = useState<string | null>(null);
@@ -429,7 +483,8 @@ function ReadySummary({ worktree, mainBranch }: { worktree: string | null; mainB
       return;
     }
     let alive = true;
-    api.worktreeFileDiff(worktree, selFile, mainBranch, false)
+    api
+      .worktreeFileDiff(worktree, selFile, mainBranch, false)
       .then((d) => alive && setDiff(d))
       .catch(() => alive && setDiff(null));
     return () => {
@@ -443,24 +498,27 @@ function ReadySummary({ worktree, mainBranch }: { worktree: string | null; mainB
       <div className={s.readyText}>
         {err && <div className="error">{err}</div>}
         {summary?.resolved ? (
-          <p className={s.ready}>✓ Conflicts resolved — kept (+) and removed (−) below.</p>
+          <p className={s.ready}>
+            ✓ Conflicts resolved — kept (+) and removed (−) below.
+          </p>
         ) : (
           <p className={s.ready}>✓ Ready to merge — no conflicts.</p>
         )}
         {summary && !summary.resolved && (
           <p className="muted">
-            Merges cleanly — {n} file{n === 1 ? "" : "s"} changed on {mainBranch}.
+            Merges cleanly — {n} file{n === 1 ? "" : "s"} changed on{" "}
+            {mainBranch}.
           </p>
         )}
       </div>
-
       {summary?.resolved && (
         <div className={s.resPatch}>
           <DiffPatch text={summary.patch} />
         </div>
       )}
-
-      <div className={s.previewHead}>Merge preview · what Approve lands on {mainBranch}</div>
+      <div className={s.previewHead}>
+        Merge preview · what Approve lands on {mainBranch}
+      </div>
       <div className={s.previewWrap}>
         <ChangedFilesDiff
           changes={changes}
@@ -511,8 +569,12 @@ function ConflictsTab({
   onPickConflict: (f: string) => void;
   onOpenFlagged: (f: string) => void;
 }) {
-  if (!pf) return <div className={`${s.confPad} muted`}>Checking merge readiness…</div>;
-  if (pf.ready) return <ReadySummary worktree={worktree} mainBranch={mainBranch} />;
+  if (!pf)
+    return (
+      <div className={`${s.confPad} muted`}>Checking merge readiness…</div>
+    );
+  if (pf.ready)
+    return <ReadySummary worktree={worktree} mainBranch={mainBranch} />;
 
   // Root-level gates apply regardless of conflicts.
   if (!pf.onMain)
@@ -520,7 +582,8 @@ function ConflictsTab({
       <div className={`${s.confPad} ${s.blocked}`}>
         <div className={s.gate}>
           <span className={s.gateMsg}>
-            ⚠ Repo root is on <b>{pf.currentBranch}</b>, not the main branch — switch it first.
+            ⚠ Repo root is on <b>{pf.currentBranch}</b>, not the main branch —
+            switch it first.
           </span>
         </div>
       </div>
@@ -549,7 +612,9 @@ function ConflictsTab({
       <div className={`${s.confPad} ${s.blocked}`}>
         {resolverActive && (
           <div className={s.resolver}>
-            <span className={s.gateMsg}>◐ Resolver agent working in the worktree…</span>
+            <span className={s.gateMsg}>
+              ◐ Resolver agent working in the worktree…
+            </span>
             <button className="esc" disabled={busy} onClick={onWatch}>
               Watch
             </button>
@@ -588,9 +653,14 @@ function ConflictsTab({
             <ul className={s.flaglist}>
               {flagged.map((f) => (
                 <li key={f.file}>
-                  <button className={s.flagOpen} onClick={() => onOpenFlagged(f.file)}>
+                  <button
+                    className={s.flagOpen}
+                    onClick={() => onOpenFlagged(f.file)}
+                  >
                     <span className={s.flagFile}>{f.file}</span>
-                    {f.reason && <span className={s.flagReason}>{f.reason}</span>}
+                    {f.reason && (
+                      <span className={s.flagReason}>{f.reason}</span>
+                    )}
                   </button>
                 </li>
               ))}
@@ -627,7 +697,11 @@ function ConflictsTab({
         </span>
         <span className={s.conflicts}>
           {pf.conflictFiles.map((f) => (
-            <button key={f} className={s.conflict} onClick={() => onPickConflict(f)}>
+            <button
+              key={f}
+              className={s.conflict}
+              onClick={() => onPickConflict(f)}
+            >
               {f}
             </button>
           ))}
@@ -692,7 +766,11 @@ function RejectButton({
 
   return (
     <>
-      <button className={s.reject} disabled={disabled} onClick={() => setOpen(true)}>
+      <button
+        className={s.reject}
+        disabled={disabled}
+        onClick={() => setOpen(true)}
+      >
         Reject…
       </button>
       {open && (

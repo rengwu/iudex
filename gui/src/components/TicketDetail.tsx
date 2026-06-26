@@ -307,7 +307,7 @@ export default function TicketDetail({
             hasLog ? (
               <pre className={s.logDoc}>{docs!.log}</pre>
             ) : (
-              <span className={s.placeholder}>(no impl log yet)</span>
+              <span className={s.placeholder}>(no implementation log yet)</span>
             )
           ) : hasQaReview ? (
             <pre className={s.logDoc}>{docs!.review}</pre>

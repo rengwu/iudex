@@ -32,14 +32,20 @@ export default function ChangedFilesDiff({
     <div className={s.split}>
       <ul className={s.fileList}>
         {error && <li className="error">{error}</li>}
-        {!error && changes.length === 0 && <li className="muted">{noChangesHint}</li>}
+        {!error && changes.length === 0 && (
+          <li className="muted" style={{ margin: "8px" }}>
+            {noChangesHint}
+          </li>
+        )}
         {changes.map((c) => (
           <li
             key={c.path}
             className={`${s.file} ${c.path === selected ? s.active : ""}`}
             onClick={() => onSelect(c.path)}
           >
-            <span className={`${s.st} ${s[`st${c.status}`] ?? ""}`}>{c.status}</span>
+            <span className={`${s.st} ${s[`st${c.status}`] ?? ""}`}>
+              {c.status}
+            </span>
             <span className={s.path}>{c.path}</span>
             {c.additions ? <span className={s.add}>+{c.additions}</span> : null}
             {c.deletions ? <span className={s.del}>−{c.deletions}</span> : null}

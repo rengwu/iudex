@@ -13,7 +13,10 @@ type Tab = "tickets" | "review";
 // The archive list with live refresh: re-fetch list_archives whenever
 // events.jsonl changes (the same doorbell the rest of the app watches), so a
 // ticket merged or removed elsewhere shows up here without leaving the view.
-function useArchives(root: string): { entries: ArchiveEntry[]; error: string | null } {
+function useArchives(root: string): {
+  entries: ArchiveEntry[];
+  error: string | null;
+} {
   const [entries, setEntries] = useState<ArchiveEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -104,12 +107,21 @@ function ArchiveTickets({ root }: { root: string }) {
               }}
             >
               <div className={s.rowDot}>
-                <span className={s.dot} style={{ background: stateDot(e.outcome) }} />
+                <span
+                  className={s.dot}
+                  style={{ background: stateDot(e.outcome) }}
+                />
               </div>
-              <div className={s.cellId} style={on ? { color: "#fff" } : undefined}>
+              <div
+                className={s.cellId}
+                style={on ? { color: "#fff" } : undefined}
+              >
                 {e.id}
               </div>
-              <div className={s.cellTitle} style={on ? { color: "#fff" } : undefined}>
+              <div
+                className={s.cellTitle}
+                style={on ? { color: "#fff" } : undefined}
+              >
                 {e.title || "—"}
               </div>
               <div>
@@ -121,10 +133,16 @@ function ArchiveTickets({ root }: { root: string }) {
               >
                 {e.qaRejects || ""}
               </div>
-              <div className={s.cellMerge} style={on ? { color: "#cdd2ff" } : undefined}>
+              <div
+                className={s.cellMerge}
+                style={on ? { color: "#cdd2ff" } : undefined}
+              >
                 {e.mergeCommit ? e.mergeCommit.slice(0, 7) : "—"}
               </div>
-              <div className={s.cellDate} style={on ? { color: "#cdd2ff" } : undefined}>
+              <div
+                className={s.cellDate}
+                style={on ? { color: "#cdd2ff" } : undefined}
+              >
                 {fmtDate(e.archivedAt)}
               </div>
             </div>
@@ -134,7 +152,11 @@ function ArchiveTickets({ root }: { root: string }) {
 
       {sel && (
         <div className={s.detailPane}>
-          <ArchiveTicketDetail root={root} entry={sel} onClose={() => setSelId(null)} />
+          <ArchiveTicketDetail
+            root={root}
+            entry={sel}
+            onClose={() => setSelId(null)}
+          />
         </div>
       )}
     </div>
@@ -243,7 +265,7 @@ function ArchiveTicketDetail({
             <pre className={s.pre}>{log}</pre>
           ) : (
             <span className={s.muted}>
-              {logTab === "impl" ? "(no impl log)" : "(no qa review)"}
+              {logTab === "impl" ? "(no implementation log)" : "(no qa review)"}
             </span>
           )}
         </section>
@@ -269,7 +291,9 @@ function ArchiveReview({ root }: { root: string }) {
       setSelId(null);
       return;
     }
-    setSelId((prev) => (entries.some((e) => e.id === prev) ? prev : entries[0].id));
+    setSelId((prev) =>
+      entries.some((e) => e.id === prev) ? prev : entries[0].id,
+    );
   }, [entries]);
 
   useEffect(() => {
@@ -327,7 +351,9 @@ function ArchiveReview({ root }: { root: string }) {
           <span className={s.headName}>{sel?.title}</span>
           <span className={s.spacer} />
           {sel?.mergeCommit && (
-            <span className={s.merge}>merged {sel.mergeCommit.slice(0, 7)}</span>
+            <span className={s.merge}>
+              merged {sel.mergeCommit.slice(0, 7)}
+            </span>
           )}
         </div>
 
@@ -338,7 +364,14 @@ function ArchiveReview({ root }: { root: string }) {
               className={`${s.doctab} ${docTab === d ? s.active : ""}`}
               onClick={() => setDocTab(d)}
             >
-              {d === "review" ? "qa review" : d}
+              {
+                {
+                  brief: "Ticket Brief",
+                  log: "Implementation Log",
+                  review: "Agent Review",
+                  diff: "Changes",
+                }[d]
+              }
             </button>
           ))}
         </nav>
