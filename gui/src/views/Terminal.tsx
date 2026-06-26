@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import * as api from "../lib/api";
-import { useSessions, sessionTitle, sessionLabel } from "../lib/sessions";
+import { useSessions, sessionTitle, sessionLabel, addSession } from "../lib/sessions";
 import { VIEWS, type Session } from "../types";
 import XtermPane from "./XtermPane";
 import ViewHeader from "../components/ViewHeader";
@@ -85,6 +85,7 @@ export default function Terminal({
   const newShell = async () => {
     try {
       const s = await api.createShell(root);
+      addSession(s); // so liveNames includes it before the next poll — keeps focus
       openSession(s.name);
     } catch (e) {
       setError(String(e));
@@ -127,6 +128,13 @@ export default function Terminal({
             key={name}
             className={`${s.tab} ${activeTab === name ? s.active : ""}`}
             onClick={() => setActiveTab(name)}
+            // Middle-click closes the tab (kills the session), like a browser tab.
+            onAuxClick={(e) => {
+              if (e.button === 1) {
+                e.preventDefault();
+                kill(name);
+              }
+            }}
           >
             <span
               className={s.tabDot}

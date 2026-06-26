@@ -95,6 +95,15 @@ function setSnapshot(patch: Partial<SessionsSnapshot>) {
   for (const l of listeners) l();
 }
 
+// Optimistically add a just-created session so views that prune to / focus from
+// the live list (the Terminal tabs) see it immediately, instead of dropping or
+// un-focusing it during the up-to-POLL_MS gap before the next tick. The poll
+// reconciles it shortly after (a no-op if identical). No-op if already present.
+export function addSession(sx: Session) {
+  if (snapshot.sessions.some((s) => s.name === sx.name)) return;
+  setSnapshot({ sessions: [...snapshot.sessions, sx], loaded: true });
+}
+
 async function tick() {
   try {
     const s = await api.listSessions();
