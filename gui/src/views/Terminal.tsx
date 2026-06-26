@@ -34,12 +34,29 @@ export default function Terminal({
   const { sessions, available, loaded } = useSessions();
   const [open, setOpen] = useState<string[]>([]); // sessions with a mounted pane
   const [activeTab, setActiveTab] = useState<string | null>(null);
+  const [restored, setRestored] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const openSession = (name: string) => {
     setOpen((o) => (o.includes(name) ? o : [...o, name]));
     setActiveTab(name);
   };
+
+  // Tabs are in-GUI state that starts empty each launch, but the tmux pool is
+  // detached and survives a GUI restart. Re-attach the surviving shells as tabs
+  // once, on first load, so the view reflects the live pool (agents have their
+  // own view, so they're left to be opened on demand via `focus`). Once-only so
+  // closing a tab stays closed for the rest of the session.
+  useEffect(() => {
+    if (!loaded || restored) return;
+    const shells = sessions.filter((x) => x.kind !== "agent").map((x) => x.name);
+    if (shells.length > 0) {
+      setOpen((o) => Array.from(new Set([...o, ...shells])));
+      setActiveTab((t) => t ?? shells[0]);
+    }
+    setRestored(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, restored]);
 
   // Honor an external focus request (e.g. clicking an agent peek).
   useEffect(() => {

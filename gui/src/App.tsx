@@ -177,14 +177,13 @@ export default function App() {
   const cnt = (st: string) => tickets.filter((t) => t.state === st).length;
   const activeCount = cnt("active");
   const navCounts: Partial<Record<View, number>> = {
-    terminal: sessions.length,
+    terminal: sessions.filter((s) => s.kind !== "agent").length,
     tickets: tickets.filter((t) => t.state !== "removed").length,
     agents: sessions.filter((s) => s.kind === "agent").length,
     worktrees: new Set(
       tickets.filter((t) => t.hasWorktree && t.worktree).map((t) => t.worktree)
     ).size,
     review: cnt("pending-human-qa"),
-    archive: cnt("done"),
   };
   const pipeline = [
     { n: cnt("queued"), label: "Queued", color: "#cfcfcf" },
