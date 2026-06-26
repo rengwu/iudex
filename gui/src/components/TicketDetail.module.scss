@@ -32,6 +32,8 @@
   background: transparent;
   color: t.$text-muted;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   font-size: 14px;
   line-height: 1;
   padding: 0 2px;
@@ -86,6 +88,8 @@
   background: transparent;
   color: t.$text-muted;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   font-size: 16px;
   line-height: 1;
   padding: 0 4px;
@@ -113,6 +117,8 @@
   color: t.$text;
   text-align: left;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   font-size: 12px;
 
   &:hover {
@@ -241,6 +247,8 @@
   background: t.$dialog;
   border: 1px solid t.$field-border;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   font-size: 11px;
   margin-bottom: 4px;
 
@@ -294,6 +302,8 @@
   background: t.$panel-rail;
   color: t.$text-muted;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   font-size: 11px;
   font-family: t.$font-ui;
 
@@ -337,6 +347,8 @@
   background: t.$amber;
   color: t.$text;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   font-size: 12px;
   font-weight: 500;
   font-family: t.$font-ui;

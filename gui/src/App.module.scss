@@ -51,6 +51,8 @@
   font-weight: 500;
   font-size: 12px;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
 
   &:hover:not(:disabled) {
     background: #f6c659;
@@ -166,6 +168,8 @@
   color: t.$link;
   font-size: 11px;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
 
   &:hover {
     color: t.$text;
@@ -216,6 +220,8 @@
   border: 1px solid t.$divider-chrome;
   background: t.$sidebar;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   padding: 0;
 
   &:hover {
@@ -275,6 +281,8 @@
   gap: 8px;
   padding: 0 10px;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   border: none;
   border-left: 2px solid transparent;
   background: transparent;
@@ -356,6 +364,8 @@
   border: 1px solid t.$divider-chrome;
   background: t.$divider-chrome;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   flex: none;
   padding: 0;
 
@@ -396,6 +406,8 @@
   height: 14px;
   border: 1px solid t.$divider-chrome;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   display: flex;
   align-items: center;
   padding: 0 2px;

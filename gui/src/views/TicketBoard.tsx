@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { Ticket } from "../types";
 import { stateDot } from "../lib/badges";
 import s from "./TicketBoard.module.scss";
@@ -24,6 +25,9 @@ const CLIP: Record<string, { bg: string; border: string; fg: string }> = {
   "pending-human-qa": { bg: "#836ddd", border: "#5b46b0", fg: "#ffffff" },
   failed: { bg: "#e0584c", border: "#b03d33", fg: "#ffffff" },
 };
+
+// Selection palette (mirrors tokens.scss $sel-bg/$sel-border/$sel-text).
+const SEL = { bg: "#1f2e90", border: "#14206b", fg: "#ffffff" };
 
 const rejects = (n: number) => `${n} reject${n === 1 ? "" : "s"}`;
 
@@ -57,6 +61,15 @@ export default function TicketBoard({
   const byState = (st: string) => tickets.filter((t) => t.state === st);
   const titleOf = (t: Ticket) => (t.worktree && titles[t.worktree]) || "";
 
+  // Scroll the selected card into view: opening the detail panel can clip the
+  // clicked card off-screen, so pull it back into the visible area.
+  const selRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (selId && selRef.current) {
+      selRef.current.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+    }
+  }, [selId]);
+
   const activeCount = byState("active").length;
   const freeSlots = maxActive > 0 ? Math.max(0, maxActive - activeCount) : 0;
 
@@ -83,12 +96,19 @@ export default function TicketBoard({
             <div key={c.state} className={s.col}>
               {byState(c.state).map((t) => {
                 const meta = clipMeta(t);
+                const sel = t.id === selId;
+                // Selected card: paint the whole clip with the selection color
+                // (matches the nav-row selection language) rather than a border.
+                const fill = sel
+                  ? { background: SEL.bg, borderColor: SEL.border, color: SEL.fg }
+                  : { background: col.bg, borderColor: col.border, color: col.fg };
                 return (
                   <div
                     key={t.id}
-                    className={`${s.card} ${t.id === selId ? s.selected : ""}`}
-                    style={{ background: col.bg, borderColor: col.border, color: col.fg }}
-                    onClick={() => onSelect(t.id === selId ? null : t.id)}
+                    ref={sel ? selRef : undefined}
+                    className={s.card}
+                    style={fill}
+                    onClick={() => onSelect(sel ? null : t.id)}
                   >
                     <div className={s.cardTop}>
                       <span className={s.cardId}>{t.id}</span>

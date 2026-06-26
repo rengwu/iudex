@@ -60,6 +60,8 @@ export default function Button({
         border: v.border,
         borderRadius: 0,
         cursor: disabled ? "default" : "pointer",
+        WebkitUserSelect: "none",
+        userSelect: "none",
         opacity: disabled ? 0.4 : 1,
         ...style,
       }}

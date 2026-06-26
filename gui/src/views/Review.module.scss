@@ -50,6 +50,8 @@
   background: transparent;
   color: t.$text;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   text-align: left;
 
   &.active {
@@ -187,6 +189,8 @@
   background: t.$panel-rail;
   color: t.$text-muted;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   font-family: t.$font-ui;
   font-size: 12px;
 
@@ -284,6 +288,8 @@
   padding: 0 16px;
   border: 1px solid transparent;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   font-size: 12px;
   font-weight: 500;
   font-family: t.$font-ui;
@@ -350,6 +356,8 @@
   background: transparent;
   color: #5a3e00;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
 
   &:hover {
     background: #e8d9a8;
@@ -394,6 +402,8 @@
   background: #e8d9a8;
   color: t.$text;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
 
   &:hover {
     background: #e0cf8f;

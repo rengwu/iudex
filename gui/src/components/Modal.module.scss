@@ -43,6 +43,8 @@
     background: t.$amber;
     color: t.$text;
     cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
     font-size: 12px;
     font-weight: 500;
     font-family: t.$font-ui;

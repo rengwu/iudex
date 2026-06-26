@@ -71,6 +71,8 @@ $cols: 28px 72px 1fr 130px 54px 110px 110px;
   height: 30px;
   font-family: t.$font-mono;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
 
   > div {
     padding: 0 8px;
@@ -146,6 +148,8 @@ $cols: 28px 72px 1fr 130px 54px 110px 110px;
   background: transparent;
   color: t.$text-muted;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   font-size: 12px;
   line-height: 1;
   padding: 2px 4px;
@@ -231,6 +235,8 @@ $cols: 28px 72px 1fr 130px 54px 110px 110px;
   background: t.$panel-rail;
   color: t.$text-muted;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   font-family: t.$font-ui;
   font-size: 11px;
 
@@ -281,6 +287,8 @@ $cols: 28px 72px 1fr 130px 54px 110px 110px;
   background: transparent;
   color: t.$text;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   text-align: left;
 
   &.active {
@@ -380,6 +388,8 @@ $cols: 28px 72px 1fr 130px 54px 110px 110px;
   background: t.$panel-rail;
   color: t.$text-muted;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   font-family: t.$font-ui;
   font-size: 12px;
 

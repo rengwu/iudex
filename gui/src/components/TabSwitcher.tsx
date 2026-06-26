@@ -25,6 +25,8 @@ export default function TabSwitcher({
               padding: "1px 11px",
               borderRadius: 3,
               cursor: "pointer",
+              WebkitUserSelect: "none",
+              userSelect: "none",
               fontSize,
               background: on ? "#dadada" : "transparent",
               color: on ? "#2a2a2a" : "#565656",

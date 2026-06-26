@@ -112,6 +112,20 @@ All tokens live in **`src/styles/tokens.scss`** — one source of truth, consume
   `.stub` / `.stub-tag` (empty/unavailable panels), and the interim flat buttons
   `.ghost` / `.esc` / `.go` (being migrated to the shared `<Button>`).
 
+### Clickable ⇒ not text-selectable
+
+Anything the user clicks — `<button>`, and the `<div>`/`<span>` "controls" (tabs, ticket
+cards, table rows, the board clips, segmented switchers) — must not be text-selectable, so a
+click or drag never highlights its label. The rule is mechanical: **`cursor: pointer` always
+travels with `user-select: none`**, declared in the same block (or the same inline `style`).
+When you add a clickable surface, add both together. Plain content regions (briefs, logs,
+diffs) stay selectable — only pointer-cursored controls opt out.
+
+**Always write the `-webkit-` prefix explicitly** (`-webkit-user-select: none;` alongside
+`user-select: none;`, or `WebkitUserSelect` next to `userSelect` inline). The app runs in
+Tauri's **WKWebView**, which ignores the unprefixed property; esbuild only adds the prefix in
+`vite build`, so without it text stays selectable in `tauri dev`.
+
 ### Layout: sticky chrome, one scroll region
 
 `App.module.scss` `.app` is `height: 100vh; display: flex; flex-direction: column;

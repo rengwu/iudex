@@ -49,6 +49,8 @@
   background: transparent;
   color: t.$text;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   text-align: left;
 
   &.active {
@@ -104,6 +106,8 @@
   gap: 8px;
   padding: 0 10px;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   color: t.$text;
 
   &:hover {

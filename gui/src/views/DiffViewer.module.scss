@@ -44,6 +44,8 @@
     background: transparent;
     color: t.$text-muted;
     cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
     font-size: 11px;
     font-family: t.$font-ui;
   }

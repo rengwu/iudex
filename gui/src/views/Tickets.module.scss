@@ -74,6 +74,8 @@ $cols: 28px 72px 1fr 140px 90px 54px 120px 128px;
   height: 30px;
   font-family: t.$font-mono;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
 
   > div {
     padding: 0 8px;
@@ -122,6 +124,8 @@ $cols: 28px 72px 1fr 140px 90px 54px 120px 128px;
   padding: 2px 7px;
   white-space: nowrap;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
 }
 .empty {
   padding: 24px;
@@ -156,6 +160,8 @@ $cols: 28px 72px 1fr 140px 90px 54px 120px 128px;
   font-family: t.$font-mono;
   font-size: 11px;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
 }
 .hint {
   color: t.$text-muted;

@@ -178,7 +178,7 @@ export default function App() {
   const activeCount = cnt("active");
   const navCounts: Partial<Record<View, number>> = {
     terminal: sessions.filter((s) => s.kind !== "agent").length,
-    tickets: tickets.filter((t) => t.state !== "removed").length,
+    tickets: tickets.filter((t) => t.state !== "removed" && t.state !== "done").length,
     agents: sessions.filter((s) => s.kind === "agent").length,
     worktrees: new Set(
       tickets.filter((t) => t.hasWorktree && t.worktree).map((t) => t.worktree)

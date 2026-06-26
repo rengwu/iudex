@@ -26,6 +26,8 @@
   background: t.$module-surface;
   color: t.$text-meta;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   font-family: t.$font-mono;
   font-size: 12px;
 
@@ -48,6 +50,8 @@
   background: transparent;
   color: t.$text-meta;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   font-size: 13px;
   line-height: 1;
   padding: 0 2px;
