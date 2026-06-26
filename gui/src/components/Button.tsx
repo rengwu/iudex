@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 
 // Flat, square-cornered action button. Color = state.
 // See gui/design-system/README.md §5.
-type Variant = "primary" | "secondary" | "review" | "danger" | "quiet";
+export type Variant = "primary" | "secondary" | "review" | "danger" | "quiet";
 type Size = "sm" | "md";
 
 const VARIANT: Record<Variant, { bg: string; col: string; border: string; weight: number }> = {

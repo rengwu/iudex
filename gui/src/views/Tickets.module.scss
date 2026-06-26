@@ -119,11 +119,10 @@ $cols: 28px 72px 1fr 140px 90px 54px 120px 128px;
 .cellAct {
   font-family: t.$font-ui;
 }
-.actBtn {
+.actNote {
   font-size: 11px;
-  padding: 2px 7px;
   white-space: nowrap;
-  cursor: pointer;
+  color: t.$text-muted;
   -webkit-user-select: none;
   user-select: none;
 }
