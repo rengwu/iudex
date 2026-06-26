@@ -119,7 +119,27 @@ fn iudex_version(bin: &str) -> Result<String, String> {
 /// every command.
 #[tauri::command]
 fn check_iudex() -> Result<String, String> {
-    iudex_version(&iudex_bin())
+    let bin = iudex_bin();
+    let version = iudex_version(&bin)?;
+    // The GUI reads config and resolves agent commands through the CLI, so it
+    // requires an iudex new enough to expose those commands. Probe them up front
+    // and fail with a clear "update iudex" message rather than letting older
+    // binaries surface confusing per-command errors later.
+    require_command(&bin, "config")?;
+    require_command(&bin, "agent-command")?;
+    Ok(version)
+}
+
+/// Verify `iudex <name>` exists by probing its help: cobra prints help and exits
+/// 0 for a known command, and errors for an unknown one — no workspace needed.
+fn require_command(bin: &str, name: &str) -> Result<(), String> {
+    match Command::new(bin).args([name, "--help"]).output() {
+        Ok(out) if out.status.success() => Ok(()),
+        _ => Err(format!(
+            "this iudex is too old — it has no `{name}` command. \
+             Update iudex (the GUI needs `iudex config --json` and `iudex agent-command`)."
+        )),
+    }
 }
 
 /// What the iudex-CLI settings tab needs to render: the saved override (or ""),
@@ -243,34 +263,51 @@ fn config_path(root: &str) -> std::path::PathBuf {
     Path::new(root).join(".iudex").join("config.yml")
 }
 
-/// Pull a top-level `key: value` scalar from raw YAML, ignoring comment lines and
-/// trimming surrounding quotes. Good enough for iudex's flat, scalar config.
-fn yaml_scalar<'a>(text: &'a str, key: &str) -> Option<&'a str> {
-    for line in text.lines() {
-        let t = line.trim_start();
-        if t.starts_with('#') {
-            continue;
-        }
-        if let Some(rest) = t.strip_prefix(&format!("{key}:")) {
-            return Some(rest.trim().trim_matches('"').trim_matches('\''));
-        }
+/// The shape of `iudex config --json`. The CLI is the authority for the config
+/// schema and the legacy agent_command->pool migration, so the GUI binds to this
+/// contract instead of parsing config.yml itself — the read side once duplicated
+/// here (a yaml_scalar line-scanner + a RawAgentConfig migration fold) is gone.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CliConfig {
+    main_branch: String,
+    max_active: i64,
+    qa_reject_limit: i64,
+    merge_strategy: String,
+    merge_message_template: String,
+    branch_prefix: String,
+    #[serde(default)]
+    agent_commands: Vec<AgentCmd>,
+    #[serde(default)]
+    agent_roles: std::collections::BTreeMap<String, String>,
+}
+
+/// Read the workspace config via `iudex config --json` — the single source of the
+/// schema and the migration. An old iudex without the `config` command surfaces
+/// here as an error (the startup capability check guards against that up front).
+fn cli_config(root: &str) -> Result<CliConfig, String> {
+    let out = Command::new(iudex_bin())
+        .args(["config", "--json"])
+        .current_dir(root)
+        .output()
+        .map_err(|e| format!("failed to run {} config: {e}", iudex_bin()))?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
     }
-    None
+    serde_json::from_str(&String::from_utf8_lossy(&out.stdout))
+        .map_err(|e| format!("parse `iudex config --json`: {e}"))
 }
 
 #[tauri::command]
 fn read_config(root: String) -> Result<Config, String> {
-    let text = std::fs::read_to_string(config_path(&root))
-        .map_err(|e| format!("read config.yml: {e}"))?;
-    let s = |k: &str| yaml_scalar(&text, k).unwrap_or("").to_string();
-    let n = |k: &str| yaml_scalar(&text, k).and_then(|v| v.parse::<i64>().ok()).unwrap_or(0);
+    let c = cli_config(&root)?;
     Ok(Config {
-        main_branch: s("main_branch"),
-        max_active: n("max_active"),
-        qa_reject_limit: n("qa_reject_limit"),
-        merge_strategy: s("merge_strategy"),
-        merge_message_template: s("merge_message_template"),
-        branch_prefix: s("branch_prefix"),
+        main_branch: c.main_branch,
+        max_active: c.max_active,
+        qa_reject_limit: c.qa_reject_limit,
+        merge_strategy: c.merge_strategy,
+        merge_message_template: c.merge_message_template,
+        branch_prefix: c.branch_prefix,
     })
 }
 
@@ -316,9 +353,10 @@ fn write_config(root: String, config: Config) -> Result<(), String> {
 
 // ── Agent command pool + per-role mapping ─────────────────────────────────────
 // The pool of named agent commands and the role→name map live in config.yml
-// (`agent_commands` + `agent_roles`). The CLI is the authority for impl/qa
-// (resolved inside `iudex spawn`); the GUI resolves resolve/idea here. Both share
-// the same resolution rules so they can't diverge.
+// (`agent_commands` + `agent_roles`). Resolution (role→command) is the CLI's:
+// impl/qa via `iudex spawn`, and resolve/idea via `iudex agent-command <role>`
+// (see resolve_agent_command). The GUI no longer re-derives the rule — it only
+// edits the pool. These structs back the editor + the surgical writer.
 
 /// One named entry in the agent-command pool.
 #[derive(serde::Serialize, serde::Deserialize, Clone, Default)]
@@ -336,62 +374,33 @@ struct AgentSettings {
     roles: std::collections::BTreeMap<String, String>,
 }
 
-/// config.yml's agent-related fields (plus the legacy single `agent_command`).
-#[derive(serde::Deserialize, Default)]
-struct RawAgentConfig {
-    #[serde(default)]
-    agent_commands: Vec<AgentCmd>,
-    #[serde(default)]
-    agent_roles: std::collections::BTreeMap<String, String>,
-    #[serde(default)]
-    agent_command: Option<String>,
-}
-
-/// Load the agent settings from config.yml, folding a legacy single
-/// `agent_command` into the pool as the default (matching the CLI's migration).
-fn load_agent_settings(root: &str) -> AgentSettings {
-    let text = std::fs::read_to_string(config_path(root)).unwrap_or_default();
-    let raw: RawAgentConfig = serde_yaml::from_str(&text).unwrap_or_default();
-    let commands = if raw.agent_commands.is_empty() {
-        match raw.agent_command {
-            Some(c) if !c.is_empty() => vec![AgentCmd {
-                name: c.clone(),
-                command: c,
-                default: true,
-            }],
-            _ => vec![],
-        }
-    } else {
-        raw.agent_commands
-    };
-    AgentSettings {
-        commands,
-        roles: raw.agent_roles,
+/// Resolve the agent command for a role via `iudex agent-command <role>` — the
+/// CLI is the single source of the role->command rule (incl. the empty-pool
+/// error, which the GUI now surfaces instead of silently guessing a binary). Used
+/// by the non-ticket spawns (resolve, idea) in tmux.rs.
+pub(crate) fn resolve_agent_command(root: &str, role: &str) -> Result<String, String> {
+    let out = Command::new(iudex_bin())
+        .args(["agent-command", role])
+        .current_dir(root)
+        .output()
+        .map_err(|e| format!("failed to run {} agent-command: {e}", iudex_bin()))?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
     }
-}
-
-/// Resolve the agent command for a role: the role's mapped pool entry by name,
-/// falling back to the default entry (then the first, then "pi"). Shared with
-/// tmux.rs for the resolve/idea spawns.
-pub(crate) fn resolve_agent_command(root: &str, role: &str) -> String {
-    let cfg = load_agent_settings(root);
-    if let Some(name) = cfg.roles.get(role) {
-        if let Some(c) = cfg.commands.iter().find(|c| &c.name == name) {
-            return c.command.clone();
-        }
-    }
-    if let Some(c) = cfg.commands.iter().find(|c| c.default) {
-        return c.command.clone();
-    }
-    cfg.commands
-        .first()
-        .map(|c| c.command.clone())
-        .unwrap_or_else(|| "pi".to_string())
+    Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
 #[tauri::command]
 fn read_agent_config(root: String) -> AgentSettings {
-    load_agent_settings(&root)
+    match cli_config(&root) {
+        Ok(c) => AgentSettings {
+            commands: c.agent_commands,
+            roles: c.agent_roles,
+        },
+        // An unreadable/old config yields an empty editor rather than an error,
+        // matching the prior default-on-failure behavior.
+        Err(_) => AgentSettings::default(),
+    }
 }
 
 /// Double-quote a YAML scalar (commands carry spaces/flags; names are refs).
@@ -1696,11 +1705,12 @@ pub fn run() {
 mod tests {
     use super::*;
 
-    // Round-trips the agent config through write/read and asserts the YAML
-    // surgery preserves every other key + its comments and drops the legacy
-    // single `agent_command`.
+    // write_agent_config's YAML surgery is the part still owned by the GUI (the
+    // read side + role->command resolution now come from the CLI). Assert it
+    // renders the new agent blocks, preserves every other key + its comments, and
+    // drops the legacy single `agent_command`.
     #[test]
-    fn agent_config_roundtrip_preserves_other_keys() {
+    fn write_agent_config_preserves_other_keys() {
         let dir = std::env::temp_dir().join(format!("iudex-agtest-{}", std::process::id()));
         let iudex = dir.join(".iudex");
         std::fs::create_dir_all(&iudex).unwrap();
@@ -1718,12 +1728,6 @@ branch_prefix: \"work/\"\n";
         std::fs::write(iudex.join("config.yml"), cfg).unwrap();
         let root = dir.to_string_lossy().to_string();
 
-        // Legacy single command migrates to a default pool entry.
-        let before = load_agent_settings(&root);
-        assert_eq!(before.commands.len(), 1);
-        assert!(before.commands[0].default);
-        assert_eq!(before.commands[0].command, "pi");
-
         let new = AgentSettings {
             commands: vec![
                 AgentCmd { name: "pi".into(), command: "pi".into(), default: true },
@@ -1734,18 +1738,19 @@ branch_prefix: \"work/\"\n";
         write_agent_config(root.clone(), new).unwrap();
 
         let text = std::fs::read_to_string(iudex.join("config.yml")).unwrap();
+        // Unrelated keys + comments survive the surgery.
         assert!(text.contains("main_branch: main"));
         assert!(text.contains("# merge comment"));
         assert!(text.contains("merge_strategy: no-ff"));
         assert!(text.contains("branch_prefix:"));
+        // The new pool + role blocks are rendered.
+        assert!(text.contains("agent_commands:"));
+        assert!(text.contains("name: \"claude\""));
+        assert!(text.contains("default: true"));
+        assert!(text.contains("agent_roles:"));
+        assert!(text.contains("qa: \"claude\""));
         // The legacy single key is gone (agent_commands: is a different key).
         assert!(!text.contains("agent_command: pi"));
-
-        let back = load_agent_settings(&root);
-        assert_eq!(back.commands.len(), 2);
-        assert_eq!(back.roles.get("qa").map(String::as_str), Some("claude"));
-        assert_eq!(resolve_agent_command(&root, "qa"), "claude --x");
-        assert_eq!(resolve_agent_command(&root, "impl"), "pi"); // unmapped → default
 
         std::fs::remove_dir_all(&dir).ok();
     }

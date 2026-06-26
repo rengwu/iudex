@@ -294,7 +294,7 @@ pub fn spawn_idea(root: String, skill: String, seed: String) -> Result<Session, 
         prompt.push_str(&format!("\n\nIdea / focus:\n{}", seed.trim()));
     }
 
-    let agent = crate::resolve_agent_command(&root, "idea");
+    let agent = crate::resolve_agent_command(&root, "idea")?;
     // Run the agent at the workspace root (skills live there, not in worktrees).
     let cmd = format!("cd {} && {} {}", sh_quote(&root), agent, sh_quote(&prompt));
 
@@ -376,7 +376,7 @@ fn resolve_prompt(root: &str) -> String {
 /// resolution is GUI territory, so the prompt is built here, not by the CLI.
 #[tauri::command]
 pub fn spawn_resolver(root: String, ticket: String, worktree: String) -> Result<Session, String> {
-    let agent = crate::resolve_agent_command(&root, "resolve");
+    let agent = crate::resolve_agent_command(&root, "resolve")?;
     let prompt = resolve_prompt(&root);
     let cmd = format!("cd {} && {} {}", sh_quote(&worktree), agent, sh_quote(&prompt));
 
