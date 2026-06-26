@@ -8,7 +8,7 @@ iudex is a Go CLI tool that orchestrates AI coding agents (Claude Code, Aider, e
 
 > This is a ground-up rewrite. An earlier version was a daemon + Bubble Tea TUI with a polling goroutine; that design is **superseded**. If you find references to an orchestrator goroutine, ticks, `max_agents`, priority, or `rejected`/`human-manual` states, they are from the old design.
 
-The design is specified in `docs/2026-06-14-v1-PRD.md` (the deprecated v0 design is kept at `docs/2026-06-12-v0-PRD.md`).
+The design is specified in `docs/original-prds/2026-06-14-v1-PRD.md` (the deprecated v0 design is kept at `docs/original-prds/2026-06-12-v0-PRD.md`).
 
 ---
 
