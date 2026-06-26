@@ -334,26 +334,12 @@ pub fn spawn_idea(root: String, skill: String, seed: String) -> Result<Session, 
 /// is confident about and **flagging, never guessing**, anything that needs human
 /// judgment — then reports structurally. It commits the merge only if it resolved
 /// everything; any flagged file leaves the merge in progress for the human.
-pub(crate) const RESOLVE_PROMPT: &str = "You are resolving an in-progress git merge in THIS \
-worktree: `main` was merged into this ticket's branch and left conflicts. The two \
-branches are siblings cut from a shared base, so conflicts range from trivial \
-(duplicated or adjacent lines, import ordering) to genuinely semantic (both sides \
-changed the same logic in different ways).\n\n\
-For EACH conflicted file:\n\
-- If you can resolve it WITH CONFIDENCE, preserving BOTH sides' intent, do so, \
-remove all conflict markers, and `git add` the file.\n\
-- If resolving it would require GUESSING about intended behavior you cannot \
-determine from the code, do NOT guess and do NOT `git add` it — leave its conflict \
-markers exactly as they are for a human to decide.\n\n\
-Then write a report to `.task/resolution.json` (overwrite it) with exactly this \
-shape:\n\
-{\"resolved\":[{\"file\":\"path\",\"note\":\"what you did\"}],\"flagged\":[{\"file\
-\":\"path\",\"reason\":\"why it needs human judgment\"}]}\n\n\
-Finally:\n\
-- If you resolved and staged EVERY conflicted file (nothing flagged), complete the \
-merge with `git commit --no-edit`.\n\
-- If you flagged ANY file, do NOT commit — leave the merge in progress.\n\n\
-Touch only the conflicted files; change nothing else.";
+// The canonical copy is the embedded template the CLI scaffolds into
+// .iudex/prompts/resolve.md on init; include_str! pulls in the *same bytes* at
+// build time (cross-tree into the Go template dir) so this fallback can never
+// drift from what `iudex init` writes. Cargo rebuilds when the file changes.
+pub(crate) const RESOLVE_PROMPT: &str =
+    include_str!("../../../templates/dot_iudex/prompts/resolve.md");
 
 /// The resolver prompt: the workspace's editable `.iudex/prompts/resolve.md` if
 /// present, else the built-in default (for workspaces created before it existed).
