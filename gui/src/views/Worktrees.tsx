@@ -1,6 +1,6 @@
 import { Fragment, Suspense, lazy, useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import type { FileChange, FileDiff, Session, Workspace, Worktree } from "../types";
+import * as api from "../lib/api";
+import type { FileChange, FileDiff, Workspace, Worktree } from "../types";
 import { useWorktrees } from "../lib/worktrees";
 import Badge from "../components/Badge";
 import ViewHeader from "../components/ViewHeader";
@@ -57,10 +57,8 @@ export default function Worktrees({
       return;
     }
     let alive = true;
-    invoke<FileChange[]>("worktree_changes", {
-      worktree: selPath,
-      mainBranch: ws.mainBranch,
-    })
+    api
+      .worktreeChanges(selPath, ws.mainBranch)
       .then((c) => {
         if (!alive) return;
         setChanges(c);
@@ -80,11 +78,8 @@ export default function Worktrees({
       return;
     }
     let alive = true;
-    invoke<FileDiff>("worktree_file_diff", {
-      worktree: selPath,
-      path: selFile,
-      mainBranch: ws.mainBranch,
-    })
+    api
+      .worktreeFileDiff(selPath, selFile, ws.mainBranch)
       .then((d) => alive && setDiff(d))
       .catch((e) => alive && setPaneErr(String(e)));
     return () => {
@@ -93,13 +88,14 @@ export default function Worktrees({
   }, [selPath, selFile, ws.mainBranch]);
 
   const openInEditor = (file: string) =>
-    invoke("open_in_editor", { path: `${selPath}/${file}` }).catch((e) =>
+    api.openInEditor(`${selPath}/${file}`).catch((e) =>
       setPaneErr(String(e))
     );
 
   const openShell = async () => {
+    if (!selPath) return;
     try {
-      const s = await invoke<Session>("create_shell", { cwd: selPath });
+      const s = await api.createShell(selPath);
       onOpenInTerminal(s.name);
     } catch (e) {
       setPaneErr(String(e));

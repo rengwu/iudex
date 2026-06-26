@@ -1,12 +1,11 @@
 import { Suspense, lazy, useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import * as api from "../lib/api";
 import type {
   FileChange,
   FileDiff,
   Preflight,
   Resolution,
   ResolutionSummary,
-  Session,
   Ticket,
   Workspace,
 } from "../types";
@@ -127,12 +126,8 @@ export default function Review({
       return;
     }
     let alive = true;
-    invoke<FileDiff>("worktree_file_diff", {
-      worktree,
-      path: selFile,
-      mainBranch: ws.mainBranch,
-      threeDot: true,
-    })
+    api
+      .worktreeFileDiff(worktree, selFile, ws.mainBranch, true)
       .then((d) => alive && setDiff(d))
       .catch((e) => alive && setActErr(String(e)));
     return () => {
@@ -154,8 +149,9 @@ export default function Review({
 
   const approve = () =>
     act(async () => {
+      if (!selId) return;
       try {
-        await invoke("run_iudex", { root, args: ["human-qa", "approve", selId] });
+        await api.runIudex(root, ["human-qa", "approve", selId]);
         // The doorbell will drop this ticket out of `pending`; selection follows.
       } catch (e) {
         // iudex aborts+restores on any surprise conflict; re-run preflight so the
@@ -166,16 +162,21 @@ export default function Review({
     });
 
   const reject = (reason: string) =>
-    act(() => invoke("run_iudex", { root, args: ["human-qa", "reject", selId, "--reason", reason] }));
+    act(async () => {
+      if (!selId) return;
+      await api.runIudex(root, ["human-qa", "reject", selId, "--reason", reason]);
+    });
 
   const beginResolution = () =>
     act(async () => {
-      await invoke("begin_resolution", { worktree, mainBranch: ws.mainBranch });
+      if (!worktree) return;
+      await api.beginResolution(worktree, ws.mainBranch);
       recheck();
     });
   const abortResolution = () =>
     act(async () => {
-      await invoke("abort_resolution", { worktree });
+      if (!worktree) return;
+      await api.abortResolution(worktree);
       setMergeFile(null);
       recheck();
     });
@@ -183,22 +184,21 @@ export default function Review({
   // the merge happens to be clean (no conflicts) we skip the agent entirely.
   const resolveWithAgent = () =>
     act(async () => {
-      const conflicts = await invoke<boolean>("begin_resolution", {
-        worktree,
-        mainBranch: ws.mainBranch,
-      });
-      if (conflicts && worktree) {
-        await invoke<Session>("spawn_resolver", { root, ticket: selId, worktree });
+      if (!worktree || !selId) return;
+      const conflicts = await api.beginResolution(worktree, ws.mainBranch);
+      if (conflicts) {
+        await api.spawnResolver(root, selId, worktree);
       }
       recheck();
     });
   const stopResolver = () =>
     act(async () => {
-      if (resolver) await invoke("kill_session", { name: resolver.name });
+      if (resolver) await api.killSession(resolver.name);
     });
   const commitResolution = () =>
     act(async () => {
-      await invoke("commit_resolution", { worktree });
+      if (!worktree) return;
+      await api.commitResolution(worktree);
       setMergeFile(null);
       recheck();
     });
@@ -209,15 +209,15 @@ export default function Review({
   };
   const openShell = (cwd: string) =>
     act(async () => {
-      const s = await invoke<Session>("create_shell", { cwd });
+      const s = await api.createShell(cwd);
       onOpenInTerminal(s.name);
     });
   const openInEditor = (path: string) =>
-    invoke("open_in_editor", { path }).catch((e) => setActErr(String(e)));
+    api.openInEditor(path).catch((e) => setActErr(String(e)));
   const revealInFinder = (path: string) =>
-    invoke("reveal_in_finder", { path }).catch((e) => setActErr(String(e)));
+    api.revealInFinder(path).catch((e) => setActErr(String(e)));
   const openFolderWith = (path: string) =>
-    invoke("open_folder_with", { path }).catch((e) => setActErr(String(e)));
+    api.openFolderWith(path).catch((e) => setActErr(String(e)));
 
   // Jump from a conflicting filename straight to its diff under the Changes tab.
   const pickConflict = (f: string) => {
@@ -405,10 +405,10 @@ function ReadySummary({ worktree, mainBranch }: { worktree: string | null; mainB
     setSelFile(null);
     setDiff(null);
     Promise.all([
-      invoke<ResolutionSummary>("resolution_summary", { worktree, mainBranch }),
+      api.resolutionSummary(worktree, mainBranch),
       // Net effect on main (two-dot) = what Approve lands; distinct from the
       // Changes tab's three-dot (the ticket's authored changes).
-      invoke<FileChange[]>("worktree_changes", { worktree, mainBranch, threeDot: false }),
+      api.worktreeChanges(worktree, mainBranch, false),
     ])
       .then(([rs, ch]) => {
         if (!alive) return;
@@ -428,7 +428,7 @@ function ReadySummary({ worktree, mainBranch }: { worktree: string | null; mainB
       return;
     }
     let alive = true;
-    invoke<FileDiff>("worktree_file_diff", { worktree, path: selFile, mainBranch, threeDot: false })
+    api.worktreeFileDiff(worktree, selFile, mainBranch, false)
       .then((d) => alive && setDiff(d))
       .catch(() => alive && setDiff(null));
     return () => {

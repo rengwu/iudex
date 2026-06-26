@@ -1,13 +1,6 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import * as api from "./api";
 import type { Workspace, Worktree } from "../types";
-
-// Raw worktree from the backend, before the ticket join.
-interface RawWorktree {
-  path: string;
-  branch: string;
-  head: string;
-}
 
 // Enumerate the repo's physical worktrees and join each with the tickets that
 // map onto it (by worktree path from `status --json`). Re-fetches whenever `ws`
@@ -19,7 +12,8 @@ export function useWorktrees(root: string, ws: Workspace) {
 
   useEffect(() => {
     let alive = true;
-    invoke<RawWorktree[]>("list_worktrees", { root })
+    api
+      .listWorktrees(root)
       .then((raws) => {
         if (!alive) return;
         const joined = raws.map((w) => ({

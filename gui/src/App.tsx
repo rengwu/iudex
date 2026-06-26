@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import * as api from "./lib/api";
 import { listen } from "@tauri-apps/api/event";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { RAIL_VIEWS, RAIL_SECONDARY, type View, type Workspace } from "./types";
@@ -95,7 +95,7 @@ export default function App() {
   const checkIudex = useCallback(async () => {
     setCheckingIudex(true);
     try {
-      const v = await invoke<string>("check_iudex");
+      const v = await api.checkIudex();
       setIudexVersion(v);
       setIudexErr(null);
     } catch (e) {
@@ -124,7 +124,7 @@ export default function App() {
 
   const load = useCallback(async (r: string) => {
     try {
-      const data = await invoke<Workspace>("iudex_status", { root: r });
+      const data = await api.iudexStatus(r);
       setWs(data);
       setError(null);
       setLastSync(new Date().toLocaleTimeString());
@@ -139,7 +139,7 @@ export default function App() {
       setError(null);
       setOfferInit(false);
       await load(r);
-      await invoke("watch_workspace", { root: r });
+      await api.watchWorkspace(r);
     },
     [load]
   );
@@ -152,7 +152,7 @@ export default function App() {
     setError(null);
     setOfferInit(false);
     try {
-      const r = await invoke<string>("discover_workspace", { start: picked });
+      const r = await api.discoverWorkspace(picked);
       await enter(r);
     } catch (e) {
       const msg = String(e);
@@ -170,7 +170,7 @@ export default function App() {
     if (!pickedPath) return;
     setIniting(true);
     try {
-      const r = await invoke<string>("init_workspace", { path: pickedPath });
+      const r = await api.initWorkspace(pickedPath);
       await enter(r);
     } catch (e) {
       setError(String(e));
@@ -223,14 +223,14 @@ export default function App() {
     (async () => {
       try {
         while (autoActivateRef.current) {
-          const data = await invoke<Workspace>("iudex_status", { root });
+          const data = await api.iudexStatus(root);
           const next = data.tickets.find(
             (t) => t.state === "queued" && t.ready && !skipRef.current.has(t.id)
           );
           if (!next) break;
           try {
-            await invoke("run_iudex", { root, args: ["activate", next.id] });
-            await invoke("spawn_agent", { root, ticket: next.id, role: "impl" });
+            await api.runIudex(root, ["activate", next.id]);
+            await api.spawnAgent(root, next.id, "impl");
           } catch (e) {
             skipRef.current.add(next.id);
             setError(String(e));
@@ -264,9 +264,7 @@ export default function App() {
           let live = false;
           for (const s of qaSessions) {
             try {
-              const st = await invoke<{ dead: boolean }>("session_status", {
-                name: s.name,
-              });
+              const st = await api.sessionStatus(s.name);
               if (!st.dead) {
                 live = true;
                 break;
@@ -278,7 +276,7 @@ export default function App() {
           qaHandledRef.current.add(id);
           if (live) continue;
           try {
-            await invoke("spawn_agent", { root, ticket: id, role: "qa" });
+            await api.spawnAgent(root, id, "qa");
           } catch (e) {
             setError(String(e));
           }

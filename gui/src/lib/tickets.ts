@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import * as api from "./api";
 import type { TaskDocs, Ticket } from "../types";
 
 // Fetches a ticket's .task/ docs (brief + log + review) from whichever location
@@ -20,8 +20,8 @@ export function useTicketDocs(
     let alive = true;
     setLoading(true);
     const fetch: Promise<TaskDocs> = ticket.worktree
-      ? invoke<TaskDocs>("worktree_task_docs", { worktree: ticket.worktree })
-      : invoke<string>("read_queue_brief", { root, id: ticket.id }).then((b) => ({
+      ? api.worktreeTaskDocs(ticket.worktree)
+      : api.readQueueBrief(root, ticket.id).then((b) => ({
           brief: b,
           log: "",
           review: "",

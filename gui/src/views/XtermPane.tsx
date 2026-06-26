@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import * as api from "../lib/api";
 import { listen } from "@tauri-apps/api/event";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
@@ -78,7 +78,7 @@ export default function XtermPane({
           /* ignore */
         }
       }
-      invoke("resize_terminal", { id, cols: term.cols, rows: term.rows }).catch(() => {});
+      api.resizeTerminal(id, term.cols, term.rows).catch(() => {});
     };
     floorFitRef.current = floorFit;
     // Refloor once the webfont is measured (metrics change after first paint).
@@ -98,15 +98,9 @@ export default function XtermPane({
         )
       );
       if (disposed) return;
-      await invoke("open_terminal", {
-        id,
-        name: session,
-        readonly: false,
-        cols: term.cols,
-        rows: term.rows,
-      });
+      await api.openTerminal(id, session, false, term.cols, term.rows);
       term.onData((data) => {
-        invoke("write_terminal", { id, data }).catch(() => {});
+        api.writeTerminal(id, data).catch(() => {});
       });
     })();
 
@@ -119,7 +113,7 @@ export default function XtermPane({
       disposed = true;
       ro.disconnect();
       unlisteners.forEach((u) => u());
-      invoke("close_terminal", { id }).catch(() => {});
+      api.closeTerminal(id).catch(() => {});
       term.dispose();
     };
     // Bind once per session; `active` is read live via the ref-held term.

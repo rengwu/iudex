@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import type { Session, Ticket, Workspace } from "../types";
+import * as api from "../lib/api";
+import type { Ticket, Workspace } from "../types";
 import { IDEA_SKILLS } from "../lib/skills";
 import { useBriefTitles } from "../lib/agents";
 import { stateDot } from "../lib/badges";
@@ -59,7 +59,7 @@ export default function Tickets({
   // Drop selection if the ticket disappears (e.g. removed).
   if (selId && !sel) setSelId(null);
 
-  const act = async (id: string, fn: () => Promise<void>) => {
+  const act = async (id: string, fn: () => Promise<unknown>) => {
     setBusy(id);
     setError(null);
     try {
@@ -73,19 +73,19 @@ export default function Tickets({
 
   const activate = (id: string) =>
     act(id, async () => {
-      await invoke("run_iudex", { root, args: ["activate", id] });
-      const s = await invoke<Session>("spawn_agent", { root, ticket: id, role: "impl" });
+      await api.runIudex(root, ["activate", id]);
+      const s = await api.spawnAgent(root, id, "impl");
       onJumpToAgent(s.name);
     });
   const finish = (id: string) =>
-    act(id, () => invoke("run_iudex", { root, args: ["finish", id] }));
+    act(id, () => api.runIudex(root, ["finish", id]));
   const spawnQa = (id: string) =>
     act(id, async () => {
-      const s = await invoke<Session>("spawn_agent", { root, ticket: id, role: "qa" });
+      const s = await api.spawnAgent(root, id, "qa");
       onJumpToAgent(s.name);
     });
   const retry = (id: string) =>
-    act(id, () => invoke("run_iudex", { root, args: ["retry", id] }));
+    act(id, () => api.runIudex(root, ["retry", id]));
 
   // The single row action per state (secondary actions live in the detail menu).
   const rowAction = (
@@ -272,7 +272,8 @@ function ComposeTicketModal({
 
   // Show the id that will be allocated (it's actually claimed at Create time).
   useEffect(() => {
-    invoke<string>("run_iudex", { root, args: ["next-ticket-id"] })
+    api
+      .runIudex(root, ["next-ticket-id"])
       .then((n) => setNextId(`t${n.trim()}`))
       .catch(() => {});
   }, [root]);
@@ -288,7 +289,7 @@ function ComposeTicketModal({
     setBusy(true);
     setError(null);
     try {
-      await invoke("compose_ticket", { root, title, body, deps });
+      await api.composeTicket(root, title, body, deps);
       onClose();
     } catch (e) {
       setError(String(e));
@@ -372,7 +373,7 @@ function NewIdeaModal({
     setBusy(true);
     setError(null);
     try {
-      const s = await invoke<Session>("spawn_idea", { root, skill, seed });
+      const s = await api.spawnIdea(root, skill, seed);
       onLaunched(s.name);
     } catch (e) {
       setError(String(e));

@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import * as api from "./api";
 import type { Session } from "../types";
 
 // Friendly label for a pool session, derived straight from its name (mirrors
@@ -97,7 +97,7 @@ function setSnapshot(patch: Partial<SessionsSnapshot>) {
 
 async function tick() {
   try {
-    const s = await invoke<Session[]>("list_sessions");
+    const s = await api.listSessions();
     setSnapshot({ sessions: s, loaded: true, error: null });
   } catch (e) {
     setSnapshot({ error: String(e) });
@@ -130,7 +130,8 @@ function subscribe(cb: () => void): () => void {
   listeners.add(cb);
   if (listeners.size === 1) {
     // First subscriber: one-time availability probe, watch visibility, start.
-    invoke<boolean>("tmux_available")
+    api
+      .tmuxAvailable()
       .then((a) => setSnapshot({ available: a }))
       .catch(() => setSnapshot({ available: false }));
     document.addEventListener("visibilitychange", onVisibility);

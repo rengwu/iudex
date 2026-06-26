@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import * as api from "../lib/api";
 import { useSessions, sessionTitle, sessionLabel } from "../lib/sessions";
 import type { Session } from "../types";
 import XtermPane from "./XtermPane";
@@ -67,7 +67,7 @@ export default function Terminal({
 
   const newShell = async () => {
     try {
-      const s = await invoke<{ name: string }>("create_shell", { cwd: root });
+      const s = await api.createShell(root);
       openSession(s.name);
     } catch (e) {
       setError(String(e));
@@ -76,7 +76,7 @@ export default function Terminal({
 
   const kill = async (name: string) => {
     try {
-      await invoke("kill_session", { name });
+      await api.killSession(name);
       setOpen((o) => o.filter((n) => n !== name));
     } catch (e) {
       setError(String(e));

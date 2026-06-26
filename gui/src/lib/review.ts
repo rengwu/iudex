@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import * as api from "./api";
 import type {
   FileChange,
   Preflight,
@@ -30,7 +30,8 @@ export function useRailStatus(
       return;
     }
     let alive = true;
-    invoke<RailCard[]>("rail_status", { root, mainBranch, worktrees })
+    api
+      .railStatus(root, mainBranch, worktrees)
       .then((cs) => {
         if (!alive) return;
         const m: Record<string, RailCard> = {};
@@ -74,18 +75,10 @@ export function useReview(root: string, worktree: string | null, ws: Workspace) 
     }
     let alive = true;
     Promise.all([
-      invoke<TaskDocs>("worktree_task_docs", { worktree }),
-      invoke<FileChange[]>("worktree_changes", {
-        worktree,
-        mainBranch: ws.mainBranch,
-        threeDot: true,
-      }),
-      invoke<Preflight>("merge_preflight", {
-        root,
-        worktree,
-        mainBranch: ws.mainBranch,
-      }),
-      invoke<Resolution>("read_resolution", { worktree }),
+      api.worktreeTaskDocs(worktree),
+      api.worktreeChanges(worktree, ws.mainBranch, true),
+      api.mergePreflight(root, worktree, ws.mainBranch),
+      api.readResolution(worktree),
     ])
       .then(([d, c, p, r]) => {
         if (!alive) return;

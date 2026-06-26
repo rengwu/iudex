@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import * as api from "../lib/api";
 import type { Ticket, Workspace } from "../types";
 import { useTicketDocs } from "../lib/tickets";
 import { useSessions } from "../lib/sessions";
@@ -88,11 +88,7 @@ export default function TicketDetail({
     setSaving(true);
     setSaveStatus("");
     try {
-      await invoke("write_queue_brief", {
-        root,
-        id: ticket.id,
-        content: serializeBrief(editTitle, editBody),
-      });
+      await api.writeQueueBrief(root, ticket.id, serializeBrief(editTitle, editBody));
       setSaveStatus("saved");
     } catch {
       setSaveStatus("error");
@@ -318,10 +314,10 @@ function ActionsMenu({
   onJumpToAgent: (name: string) => void;
 }) {
   const run = (args: string[], closeAfter = false) =>
-    onAct(() => invoke("run_iudex", { root, args }), closeAfter);
+    onAct(() => api.runIudex(root, args), closeAfter);
   const spawnAndJump = (role: string) =>
     onAct(async () => {
-      const s = await invoke<{ name: string }>("spawn_agent", { root, ticket: ticket.id, role });
+      const s = await api.spawnAgent(root, ticket.id, role);
       onJumpToAgent(s.name);
     });
 
@@ -332,8 +328,8 @@ function ActionsMenu({
           className={s.menuItem}
           disabled={busy}
           onClick={() => onAct(async () => {
-            await invoke("run_iudex", { root, args: ["activate", ticket.id] });
-            const s = await invoke<{ name: string }>("spawn_agent", { root, ticket: ticket.id, role: "impl" });
+            await api.runIudex(root, ["activate", ticket.id]);
+            const s = await api.spawnAgent(root, ticket.id, "impl");
             onJumpToAgent(s.name);
           })}
         >

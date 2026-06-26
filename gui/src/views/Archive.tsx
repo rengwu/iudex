@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import * as api from "../lib/api";
 import { listen } from "@tauri-apps/api/event";
 import type { ArchiveDocs, ArchiveEntry } from "../types";
 import { stateDot } from "../lib/badges";
@@ -20,7 +20,8 @@ function useArchives(root: string): { entries: ArchiveEntry[]; error: string | n
   useEffect(() => {
     let alive = true;
     const fetchIt = () =>
-      invoke<ArchiveEntry[]>("list_archives", { root })
+      api
+        .listArchives(root)
         .then((all) => {
           if (!alive) return;
           setEntries(all);
@@ -161,7 +162,8 @@ function ArchiveTicketDetail({
   useEffect(() => {
     let alive = true;
     setDocs(null);
-    invoke<ArchiveDocs>("read_archive", { root, id: entry.id })
+    api
+      .readArchive(root, entry.id)
       .then((d) => alive && setDocs(d))
       .catch((e) => alive && setError(String(e)));
     return () => {
@@ -283,7 +285,8 @@ function ArchiveReview({ root }: { root: string }) {
       return;
     }
     let alive = true;
-    invoke<ArchiveDocs>("read_archive", { root, id: selId })
+    api
+      .readArchive(root, selId)
       .then((d) => alive && setDocs(d))
       .catch((e) => alive && setDocErr(String(e)));
     return () => {

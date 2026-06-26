@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { DiffEditor, Editor } from "@monaco-editor/react";
-import { invoke } from "@tauri-apps/api/core";
+import * as api from "../lib/api";
 import type { ConflictFile } from "../types";
 import "../lib/monacoSetup";
 import s from "./MergeEditor.module.scss";
@@ -70,7 +70,8 @@ export default function MergeEditor({
     let alive = true;
     setCf(null);
     setErr(null);
-    invoke<ConflictFile>("read_conflict_file", { worktree, path })
+    api
+      .readConflictFile(worktree, path)
       .then((c) => {
         if (!alive) return;
         setCf(c);
@@ -86,7 +87,7 @@ export default function MergeEditor({
     setSaving(true);
     setErr(null);
     try {
-      await invoke("write_resolved_file", { worktree, path, content: result });
+      await api.writeResolvedFile(worktree, path, result);
       onResolved();
     } catch (e) {
       setErr(String(e));

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import * as api from "../lib/api";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import type { AgentCmd, AgentSettings, Config } from "../types";
+import type { AgentCmd, Config } from "../types";
 import ViewHeader from "../components/ViewHeader";
 import s from "./Settings.module.scss";
 
@@ -60,10 +60,10 @@ export default function Settings({
     if (!root) return;
     let alive = true;
     Promise.all([
-      invoke<Config>("read_config", { root }),
-      invoke<string>("read_prompt", { root, name: "impl" }),
-      invoke<string>("read_prompt", { root, name: "review" }),
-      invoke<string>("read_prompt", { root, name: "resolve" }),
+      api.readConfig(root),
+      api.readPrompt(root, "impl"),
+      api.readPrompt(root, "review"),
+      api.readPrompt(root, "resolve"),
     ])
       .then(([c, i, r, res]) => {
         if (!alive) return;
@@ -164,7 +164,7 @@ function CliTab() {
   const [saved, setSaved] = useState<Saved>(null);
 
   const loadSettings = async () => {
-    const d = await invoke<IudexSettings>("get_iudex_settings");
+    const d = await api.getIudexSettings();
     setData(d);
     setPath(d.savedPath);
   };
@@ -183,7 +183,7 @@ function CliTab() {
     setBusy(true);
     setSaved(null);
     try {
-      const version = await invoke<string>("set_iudex_bin", { path });
+      const version = await api.setIudexBin(path);
       setSaved({ ok: true, msg: version });
       await loadSettings();
     } catch (e) {
@@ -287,9 +287,9 @@ function GeneralTab({
     setBusy(true);
     setSaved(null);
     try {
-      await invoke("write_config", { root, config });
+      await api.writeConfig(root, config);
       // Confirm the CLI can still parse what we wrote.
-      await invoke("iudex_status", { root });
+      await api.iudexStatus(root);
       onConfigSaved();
       setSaved({ ok: true, msg: "saved" });
     } catch (e) {
@@ -397,9 +397,9 @@ function PromptsTab({
     setBusy(true);
     setSaved(null);
     try {
-      await invoke("write_prompt", { root, name: "impl", content: impl });
-      await invoke("write_prompt", { root, name: "review", content: review });
-      await invoke("write_prompt", { root, name: "resolve", content: resolve });
+      await api.writePrompt(root, "impl", impl);
+      await api.writePrompt(root, "review", review);
+      await api.writePrompt(root, "resolve", resolve);
       setSaved({ ok: true, msg: "saved" });
     } catch (e) {
       setSaved({ ok: false, msg: String(e) });
@@ -497,7 +497,8 @@ function AgentsTab({ root }: { root: string }) {
 
   useEffect(() => {
     let alive = true;
-    invoke<AgentSettings>("read_agent_config", { root })
+    api
+      .readAgentConfig(root)
       .then((a) => {
         if (!alive) return;
         setCommands(a.commands);
@@ -568,8 +569,8 @@ function AgentsTab({ root }: { root: string }) {
         command: c.command.trim(),
         default: c.default,
       }));
-      await invoke("write_agent_config", { root, config: { commands: trimmed, roles: cleanRoles } });
-      await invoke("iudex_status", { root }); // confirm the CLI can still parse it
+      await api.writeAgentConfig(root, { commands: trimmed, roles: cleanRoles });
+      await api.iudexStatus(root); // confirm the CLI can still parse it
       setRoles(cleanRoles);
       setSaved({ ok: true, msg: "saved" });
     } catch (e) {

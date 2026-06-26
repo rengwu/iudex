@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import * as api from "../lib/api";
 import { useSessions } from "../lib/sessions";
 import {
   isFinished,
@@ -108,7 +108,7 @@ export default function Agents({
   }, [focusAgent, focusTab, agents, onFocusHandled]);
 
   const kill = async (name: string) => {
-    await invoke("kill_session", { name }).catch(() => {});
+    await api.killSession(name).catch(() => {});
   };
   const clearFinished = async () => {
     await Promise.all(
@@ -368,7 +368,8 @@ function WorktreePanel({
 
   useEffect(() => {
     let alive = true;
-    invoke<FileChange[]>("worktree_changes", { worktree, mainBranch })
+    api
+      .worktreeChanges(worktree, mainBranch)
       .then((c) => {
         if (!alive) return;
         setChanges(c);
@@ -389,11 +390,8 @@ function WorktreePanel({
       return;
     }
     let alive = true;
-    invoke<FileDiff>("worktree_file_diff", {
-      worktree,
-      path: selFile,
-      mainBranch,
-    })
+    api
+      .worktreeFileDiff(worktree, selFile, mainBranch)
       .then((d) => alive && setDiff(d))
       .catch((e) => alive && setErr(String(e)));
     return () => {
@@ -414,7 +412,7 @@ function WorktreePanel({
           variant="quiet"
           size="sm"
           onClick={() =>
-            invoke("open_in_editor", { path: `${worktree}/${selFile}` }).catch(
+            api.openInEditor(`${worktree}/${selFile}`).catch(
               () => {},
             )
           }

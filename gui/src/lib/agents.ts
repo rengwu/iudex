@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import * as api from "./api";
 import type { Resolution, Session, Workspace } from "../types";
 
 export type AgentStatus =
@@ -104,10 +104,8 @@ export function useAgentStatuses(
         agents.map(async (a) => {
           try {
             const [out, live] = await Promise.all([
-              invoke<string>("capture_pane", { name: a.name, lines: 200 }),
-              invoke<{ dead: boolean; exitCode: number | null }>("session_status", {
-                name: a.name,
-              }),
+              api.capturePane(a.name, 200),
+              api.sessionStatus(a.name),
             ]);
             const act = activity.current[a.name] ?? { prev: "", last: Date.now() };
             if (out !== act.prev) {
@@ -123,9 +121,7 @@ export function useAgentStatuses(
             if (a.role === "resolve") {
               let resolution: Resolution | null = null;
               if (ticket?.worktree) {
-                resolution = await invoke<Resolution>("read_resolution", {
-                  worktree: ticket.worktree,
-                }).catch(() => null);
+                resolution = await api.readResolution(ticket.worktree).catch(() => null);
               }
               return [
                 a.name,
@@ -181,7 +177,8 @@ export function useBriefTitles(worktrees: string[], ws: Workspace): Record<strin
       return;
     }
     let alive = true;
-    invoke<{ worktree: string; title: string }[]>("brief_titles", { worktrees })
+    api
+      .briefTitles(worktrees)
       .then((rows) => {
         if (!alive) return;
         const m: Record<string, string> = {};
