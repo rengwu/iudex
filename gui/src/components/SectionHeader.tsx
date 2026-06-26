@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
-// Flush section-label strip at the top of a sidebar column. Port of
-// SectionHeader.dc.html (DESIGN.md §6).
+// Flush section-label strip at the top of a sidebar column.
+// See gui/design-system/README.md §5.
 export default function SectionHeader({
   children,
   tone = "light",

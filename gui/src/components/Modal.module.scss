@@ -11,7 +11,7 @@
   z-index: 50;
 }
 
-// Floating layer — one of the few places a shadow is allowed (DESIGN.md §2.4).
+// Floating layer — one of the few places a shadow is allowed (gui/design-system/README.md §2.1).
 .box {
   width: 560px;
   max-width: calc(100vw - 32px);

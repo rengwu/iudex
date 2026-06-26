@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-// Small uppercase section label (10px, letter-spaced). Port of Overline.dc.html.
+// Small uppercase section label (10px, letter-spaced). See gui/design-system/README.md §5.
 export default function Overline({
   children,
   tone = "light",

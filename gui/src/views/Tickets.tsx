@@ -13,7 +13,7 @@ import TicketGraph from "./TicketGraph";
 import TicketBoard from "./TicketBoard";
 import s from "./Tickets.module.scss";
 
-// The row action button style per variant (ported from iudex.dc.html ACT map).
+// The row action button style per variant.
 const ACT: Record<string, { bg: string; color: string; border: string }> = {
   primary: { bg: "#f4bc41", color: "#2a2a2a", border: "1px solid #c79320" },
   normal: { bg: "#9c9c9c", color: "#2a2a2a", border: "1px solid #8a8a8a" },

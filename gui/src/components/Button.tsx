@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 
-// Flat, square-cornered action button. Color = state. Faithful port of
-// Button.dc.html (DESIGN.md §6).
+// Flat, square-cornered action button. Color = state.
+// See gui/design-system/README.md §5.
 type Variant = "primary" | "secondary" | "review" | "danger" | "quiet";
 type Size = "sm" | "md";
 

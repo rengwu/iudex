@@ -1,7 +1,7 @@
 @use "../styles/tokens" as t;
 
 // Kanban-style pipeline board: five fixed columns (one per pipeline stage),
-// tickets as colored clips. Adapted from the dashboard board in iudex.dc.html.
+// tickets as colored clips (color is state — gui/design-system/README.md §4).
 .board {
   box-sizing: border-box;
   height: 100%;

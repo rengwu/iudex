@@ -3,7 +3,7 @@ import { stateDot } from "../lib/badges";
 import s from "./TicketBoard.module.scss";
 
 // The pipeline as a board: one column per stage, tickets as state-colored clips.
-// A reactive, read-derived adaptation of the dashboard board in iudex.dc.html —
+// A reactive, read-derived board —
 // clicking a card selects it (opening the shared detail panel), where the
 // state-aware actions live. Done/removed tickets aren't part of the live
 // pipeline, so they don't appear.

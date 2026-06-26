@@ -1,4 +1,4 @@
-// Segmented pill switcher for 2–4 tab labels. Port of TabSwitcher.dc.html.
+// Segmented pill switcher for 2–4 tab labels. See gui/design-system/README.md §5.
 export default function TabSwitcher({
   tabs,
   value,

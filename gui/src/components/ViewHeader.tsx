@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
-// 30px header bar at the top of every main view. Port of ViewHeader.dc.html
-// (DESIGN.md §6). `children` is the right-aligned action slot.
+// 30px header bar at the top of every main view (gui/design-system/README.md §5).
+// `children` is the right-aligned action slot.
 export default function ViewHeader({
   dot,
   title,

@@ -182,7 +182,7 @@ export type View =
 
 export type ViewConfig = { id: View; label: string; dot: string };
 
-// Per-view config — id, nav label, and status-dot color (DESIGN.md §4). Keyed by
+// Per-view config — id, nav label, and status-dot color (gui/design-system/README.md §4). Keyed by
 // view id so callers can read a view's dot directly (VIEWS.agents.dot), making
 // this the single source for those colors (ViewHeaders read from here rather
 // than hardcoding hex). Record<View, …> is exhaustive: a new View won't compile

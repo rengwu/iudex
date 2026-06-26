@@ -7,7 +7,7 @@ import ViewHeader from "../components/ViewHeader";
 import Button from "../components/Button";
 import s from "./Terminal.module.scss";
 
-// Tab status-dot color by session kind/role (DESIGN.md: color is state).
+// Tab status-dot color by session kind/role (gui/design-system/README.md §4 — color is state).
 function sessionDot(sessions: Session[], name: string): string {
   const x = sessions.find((s) => s.name === name);
   if (!x) return "#9ea0e0";
