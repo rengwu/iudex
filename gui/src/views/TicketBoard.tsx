@@ -59,7 +59,7 @@ export default function TicketBoard({
   onSelect: (id: string | null) => void;
 }) {
   const byState = (st: string) => tickets.filter((t) => t.state === st);
-  const titleOf = (t: Ticket) => (t.worktree && titles[t.worktree]) || "";
+  const titleOf = (t: Ticket) => titles[t.id] || "";
 
   // Scroll the selected card into view: opening the detail panel can clip the
   // clicked card off-screen, so pull it back into the visible area.

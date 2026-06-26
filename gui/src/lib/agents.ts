@@ -165,6 +165,36 @@ export function useAgentStatuses(
   return map;
 }
 
+// Ticket titles keyed by ticket id (e.g. `t3`), covering queued tickets too:
+// the backend reads the worktree brief for active+ tickets and the queue file
+// for queued ones (which have no worktree). Re-runs on the `ws` doorbell.
+export function useTicketTitles(root: string, ws: Workspace): Record<string, string> {
+  const [titles, setTitles] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!root) {
+      setTitles({});
+      return;
+    }
+    let alive = true;
+    api
+      .ticketTitles(root)
+      .then((rows) => {
+        if (!alive) return;
+        const m: Record<string, string> = {};
+        for (const r of rows) m[r.id] = r.title;
+        setTitles(m);
+      })
+      .catch(() => alive && setTitles({}));
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [root, ws]);
+
+  return titles;
+}
+
 // Ticket titles for a set of worktree paths, keyed by path — the Agents card
 // labels. Re-runs when the worktree set or `ws` (doorbell) changes.
 export function useBriefTitles(worktrees: string[], ws: Workspace): Record<string, string> {

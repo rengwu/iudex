@@ -1528,8 +1528,14 @@ fn brief_titles(worktrees: Vec<String>) -> Vec<WorktreeTitle> {
 
 /// First non-empty, non-heading line of a worktree's brief — the ticket title.
 fn brief_title(worktree: &str) -> String {
-    let text = std::fs::read_to_string(Path::new(worktree).join(".task").join("brief.md"))
-        .unwrap_or_default();
+    title_from_brief(&Path::new(worktree).join(".task").join("brief.md"))
+}
+
+/// First non-empty, non-heading line of a brief markdown file — the ticket title.
+/// Works for both an active ticket's worktree `.task/brief.md` and a queued
+/// ticket's `.iudex/queue/tN.md` (same format; the queue file becomes the brief).
+fn title_from_brief(path: &Path) -> String {
+    let text = std::fs::read_to_string(path).unwrap_or_default();
     for line in text.lines() {
         let l = line.trim();
         if l.is_empty() || l.starts_with('#') {
@@ -1538,6 +1544,55 @@ fn brief_title(worktree: &str) -> String {
         return l.to_string();
     }
     String::new()
+}
+
+/// A ticket's human title, keyed by ticket id (e.g. `t3`).
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TicketTitle {
+    id: String,
+    title: String,
+}
+
+/// Titles for every ticket the workspace can show one for, keyed by id. Active
+/// (and later) tickets read their worktree `.task/brief.md`; queued tickets have
+/// no worktree yet, so they read `.iudex/queue/tN.md`. The worktree brief wins
+/// when both exist. Lets the GUI label queued tickets, which have no worktree.
+#[tauri::command]
+fn ticket_titles(root: String) -> Vec<TicketTitle> {
+    let iudex = Path::new(&root).join(".iudex");
+    let mut out: Vec<TicketTitle> = Vec::new();
+
+    // Active+: .iudex/worktrees/tN/.task/brief.md
+    if let Ok(entries) = std::fs::read_dir(iudex.join("worktrees")) {
+        for e in entries.flatten() {
+            let id = e.file_name().to_string_lossy().to_string();
+            let title = title_from_brief(&e.path().join(".task").join("brief.md"));
+            if !title.is_empty() {
+                out.push(TicketTitle { id, title });
+            }
+        }
+    }
+
+    // Queued: .iudex/queue/tN.md (skip ids already resolved from a worktree).
+    if let Ok(entries) = std::fs::read_dir(iudex.join("queue")) {
+        for e in entries.flatten() {
+            let name = e.file_name().to_string_lossy().to_string();
+            let Some(id) = name.strip_suffix(".md") else { continue };
+            if out.iter().any(|t| t.id == id) {
+                continue;
+            }
+            let title = title_from_brief(&e.path());
+            if !title.is_empty() {
+                out.push(TicketTitle {
+                    id: id.to_string(),
+                    title,
+                });
+            }
+        }
+    }
+
+    out
 }
 
 #[tauri::command]
@@ -1680,6 +1735,7 @@ pub fn run() {
             open_folder_with,
             rail_status,
             brief_titles,
+            ticket_titles,
             watch_workspace,
             tmux::tmux_available,
             tmux::spawn_agent,

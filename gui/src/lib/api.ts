@@ -31,6 +31,7 @@ export type IudexSettings = {
   resolved: { Ok: string } | { Err: string };
 };
 export type BriefTitle = { worktree: string; title: string };
+export type TicketTitle = { id: string; title: string };
 // The backend Worktree (path/branch/head); the frontend joins tickets onto it.
 export type RawWorktree = { path: string; branch: string; head: string };
 
@@ -126,6 +127,8 @@ export const spawnResolver = (root: string, ticket: string, worktree: string) =>
   invoke<Session>("spawn_resolver", { root, ticket, worktree });
 export const briefTitles = (worktrees: string[]) =>
   invoke<BriefTitle[]>("brief_titles", { worktrees });
+export const ticketTitles = (root: string) =>
+  invoke<TicketTitle[]>("ticket_titles", { root });
 
 // ── Terminal PTY bridge ─────────────────────────────────────────────────────
 export const openTerminal = (
