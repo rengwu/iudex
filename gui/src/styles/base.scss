@@ -36,6 +36,15 @@ body {
   font-family: t.$font-mono;
 }
 
+// Monaco renders its text with WKWebView's default (subpixel) smoothing, which
+// makes the monospace glyphs read as bold/heavy. Antialias them so the editor
+// weight matches the rest of the app's text.
+.monaco-editor,
+.monaco-editor .view-line,
+.monaco-editor .view-lines {
+  -webkit-font-smoothing: antialiased;
+}
+
 .muted {
   color: t.$text-muted;
 }

@@ -11,7 +11,7 @@ const REF_OPTS = {
   automaticLayout: true,
   minimap: { enabled: false },
   scrollBeyondLastLine: false,
-  fontSize: 12,
+  fontSize: 11,
   renderOverviewRuler: false,
   stickyScroll: { enabled: false },
 } as const;
@@ -20,7 +20,7 @@ const EDIT_OPTS = {
   automaticLayout: true,
   minimap: { enabled: false },
   scrollBeyondLastLine: false,
-  fontSize: 12,
+  fontSize: 11,
   renderOverviewRuler: false,
   stickyScroll: { enabled: false },
 } as const;

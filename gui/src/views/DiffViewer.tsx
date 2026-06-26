@@ -62,7 +62,7 @@ export default function DiffViewer({
             automaticLayout: true,
             minimap: { enabled: false },
             scrollBeyondLastLine: false,
-            fontSize: 12,
+            fontSize: 11,
             renderOverviewRuler: false,
             stickyScroll: { enabled: false },
           }}
