@@ -297,8 +297,6 @@
   button {
     height: 22px;
     padding: 0 14px;
-    border: 1px solid t.$amber-border;
-    background: t.$amber;
     color: t.$text;
     cursor: pointer;
     -webkit-user-select: none;
@@ -306,6 +304,11 @@
     font-size: 12px;
     font-weight: 500;
     font-family: t.$font-ui;
+
+    &:global(:not(.ghost)) {
+      border: 1px solid t.$amber-border;
+      background: t.$amber;
+    }
 
     &:disabled {
       opacity: 0.5;

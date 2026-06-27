@@ -49,10 +49,11 @@ export const runIudex = (root: string, args: string[]) =>
 export const readConfig = (root: string) => invoke<Config>("read_config", { root });
 export const writeConfig = (root: string, config: Config) =>
   invoke<void>("write_config", { root, config });
-export const readAgentConfig = (root: string) =>
-  invoke<AgentSettings>("read_agent_config", { root });
-export const writeAgentConfig = (root: string, config: AgentSettings) =>
-  invoke<void>("write_agent_config", { root, config });
+// Agent pool is machine-level (~/.iudex/config.yml) — no workspace root needed.
+export const readAgentConfig = () =>
+  invoke<AgentSettings>("read_agent_config");
+export const writeAgentConfig = (config: AgentSettings) =>
+  invoke<void>("write_agent_config", { config });
 export const readPrompt = (root: string, name: string) =>
   invoke<string>("read_prompt", { root, name });
 export const writePrompt = (root: string, name: string, content: string) =>

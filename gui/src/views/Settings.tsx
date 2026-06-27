@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import * as api from "../lib/api";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { VIEWS, type AgentCmd, type Config } from "../types";
@@ -9,29 +9,36 @@ type Saved = { ok: boolean; msg: string } | null;
 type SubTab = "cli" | "general" | "agents" | "prompts";
 
 // Sidebar grouped by scope: GLOBAL settings live in ~/.iudex/ and apply to the
-// app itself; WORKSPACE settings are the per-project .iudex/ files and need an
-// open workspace.
+// app/machine itself (no workspace needed); WORKSPACE settings are the
+// per-project .iudex/ files and need an open workspace. The agent-command pool
+// is machine-level, so it sits under GLOBAL alongside the iudex-CLI path.
 const GROUPS: {
   head: string;
   scope: "global" | "workspace";
   items: { id: SubTab; label: string }[];
 }[] = [
-  { head: "GLOBAL", scope: "global", items: [{ id: "cli", label: "iudex CLI" }] },
+  {
+    head: "GLOBAL",
+    scope: "global",
+    items: [
+      { id: "agents", label: "Agent commands" },
+      { id: "cli", label: "iudex CLI" },
+    ],
+  },
   {
     head: "WORKSPACE",
     scope: "workspace",
     items: [
       { id: "general", label: "General" },
-      { id: "agents", label: "Agents" },
       { id: "prompts", label: "Prompts" },
     ],
   },
 ];
 
 const SUBTITLES: Record<SubTab, string> = {
-  cli: "~/.iudex/settings.json",
-  general: ".iudex/config.yml",
-  agents: ".iudex/config.yml",
+  cli: "~/.iudex/config.yml",
+  general: "~/.iudex/config.yml",
+  agents: "~/.iudex/config.yml",
   prompts: ".iudex/prompts/",
 };
 
@@ -81,7 +88,11 @@ export default function Settings({
 
   return (
     <div className={s.settings}>
-      <ViewHeader dot={VIEWS.settings.dot} title="Settings" subtitle={SUBTITLES[tab]} />
+      <ViewHeader
+        dot={VIEWS.settings.dot}
+        title="Settings"
+        subtitle={SUBTITLES[tab]}
+      />
       <div className={s.row}>
         <div className={s.sidebar}>
           {onClose && (
@@ -109,16 +120,22 @@ export default function Settings({
               })}
             </div>
           ))}
-          {!root && <div className={s.sideHint}>open a workspace to edit its settings</div>}
+          {!root && (
+            <div className={s.sideHint}>
+              open a workspace to edit its settings
+            </div>
+          )}
         </div>
 
         <div className={s.body}>
           {tab === "cli" ? (
             <CliTab />
-          ) : !root ? (
-            <div className={s.loading}>open a workspace to edit its settings</div>
           ) : tab === "agents" ? (
-            <AgentsTab root={root} />
+            <AgentsTab />
+          ) : !root ? (
+            <div className={s.loading}>
+              open a workspace to edit its settings
+            </div>
           ) : loadErr ? (
             <div className="error">{loadErr}</div>
           ) : !config ? (
@@ -155,9 +172,15 @@ type IudexSettings = {
 };
 
 // GLOBAL tab: the iudex binary the GUI shells every command through, stored in
-// ~/.iudex/settings.json. Saving validates the path first (the backend refuses a
+// ~/.iudex/config.yml. Saving validates the path first (the backend refuses a
 // broken one and keeps the old value), so a typo can't strand the app.
-function CliTab() {
+export function CliTab({
+  extraActions,
+  onSaveSuccess,
+}: {
+  extraActions?: ReactNode;
+  onSaveSuccess?: () => void;
+}) {
   const [data, setData] = useState<IudexSettings | null>(null);
   const [path, setPath] = useState("");
   const [busy, setBusy] = useState(false);
@@ -185,6 +208,7 @@ function CliTab() {
     try {
       const version = await api.setIudexBin(path);
       setSaved({ ok: true, msg: version });
+      onSaveSuccess?.();
       await loadSettings();
     } catch (e) {
       // Rejected: nothing was persisted; keep the typed text so it can be fixed.
@@ -206,7 +230,7 @@ function CliTab() {
     <section className={s.card}>
       <div className={s.head}>
         <span className={s.title}>iudex CLI</span>
-        <code className={s.path}>~/.iudex/settings.json</code>
+        <code className={s.path}>~/.iudex/config.yml</code>
       </div>
 
       <div className={s.fields}>
@@ -227,8 +251,9 @@ function CliTab() {
             </button>
           </div>
           <small className={s.note}>
-            The binary the GUI runs every command through. Leave empty to fall back to{" "}
-            <code>$IUDEX_BIN</code>, then <code>iudex</code> on your PATH.
+            The binary the GUI runs every command through. Leave empty to fall
+            back to <code>$IUDEX_BIN</code>, then <code>iudex</code> on your
+            PATH.
           </small>
         </label>
 
@@ -236,7 +261,9 @@ function CliTab() {
           <small className={s.note}>
             {source}{" "}
             {"Ok" in data.resolved ? (
-              <>Currently resolves to <code>{data.resolved.Ok}</code>.</>
+              <>
+                Currently resolves to <code>{data.resolved.Ok}</code>.
+              </>
             ) : (
               <span className={s.savedErr}>✗ {data.resolved.Err}</span>
             )}
@@ -246,7 +273,8 @@ function CliTab() {
 
       <div className={s.actions}>
         <SavedNote saved={saved} />
-        <button disabled={busy} onClick={save}>
+        {extraActions}
+        <button className={s.save} disabled={busy} onClick={save}>
           {busy ? "Saving…" : "Save"}
         </button>
       </div>
@@ -257,7 +285,7 @@ function CliTab() {
 function SavedNote({ saved }: { saved: Saved }) {
   if (!saved) return null;
   return (
-    <span className={saved.ok ? s.savedOk : s.savedErr}>
+    <span className={`${s.saved} ${saved.ok ? s.savedOk : s.savedErr}`}>
       {saved.ok ? "✓ " : "✗ "}
       {saved.msg}
     </span>
@@ -307,60 +335,71 @@ function GeneralTab({
       </div>
 
       <div className={s.fields}>
-      <label className="field">
-        <span>Main branch</span>
-        <input value={config.mainBranch} onChange={(e) => set("mainBranch", e.target.value)} />
-        <small className={`${s.note} ${s.caution}`}>
-          ⚠ the canonical merge target — set at init; changing it affects activate/merge.
-        </small>
-      </label>
+        <label className="field">
+          <span>Main branch</span>
+          <input
+            value={config.mainBranch}
+            onChange={(e) => set("mainBranch", e.target.value)}
+          />
+          <small className={`${s.note} ${s.caution}`}>
+            ⚠ the canonical merge target — set at init; changing it affects
+            activate/merge.
+          </small>
+        </label>
 
-      <label className={`field ${s.narrow}`}>
-        <span>Max active</span>
-        <input
-          type="number"
-          value={config.maxActive}
-          onChange={(e) => set("maxActive", Number(e.target.value))}
-        />
-        <small className={s.note}>0 = unlimited</small>
-      </label>
+        <label className={`field ${s.narrow}`}>
+          <span>Max active</span>
+          <input
+            type="number"
+            value={config.maxActive}
+            onChange={(e) => set("maxActive", Number(e.target.value))}
+          />
+          <small className={s.note}>0 = unlimited</small>
+        </label>
 
-      <label className={`field ${s.narrow}`}>
-        <span>QA reject limit</span>
-        <input
-          type="number"
-          value={config.qaRejectLimit}
-          onChange={(e) => set("qaRejectLimit", Number(e.target.value))}
-        />
-        <small className={s.note}>≤ 0 = unlimited</small>
-      </label>
+        <label className={`field ${s.narrow}`}>
+          <span>QA reject limit</span>
+          <input
+            type="number"
+            value={config.qaRejectLimit}
+            onChange={(e) => set("qaRejectLimit", Number(e.target.value))}
+          />
+          <small className={s.note}>≤ 0 = unlimited</small>
+        </label>
 
-      <label className={`field ${s.narrow}`}>
-        <span>Merge strategy</span>
-        <select value={config.mergeStrategy} onChange={(e) => set("mergeStrategy", e.target.value)}>
-          <option value="no-ff">no-ff</option>
-          <option value="squash">squash</option>
-        </select>
-      </label>
+        <label className={`field ${s.narrow}`}>
+          <span>Merge strategy</span>
+          <select
+            value={config.mergeStrategy}
+            onChange={(e) => set("mergeStrategy", e.target.value)}
+          >
+            <option value="no-ff">no-ff</option>
+            <option value="squash">squash</option>
+          </select>
+        </label>
 
-      <label className="field">
-        <span>Merge message template</span>
-        <input
-          value={config.mergeMessageTemplate}
-          onChange={(e) => set("mergeMessageTemplate", e.target.value)}
-        />
-        <small className={s.note}>
-          <code>{"{{.Ticket}}"}</code> is substituted with the ticket id.
-        </small>
-      </label>
+        <label className="field">
+          <span>Merge message template</span>
+          <input
+            value={config.mergeMessageTemplate}
+            onChange={(e) => set("mergeMessageTemplate", e.target.value)}
+          />
+          <small className={s.note}>
+            <code>{"{{.Ticket}}"}</code> is substituted with the ticket id.
+          </small>
+        </label>
 
-      <label className="field">
-        <span>Branch prefix</span>
-        <input value={config.branchPrefix} onChange={(e) => set("branchPrefix", e.target.value)} />
-        <small className={`${s.note} ${s.caution}`}>
-          ⚠ applies to new tickets only — existing worktrees keep their branch.
-        </small>
-      </label>
+        <label className="field">
+          <span>Branch prefix</span>
+          <input
+            value={config.branchPrefix}
+            onChange={(e) => set("branchPrefix", e.target.value)}
+          />
+          <small className={`${s.note} ${s.caution}`}>
+            ⚠ applies to new tickets only — existing worktrees keep their
+            branch.
+          </small>
+        </label>
       </div>
 
       <div className={s.actions}>
@@ -416,53 +455,53 @@ function PromptsTab({
       </div>
 
       <div className={s.fields}>
-      <label className="field">
-        <span>
-          Impl prompt <code className={s.path}>impl.md</code>
-        </span>
-        <textarea
-          className={s.prompt}
-          rows={14}
-          value={impl}
-          onChange={(e) => {
-            setImpl(e.target.value);
-            setSaved(null);
-          }}
-          spellCheck={false}
-        />
-      </label>
+        <label className="field">
+          <span>
+            Impl prompt <code className={s.path}>impl.md</code>
+          </span>
+          <textarea
+            className={s.prompt}
+            rows={14}
+            value={impl}
+            onChange={(e) => {
+              setImpl(e.target.value);
+              setSaved(null);
+            }}
+            spellCheck={false}
+          />
+        </label>
 
-      <label className="field">
-        <span>
-          Review prompt <code className={s.path}>review.md</code>
-        </span>
-        <textarea
-          className={s.prompt}
-          rows={14}
-          value={review}
-          onChange={(e) => {
-            setReview(e.target.value);
-            setSaved(null);
-          }}
-          spellCheck={false}
-        />
-      </label>
+        <label className="field">
+          <span>
+            Review prompt <code className={s.path}>review.md</code>
+          </span>
+          <textarea
+            className={s.prompt}
+            rows={14}
+            value={review}
+            onChange={(e) => {
+              setReview(e.target.value);
+              setSaved(null);
+            }}
+            spellCheck={false}
+          />
+        </label>
 
-      <label className="field">
-        <span>
-          Resolve prompt <code className={s.path}>resolve.md</code>
-        </span>
-        <textarea
-          className={s.prompt}
-          rows={14}
-          value={resolve}
-          onChange={(e) => {
-            setResolve(e.target.value);
-            setSaved(null);
-          }}
-          spellCheck={false}
-        />
-      </label>
+        <label className="field">
+          <span>
+            Resolve prompt <code className={s.path}>resolve.md</code>
+          </span>
+          <textarea
+            className={s.prompt}
+            rows={14}
+            value={resolve}
+            onChange={(e) => {
+              setResolve(e.target.value);
+              setSaved(null);
+            }}
+            spellCheck={false}
+          />
+        </label>
       </div>
 
       <div className={s.actions}>
@@ -485,10 +524,17 @@ const AGENT_ROLES: { key: string; label: string; hint: string }[] = [
   { key: "idea", label: "Idea", hint: "skill shaping" },
 ];
 
-// WORKSPACE tab: the agent-command pool (config.yml `agent_commands`) + the
-// per-role map (`agent_roles`). The CLI resolves impl/qa inside `iudex spawn`
-// and the GUI resolves resolve/idea, both off these same fields.
-function AgentsTab({ root }: { root: string }) {
+// GLOBAL tab: the machine-level agent-command pool (~/.iudex/config.yml
+// `agent_commands`) + the per-role map (`agent_roles`), shared across every
+// workspace. The CLI resolves impl/qa inside `iudex spawn` and the GUI resolves
+// resolve/idea, both off these same fields. No workspace needed.
+export function AgentsTab({
+  hideRoles,
+  onSaveSuccess,
+}: {
+  hideRoles?: boolean;
+  onSaveSuccess?: () => void;
+}) {
   const [commands, setCommands] = useState<AgentCmd[]>([]);
   const [roles, setRoles] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -498,7 +544,7 @@ function AgentsTab({ root }: { root: string }) {
   useEffect(() => {
     let alive = true;
     api
-      .readAgentConfig(root)
+      .readAgentConfig()
       .then((a) => {
         if (!alive) return;
         setCommands(a.commands);
@@ -509,7 +555,7 @@ function AgentsTab({ root }: { root: string }) {
     return () => {
       alive = false;
     };
-  }, [root]);
+  }, []);
 
   const touch = () => setSaved(null);
   const patchCmd = (i: number, p: Partial<AgentCmd>) => {
@@ -521,13 +567,17 @@ function AgentsTab({ root }: { root: string }) {
     touch();
   };
   const addCmd = () => {
-    setCommands((cs) => [...cs, { name: "", command: "", default: cs.length === 0 }]);
+    setCommands((cs) => [
+      ...cs,
+      { name: "", command: "", default: cs.length === 0 },
+    ]);
     touch();
   };
   const removeCmd = (i: number) => {
     setCommands((cs) => {
       const next = cs.filter((_, j) => j !== i);
-      if (next.length && !next.some((c) => c.default)) next[0] = { ...next[0], default: true };
+      if (next.length && !next.some((c) => c.default))
+        next[0] = { ...next[0], default: true };
       return next;
     });
     touch();
@@ -547,7 +597,8 @@ function AgentsTab({ root }: { root: string }) {
     if (commands.length === 0) return "add at least one command";
     if (commands.some((c) => !c.name.trim() || !c.command.trim()))
       return "every entry needs a name and a command";
-    if (new Set(names).size !== names.length) return "command names must be unique";
+    if (new Set(names).size !== names.length)
+      return "command names must be unique";
     if (!commands.some((c) => c.default)) return "mark one entry as default";
     return null;
   };
@@ -563,16 +614,23 @@ function AgentsTab({ root }: { root: string }) {
     try {
       const valid = new Set(names);
       const cleanRoles: Record<string, string> = {};
-      for (const [k, v] of Object.entries(roles)) if (valid.has(v)) cleanRoles[k] = v;
+      for (const [k, v] of Object.entries(roles))
+        if (valid.has(v)) cleanRoles[k] = v;
       const trimmed = commands.map((c) => ({
         name: c.name.trim(),
         command: c.command.trim(),
         default: c.default,
       }));
-      await api.writeAgentConfig(root, { commands: trimmed, roles: cleanRoles });
-      await api.iudexStatus(root); // confirm the CLI can still parse it
+      await api.writeAgentConfig({ commands: trimmed, roles: cleanRoles });
+      // Confirm the CLI can parse what we wrote: read it back via `config --json`.
+      // A parse failure surfaces as an empty pool, so a count mismatch flags it.
+      const back = await api.readAgentConfig();
+      if (back.commands.length !== trimmed.length) {
+        throw new Error("the CLI could not parse the saved config");
+      }
       setRoles(cleanRoles);
       setSaved({ ok: true, msg: "saved" });
+      onSaveSuccess?.();
     } catch (e) {
       setSaved({ ok: false, msg: String(e) });
     } finally {
@@ -586,14 +644,16 @@ function AgentsTab({ root }: { root: string }) {
     <section className={s.card}>
       <div className={s.head}>
         <span className={s.title}>Agent commands</span>
-        <code className={s.path}>.iudex/config.yml</code>
+        <code className={s.path}>~/.iudex/config.yml</code>
       </div>
 
       <div className={s.fields}>
         <div className="field">
           <span>Command pool</span>
           <div className={s.agentPool}>
-            {commands.length === 0 && <div className={s.note}>no commands yet</div>}
+            {commands.length === 0 && (
+              <div className={s.note}>no commands yet</div>
+            )}
             {commands.map((c, i) => (
               <div key={i} className={s.agentRow}>
                 <input
@@ -610,7 +670,10 @@ function AgentsTab({ root }: { root: string }) {
                   spellCheck={false}
                   onChange={(e) => patchCmd(i, { command: e.target.value })}
                 />
-                <label className={s.agentDefault} title="default — used by any unmapped role">
+                <label
+                  className={s.agentDefault}
+                  title="default — used by any unmapped role"
+                >
                   <input
                     type="radio"
                     name="agent-default"
@@ -635,7 +698,7 @@ function AgentsTab({ root }: { root: string }) {
           </button>
         </div>
 
-        <div className="field">
+        <div className="field" style={hideRoles ? { display: "none" } : {}}>
           <span>Role defaults</span>
           <div className={s.roleGrid}>
             {AGENT_ROLES.map((r) => (
@@ -644,7 +707,10 @@ function AgentsTab({ root }: { root: string }) {
                   {r.label}
                   <small className={s.note}> · {r.hint}</small>
                 </span>
-                <select value={roles[r.key] ?? ""} onChange={(e) => setRole(r.key, e.target.value)}>
+                <select
+                  value={roles[r.key] ?? ""}
+                  onChange={(e) => setRole(r.key, e.target.value)}
+                >
                   <option value="">(default)</option>
                   {commands
                     .filter((c) => c.name.trim())
