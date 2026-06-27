@@ -19,7 +19,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 #[derive(Default)]
 struct WatcherState(Mutex<Option<RecommendedWatcher>>);
 
-/// User-chosen iudex binary path, persisted in ~/.iudex/settings.json and loaded
+/// User-chosen iudex binary path, persisted in ~/.iudex/config.yml and loaded
 /// once at startup. Kept in a process-global so the plain `iudex_bin()` (called
 /// from many sites + tmux.rs) needs no AppHandle. `None`/empty means "no
 /// override" — fall through to $IUDEX_BIN, then PATH.
@@ -39,45 +39,86 @@ pub(crate) fn iudex_bin() -> String {
     std::env::var("IUDEX_BIN").unwrap_or_else(|_| "iudex".to_string())
 }
 
-/// GUI-level settings, stored globally (not per-workspace) at
-/// ~/.iudex/settings.json — distinct from a project's per-workspace `.iudex/`.
-#[derive(serde::Serialize, serde::Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-struct Settings {
-    #[serde(default)]
-    iudex_bin: String,
-}
-
-/// Path to the global settings file: ~/.iudex/settings.json.
-fn settings_path(app: &AppHandle) -> Result<PathBuf, String> {
+/// ~/.iudex/config.yml — the single per-user config file. It holds the
+/// machine-level agent-command pool (read by the CLI, and by the GUI via
+/// `iudex config --json`) and the GUI's iudex binary path (read directly by the
+/// GUI, line-based — it can't shell the CLI to discover the CLI). Distinct from a
+/// project's per-workspace `.iudex/`.
+fn global_config_path(app: &AppHandle) -> Result<PathBuf, String> {
     let home = app
         .path()
         .home_dir()
         .map_err(|e| format!("cannot resolve home dir: {e}"))?;
-    Ok(home.join(".iudex").join("settings.json"))
+    Ok(home.join(".iudex").join("config.yml"))
 }
 
-fn read_settings(app: &AppHandle) -> Settings {
-    settings_path(app)
+/// Read a top-level scalar `key: value` from config.yml text, line-based so the
+/// GUI needs no YAML dep for the one key it reads itself (iudex_bin). Strips
+/// surrounding double-quotes; None if the key is absent.
+fn yaml_scalar(text: &str, key: &str) -> Option<String> {
+    let prefix = format!("{key}:");
+    for line in text.lines() {
+        // Top-level only (the prefix must start the line — no leading whitespace).
+        if let Some(rest) = line.strip_prefix(&prefix) {
+            let raw = rest.trim();
+            let val = raw
+                .strip_prefix('"')
+                .and_then(|r| r.strip_suffix('"'))
+                .map(|inner| inner.replace("\\\"", "\"").replace("\\\\", "\\"))
+                .unwrap_or_else(|| raw.to_string());
+            return Some(val);
+        }
+    }
+    None
+}
+
+/// Set (Some) or remove (None) a top-level scalar key in config.yml text,
+/// preserving every other line. Values are double-quoted (escaping `"`/`\`).
+fn yaml_upsert_scalar(text: &str, key: &str, value: Option<&str>) -> String {
+    let prefix = format!("{key}:");
+    let render = |v: &str| format!("{key}: \"{}\"", v.replace('\\', "\\\\").replace('"', "\\\""));
+    let mut lines: Vec<String> = text.lines().map(|l| l.to_string()).collect();
+    let pos = lines.iter().position(|l| l.starts_with(&prefix));
+    match (value, pos) {
+        (Some(v), Some(i)) => lines[i] = render(v),
+        (Some(v), None) => lines.push(render(v)),
+        (None, Some(i)) => {
+            lines.remove(i);
+        }
+        (None, None) => {}
+    }
+    let mut out = lines.join("\n");
+    if !out.is_empty() {
+        out.push('\n');
+    }
+    out
+}
+
+/// The saved iudex binary path from ~/.iudex/config.yml ("" if unset/unreadable).
+fn read_iudex_bin(app: &AppHandle) -> String {
+    global_config_path(app)
         .ok()
         .and_then(|p| std::fs::read_to_string(p).ok())
-        .and_then(|t| serde_json::from_str(&t).ok())
+        .and_then(|t| yaml_scalar(&t, "iudex_bin"))
         .unwrap_or_default()
 }
 
-fn write_settings(app: &AppHandle, s: &Settings) -> Result<(), String> {
-    let path = settings_path(app)?;
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
+/// Persist (or clear, with an empty path) the iudex binary path in config.yml,
+/// leaving the rest of the file untouched. Creates the file/dir if missing.
+fn write_iudex_bin(app: &AppHandle, path: &str) -> Result<(), String> {
+    let cfg = global_config_path(app)?;
+    let text = std::fs::read_to_string(&cfg).unwrap_or_default();
+    let out = yaml_upsert_scalar(&text, "iudex_bin", (!path.is_empty()).then_some(path));
+    if let Some(dir) = cfg.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
     }
-    let json = serde_json::to_string_pretty(s).map_err(|e| e.to_string())?;
-    std::fs::write(&path, json).map_err(|e| format!("cannot write {}: {e}", path.display()))
+    std::fs::write(&cfg, out).map_err(|e| format!("write {}: {e}", cfg.display()))
 }
 
 /// Load the persisted iudex binary path into the global override. Called once at
 /// startup, before any command runs.
 fn load_iudex_override(app: &AppHandle) {
-    let saved = read_settings(app).iudex_bin;
+    let saved = read_iudex_bin(app);
     if !saved.is_empty() {
         *iudex_bin_override().lock().unwrap() = Some(saved);
     }
@@ -155,7 +196,7 @@ struct IudexSettings {
 
 #[tauri::command]
 fn get_iudex_settings(app: AppHandle) -> IudexSettings {
-    let saved_path = read_settings(&app).iudex_bin;
+    let saved_path = read_iudex_bin(&app);
     IudexSettings {
         saved_path,
         env_bin: std::env::var("IUDEX_BIN").ok(),
@@ -176,9 +217,7 @@ fn set_iudex_bin(app: AppHandle, path: String) -> Result<String, String> {
     } else {
         iudex_version(&path)
     }?;
-    let mut s = read_settings(&app);
-    s.iudex_bin = path.clone();
-    write_settings(&app, &s)?;
+    write_iudex_bin(&app, &path)?;
     *iudex_bin_override().lock().unwrap() = if path.is_empty() { None } else { Some(path) };
     Ok(resolved)
 }
@@ -390,15 +429,25 @@ pub(crate) fn resolve_agent_command(root: &str, role: &str) -> Result<String, St
     Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
+/// Read the agent pool via `iudex config --json` run from the home dir — so it
+/// resolves the global pool with no workspace open (the pool is machine-level).
+fn cli_config_global(app: &AppHandle) -> Result<CliConfig, String> {
+    let home = app
+        .path()
+        .home_dir()
+        .map_err(|e| format!("cannot resolve home dir: {e}"))?;
+    cli_config(&home.to_string_lossy())
+}
+
 #[tauri::command]
-fn read_agent_config(root: String) -> AgentSettings {
-    match cli_config(&root) {
+fn read_agent_config(app: AppHandle) -> AgentSettings {
+    match cli_config_global(&app) {
         Ok(c) => AgentSettings {
             commands: c.agent_commands,
             roles: c.agent_roles,
         },
-        // An unreadable/old config yields an empty editor rather than an error,
-        // matching the prior default-on-failure behavior.
+        // An unreadable config yields an empty editor rather than an error — which
+        // is also the "not configured yet" first-run state onboarding keys on.
         Err(_) => AgentSettings::default(),
     }
 }
@@ -445,11 +494,11 @@ fn render_agent_section(cfg: &AgentSettings) -> Vec<String> {
 /// comments, and the legacy `agent_command:`) and appends freshly-rendered ones,
 /// leaving every other key and its comments byte-identical (General's surgical
 /// scalar writer is untouched).
-#[tauri::command]
-fn write_agent_config(root: String, config: AgentSettings) -> Result<(), String> {
-    let path = config_path(&root);
-    let text = std::fs::read_to_string(&path).map_err(|e| format!("read config.yml: {e}"))?;
-
+/// Strip any existing agent blocks (and their comments, plus the legacy single
+/// `agent_command:`) from a config.yml's text and append freshly-rendered ones,
+/// leaving every other key + its comments byte-identical. Pure (no I/O) so it's
+/// unit-testable and reused for both an existing file and a fresh global config.
+fn apply_agent_config(text: &str, config: &AgentSettings) -> String {
     let is_agent_key = |t: &str| {
         t.starts_with("agent_roles:")
             || t.starts_with("agent_commands:")
@@ -487,16 +536,32 @@ fn write_agent_config(root: String, config: AgentSettings) -> Result<(), String>
         i += 1;
     }
 
-    // Trim trailing blank lines, then append the agent section with one separator.
+    // Trim trailing blank lines, then append the agent section. A separator blank
+    // only when there's existing content above it (a fresh global file has none).
     while out.last().is_some_and(|l| l.trim().is_empty()) {
         out.pop();
     }
-    out.push(String::new());
-    out.extend(render_agent_section(&config));
+    if !out.is_empty() {
+        out.push(String::new());
+    }
+    out.extend(render_agent_section(config));
 
     let mut joined = out.join("\n");
     joined.push('\n');
-    std::fs::write(&path, joined).map_err(|e| format!("write config.yml: {e}"))?;
+    joined
+}
+
+#[tauri::command]
+fn write_agent_config(app: AppHandle, config: AgentSettings) -> Result<(), String> {
+    let path = global_config_path(&app)?;
+    // The global config may not exist yet (first-run / error-until-configured),
+    // so start from its contents when present, else an empty document.
+    let text = std::fs::read_to_string(&path).unwrap_or_default();
+    let joined = apply_agent_config(&text, &config);
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
+    }
+    std::fs::write(&path, joined).map_err(|e| format!("write {}: {e}", path.display()))?;
     Ok(())
 }
 
@@ -1761,15 +1826,12 @@ pub fn run() {
 mod tests {
     use super::*;
 
-    // write_agent_config's YAML surgery is the part still owned by the GUI (the
+    // apply_agent_config's YAML surgery is the part still owned by the GUI (the
     // read side + role->command resolution now come from the CLI). Assert it
     // renders the new agent blocks, preserves every other key + its comments, and
     // drops the legacy single `agent_command`.
     #[test]
-    fn write_agent_config_preserves_other_keys() {
-        let dir = std::env::temp_dir().join(format!("iudex-agtest-{}", std::process::id()));
-        let iudex = dir.join(".iudex");
-        std::fs::create_dir_all(&iudex).unwrap();
+    fn apply_agent_config_preserves_other_keys() {
         let cfg = "# header comment\n\
 main_branch: main\n\
 max_active: 4\n\
@@ -1781,8 +1843,6 @@ agent_command: pi\n\
 # merge comment\n\
 merge_strategy: no-ff\n\
 branch_prefix: \"work/\"\n";
-        std::fs::write(iudex.join("config.yml"), cfg).unwrap();
-        let root = dir.to_string_lossy().to_string();
 
         let new = AgentSettings {
             commands: vec![
@@ -1791,9 +1851,8 @@ branch_prefix: \"work/\"\n";
             ],
             roles: std::collections::BTreeMap::from([("qa".to_string(), "claude".to_string())]),
         };
-        write_agent_config(root.clone(), new).unwrap();
+        let text = apply_agent_config(cfg, &new);
 
-        let text = std::fs::read_to_string(iudex.join("config.yml")).unwrap();
         // Unrelated keys + comments survive the surgery.
         assert!(text.contains("main_branch: main"));
         assert!(text.contains("# merge comment"));
@@ -1807,7 +1866,53 @@ branch_prefix: \"work/\"\n";
         assert!(text.contains("qa: \"claude\""));
         // The legacy single key is gone (agent_commands: is a different key).
         assert!(!text.contains("agent_command: pi"));
+    }
 
-        std::fs::remove_dir_all(&dir).ok();
+    // A fresh global config (empty input) renders just the agent section, with no
+    // leading blank line.
+    #[test]
+    fn apply_agent_config_on_empty_starts_clean() {
+        let new = AgentSettings {
+            commands: vec![AgentCmd {
+                name: "claude".into(),
+                command: "claude".into(),
+                default: true,
+            }],
+            roles: std::collections::BTreeMap::new(),
+        };
+        let text = apply_agent_config("", &new);
+        assert!(!text.starts_with('\n'), "no leading blank line: {text:?}");
+        assert!(text.contains("agent_commands:"));
+        assert!(text.contains("name: \"claude\""));
+    }
+
+    // The GUI reads/writes its one config.yml key (iudex_bin) line-based; assert
+    // round-tripping, quoting, removal, and that it leaves the agent blocks alone.
+    #[test]
+    fn yaml_scalar_reads_top_level_quoted_and_bare() {
+        let text = "iudex_bin: \"/opt/iudex\"\nmax_active: 4\n";
+        assert_eq!(yaml_scalar(text, "iudex_bin").as_deref(), Some("/opt/iudex"));
+        let bare = "iudex_bin: /usr/bin/iudex\n";
+        assert_eq!(yaml_scalar(bare, "iudex_bin").as_deref(), Some("/usr/bin/iudex"));
+        assert_eq!(yaml_scalar("max_active: 4\n", "iudex_bin"), None);
+        // A nested/indented key must not match the top-level lookup.
+        assert_eq!(yaml_scalar("agent_roles:\n  iudex_bin: x\n", "iudex_bin"), None);
+    }
+
+    #[test]
+    fn yaml_upsert_scalar_sets_replaces_removes_preserving_rest() {
+        let base = "agent_commands:\n  - name: \"claude\"\n    command: \"claude\"\n    default: true\n";
+        // Insert (append) — agent block preserved.
+        let with = yaml_upsert_scalar(base, "iudex_bin", Some("/opt/iudex"));
+        assert!(with.contains("agent_commands:"));
+        assert_eq!(yaml_scalar(&with, "iudex_bin").as_deref(), Some("/opt/iudex"));
+        // Replace in place.
+        let repl = yaml_upsert_scalar(&with, "iudex_bin", Some("/usr/bin/iudex"));
+        assert_eq!(yaml_scalar(&repl, "iudex_bin").as_deref(), Some("/usr/bin/iudex"));
+        assert_eq!(repl.matches("iudex_bin:").count(), 1);
+        // Remove — key gone, agent block intact.
+        let gone = yaml_upsert_scalar(&repl, "iudex_bin", None);
+        assert_eq!(yaml_scalar(&gone, "iudex_bin"), None);
+        assert!(gone.contains("agent_commands:"));
     }
 }
