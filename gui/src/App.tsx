@@ -5,6 +5,7 @@ import { useWorkspace } from "./lib/workspace";
 import { useIudexCheck } from "./lib/iudexCheck";
 import { useViewKeepAlive } from "./lib/viewKeepAlive";
 import { useAutomation } from "./lib/automation";
+import { useOnboarding } from "./lib/onboarding";
 import Dashboard from "./views/Dashboard";
 import Tickets from "./views/Tickets";
 import Terminal from "./views/Terminal";
@@ -13,20 +14,20 @@ import Worktrees from "./views/Worktrees";
 import Review from "./views/Review";
 import Archive from "./views/Archive";
 import Settings from "./views/Settings";
+import Onboarding from "./views/Onboarding";
+import LoadingSplash from "./screens/LoadingSplash";
+import CliUnavailableScreen from "./screens/CliUnavailableScreen";
+import WorkspaceSplash from "./screens/WorkspaceSplash";
+import InitWorkspacePrompt from "./screens/InitWorkspacePrompt";
 import SectionHeader from "./components/SectionHeader";
-import Button from "./components/Button";
-import Badge from "./components/Badge";
+import TopBar from "./components/TopBar";
+import SetupBanner from "./components/SetupBanner";
 import "./styles/base.scss";
 import a from "./App.module.scss";
 
 // GUI version: no real versioning scheme yet — placeholder until we wire one up
 // (e.g. inject from package.json / git at build time, like the iudex binary).
 const GUI_VERSION = "dev";
-
-function basename(p: string): string {
-  const parts = p.split("/").filter(Boolean);
-  return parts[parts.length - 1] ?? p;
-}
 
 export default function App() {
   // iudex CLI availability gates the whole app (recovery via the splash below).
@@ -69,15 +70,17 @@ export default function App() {
   const { autoActivate, autoQA, toggleAutoActivate, toggleAutoQA } =
     useAutomation(root, ws, sessions, load, setError);
 
+  // First-run agent setup, gated on the CLI being reachable (the read shells
+  // `iudex config --json`).
+  const { poolEmpty, showOnboarding, openOnboarding, closeOnboarding } =
+    useOnboarding(!!iudexVersion && !iudexErr);
+  const onboarding = showOnboarding ? (
+    <Onboarding onClose={closeOnboarding} />
+  ) : null;
+
   // ── First paint blocks on the iudex check; the GUI does nothing without it ──
   if (checkingIudex && !iudexVersion && !iudexErr) {
-    return (
-      <main className={a.app}>
-        <div className={a.splash}>
-          <h1 className={a.logo}>iudex</h1>
-        </div>
-      </main>
-    );
+    return <LoadingSplash />;
   }
 
   // ── Standalone Settings (no workspace): recover the binary path from here ────
@@ -102,87 +105,38 @@ export default function App() {
   // making the button's disabled/"Checking…" state live instead of a flicker.
   if (iudexErr) {
     return (
-      <main className={a.app}>
-        <div className={a.splash}>
-          <section className={a.errPanel}>
-            <header className={a.errHead}>
-              <span className={a.errBrand}>
-                <span className={a.errDot} />
-                iudex
-              </span>
-              <Badge bg="#e0584c" fg="#ffffff">
-                CLI unavailable
-              </Badge>
-            </header>
-
-            <div className={a.errBody}>
-              <p className={a.errLede}>
-                The iudex command-line tool isn’t available.
-              </p>
-              <pre className={a.errCode}>{iudexErr}</pre>
-              <p className={a.errHint}>
-                iudex drives this app the way git drives a git client. Install
-                the <code>iudex</code> binary and point the GUI at it — set the
-                path in Settings, or put <code>iudex</code> on your PATH (or set{" "}
-                <code>IUDEX_BIN</code>) and re-check.
-              </p>
-            </div>
-
-            <footer className={a.errActions}>
-              <Button
-                variant="quiet"
-                disabled={checkingIudex}
-                onClick={checkIudex}
-              >
-                {checkingIudex ? "Checking…" : "Re-check"}
-              </Button>
-              <Button
-                variant="primary"
-                onClick={() => setShowGlobalSettings(true)}
-              >
-                Open Settings
-              </Button>
-            </footer>
-          </section>
-        </div>
-      </main>
+      <CliUnavailableScreen
+        iudexErr={iudexErr}
+        checking={checkingIudex}
+        onRecheck={checkIudex}
+        onOpenSettings={() => setShowGlobalSettings(true)}
+      />
     );
   }
 
   // ── Splash: no workspace open yet ──────────────────────────────────────────
   if (!root && !offerInit) {
     return (
-      <main className={a.app}>
-        <div className={a.splash}>
-          <h1 className={a.logo}>iudex</h1>
-          <button className={a.openBtn} onClick={pickAndOpen}>
-            Open Folder
-          </button>
-          <div className={a.versions}>
-            <span>{iudexVersion ?? "iudex —"}</span>
-            <span>gui {GUI_VERSION}</span>
-          </div>
-          {error && <div className="error">{error}</div>}
-        </div>
-      </main>
+      <WorkspaceSplash
+        iudexVersion={iudexVersion}
+        guiVersion={GUI_VERSION}
+        error={error}
+        onPick={pickAndOpen}
+        onSetupAgents={openOnboarding}
+        onboarding={onboarding}
+      />
     );
   }
 
   // ── Not a workspace: offer to initialize ───────────────────────────────────
   if (offerInit) {
     return (
-      <main className={a.app}>
-        <div className={a.splash}>
-          <p className={a.notWs}>not an iudex workspace</p>
-          <button className={a.openBtn} disabled={initing} onClick={initHere}>
-            {initing ? "Initializing…" : "Initialize"}
-          </button>
-          <button className={a.linkBtn} onClick={pickAndOpen}>
-            open a different folder
-          </button>
-          {error && <div className="error">{error}</div>}
-        </div>
-      </main>
+      <InitWorkspacePrompt
+        initing={initing}
+        error={error}
+        onInit={initHere}
+        onPickOther={pickAndOpen}
+      />
     );
   }
 
@@ -256,22 +210,9 @@ export default function App() {
 
   return (
     <main className={a.app}>
-      <header className={a.topbar}>
-        <div className={a.brand}>
-          <span className={a.brandDot} />
-          <span className={a.brandName}>iudex</span>
-        </div>
-        <div
-          className={a.wsPicker}
-          onClick={pickAndOpen}
-          title={`${root ?? ""}${lastSync ? ` · synced ${lastSync}` : ""}`}
-        >
-          <span className={a.wsTag}>WS</span>
-          <span className={a.wsPath}>{root ? basename(root) : ""}</span>
-          <span className={a.wsChev}>▾</span>
-        </div>
-        <div className={a.spacer} />
-      </header>
+      <TopBar root={root} lastSync={lastSync} onPick={pickAndOpen} />
+
+      {poolEmpty && <SetupBanner onClick={openOnboarding} />}
 
       {root && ws && (
         <div className={a.body}>
@@ -452,6 +393,7 @@ export default function App() {
           </section>
         </div>
       )}
+      {onboarding}
     </main>
   );
 }
