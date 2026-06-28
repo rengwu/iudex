@@ -2,13 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as api from "./api";
 import type { Session, Workspace } from "../types";
 
-const aaKey = (r: string) => `iudex.autoActivate.${r}`;
-const qaKey = (r: string) => `iudex.autoQA.${r}`;
-
 // The opt-in automation engine: drain ready→active tickets (spawning impl agents)
-// and spawn QA agents for pending-qa tickets. Both toggles are persisted
-// per-workspace. The judgment gates (finish, qa verdict, human-qa merge) stay
-// human — this only does the frictionless, surface-and-spawn steps.
+// and spawn QA agents for pending-qa tickets. Both toggles default to off and
+// are never persisted — switching workspaces resets them to off. The judgment
+// gates (finish, qa verdict, human-qa merge) stay human — this only does the
+// frictionless, surface-and-spawn steps.
 //
 // Inputs are the live workspace truth (root/ws/sessions) plus load() to re-read
 // and onError() to surface failures; the hook owns the toggle state, the
@@ -29,34 +27,28 @@ export function useAutomation(
   const qaDrainingRef = useRef(false);
   const qaHandledRef = useRef<Set<string>>(new Set()); // pending-qa ids already spawned this episode
 
-  // Restore persisted toggles when the workspace changes; reset the guards.
+  // Reset both toggles to off when the workspace changes; reset the guards.
   useEffect(() => {
     if (!root) return;
     skipRef.current.clear();
     qaHandledRef.current.clear();
-    setAutoActivate(localStorage.getItem(aaKey(root)) === "true");
-    setAutoQA(localStorage.getItem(qaKey(root)) === "true");
+    autoActivateRef.current = false;
+    autoQARef.current = false;
+    setAutoActivate(false);
+    setAutoQA(false);
   }, [root]);
 
-  const toggleAutoActivate = useCallback(
-    (v: boolean) => {
-      autoActivateRef.current = v;
-      skipRef.current.clear();
-      if (root) localStorage.setItem(aaKey(root), String(v));
-      setAutoActivate(v);
-    },
-    [root],
-  );
+  const toggleAutoActivate = useCallback((v: boolean) => {
+    autoActivateRef.current = v;
+    skipRef.current.clear();
+    setAutoActivate(v);
+  }, []);
 
-  const toggleAutoQA = useCallback(
-    (v: boolean) => {
-      autoQARef.current = v;
-      qaHandledRef.current.clear();
-      if (root) localStorage.setItem(qaKey(root), String(v));
-      setAutoQA(v);
-    },
-    [root],
-  );
+  const toggleAutoQA = useCallback((v: boolean) => {
+    autoQARef.current = v;
+    qaHandledRef.current.clear();
+    setAutoQA(v);
+  }, []);
 
   // Auto-activate: while on, activate the first ready ticket + spawn its impl
   // agent, re-reading status each pass so deps + max_active stay current.
@@ -70,7 +62,8 @@ export function useAutomation(
         while (autoActivateRef.current) {
           const data = await api.iudexStatus(root);
           const next = data.tickets.find(
-            (t) => t.state === "queued" && t.ready && !skipRef.current.has(t.id),
+            (t) =>
+              t.state === "queued" && t.ready && !skipRef.current.has(t.id),
           );
           if (!next) break;
           try {
@@ -100,7 +93,9 @@ export function useAutomation(
     for (const id of qaHandledRef.current) {
       if (!pendingQA.has(id)) qaHandledRef.current.delete(id);
     }
-    const candidates = [...pendingQA].filter((id) => !qaHandledRef.current.has(id));
+    const candidates = [...pendingQA].filter(
+      (id) => !qaHandledRef.current.has(id),
+    );
     if (candidates.length === 0 || qaDrainingRef.current) return;
     qaDrainingRef.current = true;
     (async () => {
@@ -136,12 +131,12 @@ export function useAutomation(
     })();
   }, [autoQA, root, ws, sessions, onError]);
 
-  // While either automation is on, poll the workspace every ~7s so the drains
+  // While either automation is on, poll the workspace every 5s so the drains
   // re-evaluate on a steady cadence (not only on the events doorbell) — freeing
   // slots / newly-queued / newly-pending-qa tickets get picked up.
   useEffect(() => {
     if (!root || (!autoActivate && !autoQA)) return;
-    const h = setInterval(() => load(root), 7000);
+    const h = setInterval(() => load(root), 5000);
     return () => clearInterval(h);
   }, [autoActivate, autoQA, root, load]);
 
