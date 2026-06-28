@@ -1,0 +1,75 @@
+@use "../styles/tokens" as t;
+
+// The app-wide top bar (44px): brand + workspace picker.
+.topbar {
+  height: 44px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 12px;
+  background: t.$chrome;
+  border-bottom: 1px solid t.$divider-dark;
+  color: #d8d8d8;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.brandDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: t.$amber;
+}
+.brandName {
+  font-size: 14px;
+  font-weight: 600;
+  color: t.$text-bright;
+  letter-spacing: 0.01em;
+}
+
+.wsPicker {
+  display: flex;
+  align-items: center;
+  height: 22px;
+  border: 1px solid t.$divider-chrome;
+  background: t.$sidebar;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  padding: 0;
+
+  &:hover {
+    background: #474747;
+  }
+}
+.wsTag {
+  font-size: 10px;
+  color: t.$text-meta;
+  padding: 0 7px;
+  border-right: 1px solid t.$divider-chrome;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+.wsPath {
+  font-family: t.$font-mono;
+  font-size: 12px;
+  color: t.$text-light;
+  padding: 0 8px;
+}
+.wsChev {
+  color: t.$text-meta;
+  padding: 0 7px;
+  border-left: 1px solid t.$divider-chrome;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+
+.spacer {
+  flex: 1;
+}

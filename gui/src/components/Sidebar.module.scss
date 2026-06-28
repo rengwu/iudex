@@ -1,0 +1,204 @@
+@use "../styles/tokens" as t;
+
+// The left navigation rail: view buttons over a bottom panel (pipeline counts,
+// automation transport, sysinfo).
+.rail {
+  width: 186px;
+  flex: none;
+  background: t.$sidebar;
+  border-right: 1px solid t.$divider-dark;
+  display: flex;
+  flex-direction: column;
+  color: t.$text-light;
+}
+
+.navItem {
+  height: 25px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  border: none;
+  border-left: 2px solid transparent;
+  background: transparent;
+  color: t.$text-light;
+  font-family: t.$font-ui;
+  font-size: 12px;
+  text-align: left;
+  width: 100%;
+}
+.navDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+}
+.navLabel {
+  flex: 1;
+}
+.navCount {
+  font-family: t.$font-mono;
+  font-size: 11px;
+  color: t.$text-meta;
+}
+
+.railSpacer {
+  flex: 1;
+}
+.railBottom {
+  border-top: 1px solid t.$divider-dark;
+}
+
+.pipeline {
+  padding: 10px 11px 9px;
+  border-bottom: 1px solid t.$divider-chrome;
+}
+.pipeTitle {
+  font-size: 10px;
+  color: t.$text-meta;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+.pipeRows {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px 10px;
+  font-family: t.$font-mono;
+  font-size: 11px;
+}
+.pipeRow {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+.pipeNum {
+  width: 14px;
+  text-align: right;
+  font-weight: 600;
+}
+.pipeLabel {
+  color: t.$text-meta;
+}
+
+.transport {
+  border-bottom: 1px solid t.$divider-chrome;
+}
+.transportBtns {
+  padding: 6px 11px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-bottom: 1px solid #1a1a1a;
+}
+.tBtn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid t.$divider-chrome;
+  background: t.$divider-chrome;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  flex: none;
+  padding: 0;
+
+  &.tActive {
+    border-color: t.$success;
+  }
+}
+.playTri {
+  width: 0;
+  height: 0;
+  border-left: 8px solid t.$success;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+.stopSq {
+  width: 8px;
+  height: 8px;
+  background: #b8b8b8;
+}
+
+.toggles {
+  padding: 5px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.toggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.toggleLabel {
+  font-size: 10px;
+  color: t.$text-meta;
+}
+.toggle {
+  width: 28px;
+  height: 14px;
+  border: 1px solid t.$divider-chrome;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  padding: 0 2px;
+
+  .knob {
+    width: 10px;
+    height: 10px;
+  }
+}
+.toggleOn {
+  background: t.$amber;
+  justify-content: flex-end;
+  .knob {
+    background: t.$divider-chrome;
+  }
+}
+.toggleOff {
+  background: t.$sidebar;
+  justify-content: flex-start;
+  .knob {
+    background: #6a6a6a;
+  }
+}
+
+.sysinfo {
+  padding: 9px 11px;
+  font-family: t.$font-mono;
+  font-size: 11px;
+  color: t.$text-meta;
+  line-height: 1.7;
+}
+.sysBranch {
+  color: t.$text-light;
+}
+.sysVer {
+  margin-top: 5px;
+  color: t.$divider-mid;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sysBar {
+  margin-top: 5px;
+  display: flex;
+  gap: 2px;
+}
+.sysSeg {
+  flex: 1;
+  height: 4px;
+  background: t.$divider-chrome;
+
+  &.on {
+    background: t.$mint;
+  }
+}

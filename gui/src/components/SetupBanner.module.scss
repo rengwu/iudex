@@ -1,0 +1,15 @@
+@use "../styles/tokens" as t;
+
+// First-run nudge strip: shown app-wide while the agent-command pool is empty,
+// so any spawn path has a visible path to setup (color = state; amber = attention).
+.setupBanner {
+  flex: none;
+  padding: 5px 12px;
+  background: t.$amber;
+  color: #2a2a2a;
+  border-bottom: 1px solid t.$amber-border;
+  font-size: 12px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}

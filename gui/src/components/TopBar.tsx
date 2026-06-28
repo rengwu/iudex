@@ -1,4 +1,4 @@
-import a from "../App.module.scss";
+import s from "./TopBar.module.scss";
 
 function basename(p: string): string {
   const parts = p.split("/").filter(Boolean);
@@ -17,21 +17,21 @@ export default function TopBar({
   onPick: () => void;
 }) {
   return (
-    <header className={a.topbar}>
-      <div className={a.brand}>
-        <span className={a.brandDot} />
-        <span className={a.brandName}>iudex</span>
+    <header className={s.topbar}>
+      <div className={s.brand}>
+        <span className={s.brandDot} />
+        <span className={s.brandName}>iudex</span>
       </div>
       <div
-        className={a.wsPicker}
+        className={s.wsPicker}
         onClick={onPick}
         title={`${root ?? ""}${lastSync ? ` · synced ${lastSync}` : ""}`}
       >
-        <span className={a.wsTag}>WS</span>
-        <span className={a.wsPath}>{root ? basename(root) : ""}</span>
-        <span className={a.wsChev}>▾</span>
+        <span className={s.wsTag}>WS</span>
+        <span className={s.wsPath}>{root ? basename(root) : ""}</span>
+        <span className={s.wsChev}>▾</span>
       </div>
-      <div className={a.spacer} />
+      <div className={s.spacer} />
     </header>
   );
 }

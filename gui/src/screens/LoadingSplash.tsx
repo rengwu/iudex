@@ -1,13 +1,12 @@
-import a from "../App.module.scss";
+import s from "./screens.module.scss";
 
 // First paint while the iudex-CLI capability check is still in flight — the GUI
-// does nothing without the CLI, so it blocks on a bare splash.
+// does nothing without the CLI, so it blocks on a bare splash. App wraps this in
+// the <main> app frame.
 export default function LoadingSplash() {
   return (
-    <main className={a.app}>
-      <div className={a.splash}>
-        <h1 className={a.logo}>iudex</h1>
-      </div>
-    </main>
+    <div className={s.splash}>
+      <h1 className={s.logo}>iudex</h1>
+    </div>
   );
 }

@@ -1,0 +1,175 @@
+@use "../styles/tokens" as t;
+
+// Styles shared by the full-screen app states (LoadingSplash, WorkspaceSplash,
+// InitWorkspacePrompt, CliUnavailableScreen). The screens render their inner
+// content only; App owns the <main className={app}> frame, so `.app` is not here.
+
+// ── Splash / not-a-workspace screens ──────────────────────────────────────────
+
+.splash {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: t.$canvas;
+}
+
+.logo {
+  margin: 0 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: t.$text;
+
+  &::before {
+    content: "";
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: t.$amber;
+  }
+}
+
+.openBtn {
+  padding: 0 18px;
+  height: 26px;
+  border: 1px solid t.$amber-border;
+  background: t.$amber;
+  color: t.$text;
+  font-weight: 500;
+  font-size: 12px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+
+  &:hover:not(:disabled) {
+    background: #f6c659;
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.notWs {
+  margin: 0;
+  color: t.$text-muted;
+  font-size: 13px;
+}
+
+// Version caption under the Open Folder action. Mono (these are values), and
+// $text-muted — the secondary-text token for the *light* canvas, matching
+// .notWs above. ($text-meta is dim-on-dark; it would vanish on this surface.)
+// Spacing comes from .splash's gap; no margin here.
+.versions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-family: t.$font-mono;
+  font-size: 11px;
+  color: t.$text-muted;
+}
+
+// ── iudex-missing panel (flat, square, DAW-style) ─────────────────────────────
+.errPanel {
+  width: 460px;
+  max-width: calc(100% - 48px);
+  text-align: left;
+  border: 1px solid t.$divider-mid;
+  background: t.$panel-mid;
+}
+
+.errHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+  padding: 0 12px;
+  background: t.$panel-rail;
+  border-bottom: 1px solid t.$divider-mid;
+}
+.errBrand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  color: t.$text;
+}
+.errDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: t.$danger;
+}
+.errBody {
+  padding: 14px 14px 16px;
+}
+.errLede {
+  margin: 0 0 11px;
+  font-size: 13px;
+  font-weight: 500;
+  color: t.$text;
+}
+.errCode {
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  background: t.$field-edit;
+  border-left: 2px solid t.$danger;
+  font-family: t.$font-mono;
+  font-size: 11px;
+  line-height: 1.5;
+  color: t.$text;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.errHint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: t.$text-muted;
+
+  code {
+    font-family: t.$font-mono;
+    font-size: 11px;
+    padding: 0 3px;
+    background: t.$panel-rail;
+    color: t.$text;
+  }
+}
+
+.errActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 12px;
+  background: t.$panel-rail;
+  border-top: 1px solid t.$divider-mid;
+}
+
+.linkBtn {
+  padding: 2px 0;
+  border: none;
+  background: transparent;
+  color: t.$link;
+  font-size: 11px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+
+  &:hover {
+    color: t.$text;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
