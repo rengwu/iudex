@@ -264,6 +264,7 @@
 .footerActions {
   margin-left: auto;
   display: flex;
+  align-items: center;
   gap: 6px;
 }
 .footerBtn {
@@ -285,7 +286,64 @@
     opacity: 0.4;
     cursor: default;
   }
+}
+
+// ── Footer overflow menu (destructive / dangerous actions) ──
+.menuWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.menuBtn {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  border: 1px solid t.$divider-mid;
+  background: t.$panel-mid;
+  color: t.$text-muted;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  font-size: 16px;
+  line-height: 1;
+
+  &:hover {
+    color: t.$text;
+    background: t.$surface-c8;
+  }
+}
+.menu {
+  position: absolute;
+  bottom: calc(100% + 4px); // open upward — the footer sits at the panel bottom
+  right: 0;
+  min-width: 150px;
+  background: t.$panel-mid;
+  border: 1px solid t.$divider-mid;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.4);
+  z-index: 10;
+}
+.menuItem {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  color: t.$text;
+  text-align: left;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  font-size: 12px;
+  font-family: t.$font-ui;
+
+  &:hover {
+    background: t.$surface-c8;
+  }
   &.danger {
     color: t.$danger;
+  }
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
   }
 }

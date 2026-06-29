@@ -22,11 +22,13 @@ export default function Tickets({
   root,
   onOpenInTerminal,
   onJumpToAgent,
+  onGoToReview,
 }: {
   ws: Workspace;
   root: string;
   onOpenInTerminal: (session: string) => void;
   onJumpToAgent: (sessionName: string) => void;
+  onGoToReview: (ticketId: string) => void;
 }) {
   const [busy, setBusy] = useState<string | null>(null); // ticket id mid-action
   const [error, setError] = useState<string | null>(null);
@@ -271,6 +273,7 @@ export default function Tickets({
               ws={ws}
               onClose={() => setSelId(null)}
               onJumpToAgent={onJumpToAgent}
+              onGoToReview={onGoToReview}
               onSaved={refetchTitles}
             />
           </div>

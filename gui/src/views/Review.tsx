@@ -64,7 +64,7 @@ export default function Review({
 
   const { sessions } = useSessions();
 
-  // Honor a ticket handed in from the Dashboard.
+  // Honor a ticket handed in from another view (Dashboard, Tickets panel).
   useEffect(() => {
     if (focusTicket) {
       setSelId(focusTicket);

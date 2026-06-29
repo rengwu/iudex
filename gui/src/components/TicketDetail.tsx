@@ -51,14 +51,16 @@ function dotClass(status: AgentStatus): string {
 }
 
 // Full ticket detail panel: header + title + sections. The caller provides
-// onClose and onJumpToAgent so the panel can close itself and cross-link into
-// the Agents view. `ws` is needed for state-aware actions.
+// onClose, onJumpToAgent, and onGoToReview so the panel can close itself and
+// cross-link into the Agents / Review views. `ws` is needed for state-aware
+// actions.
 export default function TicketDetail({
   root,
   ticket,
   ws,
   onClose,
   onJumpToAgent,
+  onGoToReview,
   onSaved,
 }: {
   root: string;
@@ -66,6 +68,7 @@ export default function TicketDetail({
   ws: Workspace;
   onClose: () => void;
   onJumpToAgent: (sessionName: string) => void;
+  onGoToReview: (ticketId: string) => void;
   onSaved?: () => void;
 }) {
   const { docs, loading } = useTicketDocs(root, ticket);
@@ -329,6 +332,7 @@ export default function TicketDetail({
               busy={actionBusy}
               onAct={act}
               onJumpToAgent={onJumpToAgent}
+              onGoToReview={onGoToReview}
             />
           </div>
         </div>
@@ -358,12 +362,14 @@ function FooterActions({
   busy,
   onAct,
   onJumpToAgent,
+  onGoToReview,
 }: {
   ticket: Ticket;
   root: string;
   busy: boolean;
   onAct: (fn: () => Promise<unknown>, closeAfter?: boolean) => void;
   onJumpToAgent: (name: string) => void;
+  onGoToReview: (ticketId: string) => void;
 }) {
   const run = (args: string[], closeAfter = false) =>
     onAct(() => api.runIudex(root, args), closeAfter);
@@ -391,22 +397,13 @@ function FooterActions({
         </button>
       )}
       {ticket.state === "active" && (
-        <>
-          <button
-            className={s.footerBtn}
-            disabled={busy}
-            onClick={() => run(["finish", ticket.id])}
-          >
-            Finish
-          </button>
-          <button
-            className={s.footerBtn}
-            disabled={busy}
-            onClick={() => spawnAndJump("impl")}
-          >
-            Spawn agent
-          </button>
-        </>
+        <button
+          className={s.footerBtn}
+          disabled={busy}
+          onClick={() => spawnAndJump("impl")}
+        >
+          Spawn agent
+        </button>
       )}
       {ticket.state === "pending-qa" && (
         <button
@@ -415,6 +412,15 @@ function FooterActions({
           onClick={() => spawnAndJump("qa")}
         >
           QA agent
+        </button>
+      )}
+      {ticket.state === "pending-human-qa" && (
+        <button
+          className={s.footerBtn}
+          disabled={busy}
+          onClick={() => onGoToReview(ticket.id)}
+        >
+          Go to Review
         </button>
       )}
       {ticket.state === "failed" && (
@@ -426,13 +432,61 @@ function FooterActions({
           Retry
         </button>
       )}
-      <button
-        className={`${s.footerBtn} ${s.danger}`}
-        disabled={busy}
-        onClick={() => run(["remove", ticket.id], true)}
-      >
-        Remove
-      </button>
+      {/* Destructive / dangerous (and other tucked-away) actions live behind
+          the overflow menu. */}
+      <FooterOverflow>
+        {ticket.state === "active" && (
+          <button
+            className={s.menuItem}
+            disabled={busy}
+            onClick={() => run(["finish", ticket.id])}
+          >
+            Finish
+          </button>
+        )}
+        <button
+          className={`${s.menuItem} ${s.danger}`}
+          disabled={busy}
+          onClick={() => run(["remove", ticket.id], true)}
+        >
+          Remove
+        </button>
+      </FooterOverflow>
     </>
+  );
+}
+
+// Three-dot overflow for the footer's destructive/dangerous actions. Pass the
+// danger buttons as children (styled with `s.menuItem`/`s.danger`); the menu
+// opens upward from the footer, closes on outside-click, and dismisses itself
+// after any item click. This is the base hook for future dangerous actions —
+// add more children here rather than as inline footer buttons.
+function FooterOverflow({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div className={s.menuWrap} ref={ref}>
+      <button
+        className={s.menuBtn}
+        onClick={() => setOpen((o) => !o)}
+        title="more actions"
+      >
+        ⋮
+      </button>
+      {open && (
+        <div className={s.menu} onClick={() => setOpen(false)}>
+          {children}
+        </div>
+      )}
+    </div>
   );
 }

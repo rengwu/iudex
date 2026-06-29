@@ -202,6 +202,10 @@ export default function App() {
                   setFocusAgent(name);
                   setView("agents");
                 }}
+                onGoToReview={(id) => {
+                  setFocusTicket(id);
+                  setView("review");
+                }}
               />,
             )}
             {renderView(
