@@ -8,6 +8,7 @@ import {
   type Worktree,
 } from "../types";
 import { useWorktrees } from "../lib/worktrees";
+import { useNav } from "../lib/nav";
 import Badge from "../components/Badge";
 import ViewHeader from "../components/ViewHeader";
 import Button from "../components/Button";
@@ -29,12 +30,11 @@ function wtLabel(w: Worktree): string {
 export default function Worktrees({
   ws,
   root,
-  onOpenInTerminal,
 }: {
   ws: Workspace;
   root: string;
-  onOpenInTerminal: (session: string) => void;
 }) {
+  const { goTo } = useNav();
   const { worktrees, error } = useWorktrees(root, ws);
 
   const [selPath, setSelPath] = useState<string | null>(null);
@@ -100,7 +100,7 @@ export default function Worktrees({
     if (!selPath) return;
     try {
       const s = await api.createShell(selPath);
-      onOpenInTerminal(s.name);
+      goTo("terminal", { id: s.name });
     } catch (e) {
       setPaneErr(String(e));
     }

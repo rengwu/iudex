@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import * as api from "../lib/api";
 import type { Ticket, Workspace } from "../types";
 import { IDEA_SKILLS } from "../lib/skills";
+import { useNav, usePendingFocus } from "../lib/nav";
 import { useTicketTitles } from "../lib/agents";
 import { stateDot } from "../lib/badges";
 import Badge from "../components/Badge";
@@ -20,22 +21,24 @@ import s from "./Tickets.module.scss";
 export default function Tickets({
   ws,
   root,
-  onOpenInTerminal,
-  onJumpToAgent,
-  onGoToReview,
 }: {
   ws: Workspace;
   root: string;
-  onOpenInTerminal: (session: string) => void;
-  onJumpToAgent: (sessionName: string) => void;
-  onGoToReview: (ticketId: string) => void;
 }) {
+  const { goTo } = useNav();
+  const focus = usePendingFocus("tickets");
   const [busy, setBusy] = useState<string | null>(null); // ticket id mid-action
   const [error, setError] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
   const [ideating, setIdeating] = useState(false);
   const [selId, setSelId] = useState<string | null>(null);
   const [mode, setMode] = useState<"board" | "table" | "graph">("board");
+
+  // Honor a ticket handed in from another view (e.g. the Agents panel's
+  // "Go to Ticket"): select it so its detail panel opens.
+  useEffect(() => {
+    if (focus) setSelId(focus.id);
+  }, [focus]);
 
   // Human titles keyed by ticket id — covers queued tickets (no worktree yet),
   // whose brief still lives in .iudex/queue/, as well as active+ worktree briefs.
@@ -68,14 +71,14 @@ export default function Tickets({
     act(id, async () => {
       await api.runIudex(root, ["activate", id]);
       const s = await api.spawnAgent(root, id, "impl");
-      onJumpToAgent(s.name);
+      goTo("agents", { id: s.name });
     });
   const finish = (id: string) =>
     act(id, () => api.runIudex(root, ["finish", id]));
   const spawnQa = (id: string) =>
     act(id, async () => {
       const s = await api.spawnAgent(root, id, "qa");
-      onJumpToAgent(s.name);
+      goTo("agents", { id: s.name });
     });
   const retry = (id: string) =>
     act(id, () => api.runIudex(root, ["retry", id]));
@@ -272,8 +275,6 @@ export default function Tickets({
               ticket={sel}
               ws={ws}
               onClose={() => setSelId(null)}
-              onJumpToAgent={onJumpToAgent}
-              onGoToReview={onGoToReview}
               onSaved={refetchTitles}
             />
           </div>
@@ -293,7 +294,7 @@ export default function Tickets({
           onClose={() => setIdeating(false)}
           onLaunched={(name) => {
             setIdeating(false);
-            onOpenInTerminal(name);
+            goTo("terminal", { id: name });
           }}
         />
       )}

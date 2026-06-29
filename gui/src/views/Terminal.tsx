@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import * as api from "../lib/api";
+import { usePendingFocus } from "../lib/nav";
 import { useSessions, sessionTitle, sessionLabel, addSession } from "../lib/sessions";
 import { VIEWS, type Session } from "../types";
 import XtermPane from "./XtermPane";
@@ -18,19 +19,16 @@ function sessionDot(sessions: Session[], name: string): string {
 
 // The interactive, full-size surface over the tmux pool. Each tab is a live
 // attach to one session. Panes stay mounted once opened (hidden when inactive)
-// so switching tabs never tears down a terminal. `focus` lets another view
-// (Agents "open in Terminal") jump straight to a session's tab.
+// so switching tabs never tears down a terminal. A pending focus lets another
+// view (Agents "open in Terminal") jump straight to a session's tab.
 export default function Terminal({
   root,
   visible,
-  focus,
-  onFocusHandled,
 }: {
   root: string;
   visible: boolean;
-  focus?: string | null;
-  onFocusHandled?: () => void;
 }) {
+  const focus = usePendingFocus("terminal");
   const { sessions, available, loaded } = useSessions();
   const [open, setOpen] = useState<string[]>([]); // sessions with a mounted pane
   const [activeTab, setActiveTab] = useState<string | null>(null);
@@ -61,8 +59,7 @@ export default function Terminal({
   // Honor an external focus request (e.g. clicking an agent peek).
   useEffect(() => {
     if (!focus) return;
-    openSession(focus);
-    onFocusHandled?.();
+    openSession(focus.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus]);
 

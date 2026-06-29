@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as api from "../lib/api";
 import type { Ticket, Workspace } from "../types";
 import { useTicketDocs } from "../lib/tickets";
+import { useNav } from "../lib/nav";
 import { useSessions } from "../lib/sessions";
 import {
   useAgentStatuses,
@@ -51,26 +52,22 @@ function dotClass(status: AgentStatus): string {
 }
 
 // Full ticket detail panel: header + title + sections. The caller provides
-// onClose, onJumpToAgent, and onGoToReview so the panel can close itself and
-// cross-link into the Agents / Review views. `ws` is needed for state-aware
-// actions.
+// onClose and onSaved; cross-view jumps (Agents / Review) go through the nav
+// context's goTo. `ws` is needed for state-aware actions.
 export default function TicketDetail({
   root,
   ticket,
   ws,
   onClose,
-  onJumpToAgent,
-  onGoToReview,
   onSaved,
 }: {
   root: string;
   ticket: Ticket;
   ws: Workspace;
   onClose: () => void;
-  onJumpToAgent: (sessionName: string) => void;
-  onGoToReview: (ticketId: string) => void;
   onSaved?: () => void;
 }) {
+  const { goTo } = useNav();
   const { docs, loading } = useTicketDocs(root, ticket);
   const { sessions } = useSessions();
   const agentSessions = sessions.filter(
@@ -261,7 +258,7 @@ export default function TicketDetail({
                   <div
                     key={a.name}
                     className={s.agentRow}
-                    onClick={() => onJumpToAgent(a.name)}
+                    onClick={() => goTo("agents", { id: a.name })}
                     title="open in Agents view"
                   >
                     <span className={`${s.dot} ${dotClass(status)}`} />
@@ -331,8 +328,6 @@ export default function TicketDetail({
               root={root}
               busy={actionBusy}
               onAct={act}
-              onJumpToAgent={onJumpToAgent}
-              onGoToReview={onGoToReview}
             />
           </div>
         </div>
@@ -361,22 +356,19 @@ function FooterActions({
   root,
   busy,
   onAct,
-  onJumpToAgent,
-  onGoToReview,
 }: {
   ticket: Ticket;
   root: string;
   busy: boolean;
   onAct: (fn: () => Promise<unknown>, closeAfter?: boolean) => void;
-  onJumpToAgent: (name: string) => void;
-  onGoToReview: (ticketId: string) => void;
 }) {
+  const { goTo } = useNav();
   const run = (args: string[], closeAfter = false) =>
     onAct(() => api.runIudex(root, args), closeAfter);
   const spawnAndJump = (role: string) =>
     onAct(async () => {
       const s = await api.spawnAgent(root, ticket.id, role);
-      onJumpToAgent(s.name);
+      goTo("agents", { id: s.name });
     });
 
   return (
@@ -389,7 +381,7 @@ function FooterActions({
             onAct(async () => {
               await api.runIudex(root, ["activate", ticket.id]);
               const s = await api.spawnAgent(root, ticket.id, "impl");
-              onJumpToAgent(s.name);
+              goTo("agents", { id: s.name });
             })
           }
         >
@@ -418,7 +410,7 @@ function FooterActions({
         <button
           className={s.footerBtn}
           disabled={busy}
-          onClick={() => onGoToReview(ticket.id)}
+          onClick={() => goTo("review", { id: ticket.id })}
         >
           Go to Review
         </button>

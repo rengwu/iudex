@@ -11,6 +11,7 @@ import type {
 } from "../types";
 import { VIEWS } from "../types";
 import { useRailStatus, useReview } from "../lib/review";
+import { useNav, usePendingFocus } from "../lib/nav";
 import { useSessions } from "../lib/sessions";
 import ChangedFilesDiff from "../components/ChangedFilesDiff";
 import DiffPatch from "../components/DiffPatch";
@@ -40,18 +41,12 @@ const TAB_LABELS: Record<Tab, string> = {
 export default function Review({
   ws,
   root,
-  focusTicket,
-  onFocusHandled,
-  onOpenInTerminal,
-  onWatchAgent,
 }: {
   ws: Workspace;
   root: string;
-  focusTicket: string | null;
-  onFocusHandled: () => void;
-  onOpenInTerminal: (session: string) => void;
-  onWatchAgent: (name: string) => void;
 }) {
+  const { goTo } = useNav();
+  const focusTicket = usePendingFocus("review");
   const pending = ws.tickets.filter((t) => t.state === "pending-human-qa");
 
   const [selId, setSelId] = useState<string | null>(null);
@@ -64,13 +59,10 @@ export default function Review({
 
   const { sessions } = useSessions();
 
-  // Honor a ticket handed in from another view (Dashboard, Tickets panel).
+  // Honor a ticket handed in from another view (e.g. a panel's "Go to Review").
   useEffect(() => {
-    if (focusTicket) {
-      setSelId(focusTicket);
-      onFocusHandled();
-    }
-  }, [focusTicket, onFocusHandled]);
+    if (focusTicket) setSelId(focusTicket.id);
+  }, [focusTicket]);
 
   // Keep the selection valid as the pending list changes (e.g. after approve).
   useEffect(() => {
@@ -218,12 +210,12 @@ export default function Review({
   // Watch = jump to the Agents cockpit and open the resolver's console tab,
   // rather than spawning a separate Terminal tab for it.
   const watchResolver = () => {
-    if (resolver) onWatchAgent(resolver.name);
+    if (resolver) goTo("agents", { id: resolver.name, tab: "console" });
   };
   const openShell = (cwd: string) =>
     act(async () => {
       const s = await api.createShell(cwd);
-      onOpenInTerminal(s.name);
+      goTo("terminal", { id: s.name });
     });
   const openInEditor = (path: string) =>
     api.openInEditor(path).catch((e) => setActErr(String(e)));

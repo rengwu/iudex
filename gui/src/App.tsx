@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { type View } from "./types";
+import { NavContext, useNavState } from "./lib/nav";
 import { useSessions } from "./lib/sessions";
 import { useWorkspace } from "./lib/workspace";
 import { useIudexCheck } from "./lib/iudexCheck";
@@ -55,13 +56,10 @@ export default function App() {
     load,
   } = useWorkspace();
 
+  // Cross-view navigation: current view + a per-view pending-focus map. Source
+  // components call goTo(view, focus); targets read it via usePendingFocus.
   // Land on Tickets: the Dashboard reskin is deferred (still the old dark style).
-  const [view, setView] = useState<View>("tickets");
-  const [focusSession, setFocusSession] = useState<string | null>(null);
-  const [focusTicket, setFocusTicket] = useState<string | null>(null);
-  const [focusAgent, setFocusAgent] = useState<string | null>(null);
-  // When set alongside focusAgent, the Agents view opens that agent on this tab.
-  const [focusAgentTab, setFocusAgentTab] = useState<string | null>(null);
+  const { view, setView, value: nav } = useNavState("tickets");
 
   // Views stay mounted after switch-away (state intact); pruned after inactivity.
   const mounted = useViewKeepAlive(view);
@@ -172,100 +170,43 @@ export default function App() {
       {poolEmpty && <SetupBanner onClick={openOnboarding} />}
 
       {root && ws && (
-        <div className={a.body}>
-          <Sidebar
-            ws={ws}
-            sessions={sessions}
-            view={view}
-            setView={setView}
-            automation={{
-              autoActivate,
-              autoQA,
-              toggleAutoActivate,
-              toggleAutoQA,
-            }}
-          />
+        <NavContext.Provider value={nav}>
+          <div className={a.body}>
+            <Sidebar
+              ws={ws}
+              sessions={sessions}
+              view={view}
+              setView={setView}
+              automation={{
+                autoActivate,
+                autoQA,
+                toggleAutoActivate,
+                toggleAutoQA,
+              }}
+            />
 
-          <section className={a.main}>
-            {error && <div className="error">{error}</div>}
-            {renderView("dashboard", <Dashboard />)}
-            {renderView(
-              "tickets",
-              <Tickets
-                ws={ws}
-                root={root}
-                onOpenInTerminal={(name) => {
-                  setFocusSession(name);
-                  setView("terminal");
-                }}
-                onJumpToAgent={(name) => {
-                  setFocusAgent(name);
-                  setView("agents");
-                }}
-                onGoToReview={(id) => {
-                  setFocusTicket(id);
-                  setView("review");
-                }}
-              />,
-            )}
-            {renderView(
-              "terminal",
-              <Terminal
-                root={root}
-                visible={view === "terminal"}
-                focus={focusSession}
-                onFocusHandled={() => setFocusSession(null)}
-              />,
-            )}
-            {renderView(
-              "agents",
-              <Agents
-                ws={ws}
-                root={root}
-                focusAgent={focusAgent}
-                focusTab={focusAgentTab}
-                onFocusHandled={() => {
-                  setFocusAgent(null);
-                  setFocusAgentTab(null);
-                }}
-              />,
-            )}
-            {renderView(
-              "worktrees",
-              <Worktrees
-                ws={ws}
-                root={root}
-                onOpenInTerminal={(name) => {
-                  setFocusSession(name);
-                  setView("terminal");
-                }}
-              />,
-            )}
-            {renderView(
-              "review",
-              <Review
-                ws={ws}
-                root={root}
-                focusTicket={focusTicket}
-                onFocusHandled={() => setFocusTicket(null)}
-                onOpenInTerminal={(name) => {
-                  setFocusSession(name);
-                  setView("terminal");
-                }}
-                onWatchAgent={(name) => {
-                  setFocusAgent(name);
-                  setFocusAgentTab("console");
-                  setView("agents");
-                }}
-              />,
-            )}
-            {renderView("archive", <Archive root={root} />)}
-            {renderView(
-              "settings",
-              <Settings root={root} onConfigSaved={() => load(root)} />,
-            )}
-          </section>
-        </div>
+            <section className={a.main}>
+              {error && <div className="error">{error}</div>}
+              {renderView("dashboard", <Dashboard />)}
+              {renderView("tickets", <Tickets ws={ws} root={root} />)}
+              {renderView(
+                "terminal",
+                <Terminal root={root} visible={view === "terminal"} />,
+              )}
+              {renderView("agents", <Agents ws={ws} root={root} />)}
+              {renderView(
+                "worktrees",
+                <Worktrees ws={ws} root={root} />,
+              )}
+              {renderView("review", <Review ws={ws} root={root} />)}
+              {renderView("archive", <Archive root={root} />)}
+              {renderView(
+                "settings",
+                <Settings root={root} onConfigSaved={() => load(root)} />,
+              )}
+            </section>
+          </div>
+        </NavContext.Provider>
       )}
       {onboarding}
     </main>
