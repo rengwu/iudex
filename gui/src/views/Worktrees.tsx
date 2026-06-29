@@ -115,23 +115,6 @@ export default function Worktrees({
     { add: 0, del: 0 },
   );
 
-  const headerActions = selected && (
-    <>
-      <span
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: 11,
-          color: "#565656",
-        }}
-      >
-        {wtLabel(selected)} · {selected.head.slice(0, 7)}
-      </span>
-      <Button variant="secondary" size="sm" onClick={openShell}>
-        Launch Terminal Session
-      </Button>
-    </>
-  );
-
   if (error) return <div className="error">{error}</div>;
   if (worktrees.length === 0)
     return (
@@ -153,9 +136,7 @@ export default function Worktrees({
         dot={VIEWS.worktrees.dot}
         title="Worktrees"
         subtitle="read-only inspection · two-dot vs main"
-      >
-        {headerActions}
-      </ViewHeader>
+      />
       <div className={s.root}>
         <aside className={s.rail}>
           <div className={s.railHead}>WORKTREES</div>
@@ -184,75 +165,84 @@ export default function Worktrees({
           ))}
         </aside>
 
-        <div className={s.files}>
-          <div className={s.filesHead}>
-            {selected ? wtLabel(selected) : ""}{" "}
-            <span className="muted">· vs {ws.mainBranch}</span>
-          </div>
-          <ul className={s.filelist}>
-            {changes.length === 0 && (
-              <li className="muted" style={{ margin: "8px" }}>
-                no changes vs {ws.mainBranch}
-              </li>
-            )}
-            {changes.map((c) => (
-              <li
-                key={c.path}
-                className={`${s.file} ${c.path === selFile ? s.active : ""}`}
-                onClick={() => setSelFile(c.path)}
-              >
-                <span className={`${s.st} ${s[`st${c.status}`] ?? ""}`}>
-                  {c.status}
+        <div className={s.content}>
+          <div className={s.worktreeHead}>
+            {selected && (
+              <>
+                <span className={s.worktreeHeadInfo}>
+                  {wtLabel(selected)} · {selected.head.slice(0, 7)} · vs{" "}
+                  {ws.mainBranch}
                 </span>
-                <span className={s.path}>{c.path}</span>
-              </li>
-            ))}
-          </ul>
-          {changes.length > 0 && (
-            <div className={s.filesFoot}>
-              {changes.length} file{changes.length === 1 ? "" : "s"}
-              {(totals.add > 0 || totals.del > 0) && (
-                <>
-                  {" "}
-                  <span className={s.add}>+{totals.add}</span>{" "}
-                  <span className={s.del}>−{totals.del}</span>
-                </>
+                <Button variant="quiet" size="sm" onClick={openShell}>
+                  Launch Terminal Session
+                </Button>
+              </>
+            )}
+          </div>
+          <div className={s.panes}>
+            <div className={s.files}>
+              <ul className={s.filelist}>
+                {changes.length === 0 && (
+                  <li className="muted" style={{ margin: "8px" }}>
+                    no changes vs {ws.mainBranch}
+                  </li>
+                )}
+                {changes.map((c) => (
+                  <li
+                    key={c.path}
+                    className={`${s.file} ${c.path === selFile ? s.active : ""}`}
+                    onClick={() => setSelFile(c.path)}
+                  >
+                    <span className={`${s.st} ${s[`st${c.status}`] ?? ""}`}>
+                      {c.status}
+                    </span>
+                    <span className={s.path}>{c.path}</span>
+                  </li>
+                ))}
+              </ul>
+              {changes.length > 0 && (
+                <div className={s.filesFoot}>
+                  {changes.length} file{changes.length === 1 ? "" : "s"}
+                  {(totals.add > 0 || totals.del > 0) && (
+                    <>
+                      {" "}
+                      <span className={s.add}>+{totals.add}</span>{" "}
+                      <span className={s.del}>−{totals.del}</span>
+                    </>
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </div>
 
-        <div className={s.diff}>
-          {paneErr && <div className="error">{paneErr}</div>}
-          {selFile && diff ? (
-            <Suspense
-              fallback={<div className={s.loading}>loading editor…</div>}
-            >
-              <DiffViewer
-                original={diff.original}
-                modified={diff.modified}
-                language={diff.language}
-                title={selFile}
-                actions={
-                  <>
-                    <button
-                      className="esc"
-                      onClick={() => openInEditor(selFile)}
-                    >
-                      Open in editor
-                    </button>
-                    <button className="esc" onClick={openShell}>
-                      Shell
-                    </button>
-                  </>
-                }
-              />
-            </Suspense>
-          ) : (
-            <div className={s.diffEmpty}>
-              {changes.length > 0 ? "Select a file to view its diff." : ""}
+            <div className={s.diff}>
+              {paneErr && <div className="error">{paneErr}</div>}
+              {selFile && diff ? (
+                <Suspense
+                  fallback={<div className={s.loading}>loading editor…</div>}
+                >
+                  <DiffViewer
+                    original={diff.original}
+                    modified={diff.modified}
+                    language={diff.language}
+                    title={selFile}
+                    actions={
+                      <Button
+                        variant="quiet"
+                        size="sm"
+                        onClick={() => openInEditor(selFile)}
+                      >
+                        Open in editor
+                      </Button>
+                    }
+                  />
+                </Suspense>
+              ) : (
+                <div className={s.diffEmpty}>
+                  {changes.length > 0 ? "Select a file to view its diff." : ""}
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

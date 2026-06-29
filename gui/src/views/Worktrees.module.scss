@@ -83,13 +83,6 @@
   border-right: 1px solid t.$divider-mid;
   overflow: hidden;
 }
-.filesHead {
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  color: #3a3a3a;
-  padding: 7px 10px 4px;
-  border-bottom: 1px solid t.$divider-mid;
-}
 .filelist {
   list-style: none;
   margin: 0;
@@ -174,6 +167,37 @@
   flex-direction: column;
   overflow: hidden;
   background: t.$panel-light;
+}
+
+// Worktree-scoped content area (right of the rail): a header spanning the
+// files + diff panes, then the panes themselves.
+.content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.worktreeHead {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border-bottom: 1px solid t.$divider-mid;
+  background: t.$panel-rail;
+}
+.worktreeHeadInfo {
+  font-family: t.$font-mono;
+  font-size: 11px;
+  color: t.$text-muted;
+}
+.panes {
+  flex: 1;
+  min-height: 0;
+  display: flex;
 }
 .diffEmpty,
 .loading {
