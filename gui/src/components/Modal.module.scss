@@ -30,35 +30,10 @@
   }
 }
 
+// Buttons inside are <Button> components (self-styled); this only lays them out.
 .actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 4px;
-
-  button {
-    height: 24px;
-    padding: 0 14px;
-    border: 1px solid t.$amber-border;
-    background: t.$amber;
-    color: t.$text;
-    cursor: pointer;
-    -webkit-user-select: none;
-    user-select: none;
-    font-size: 12px;
-    font-weight: 500;
-    font-family: t.$font-ui;
-
-    &:disabled {
-      opacity: 0.5;
-      cursor: default;
-    }
-  }
-
-  // A ghost (cancel) button keeps the actions layout but drops the fill.
-  button:global(.ghost) {
-    background: t.$panel-rail;
-    border-color: t.$divider-mid;
-    color: t.$text;
-  }
 }

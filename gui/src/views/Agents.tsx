@@ -380,7 +380,7 @@ function TicketBrief({
               </Button>
             )}
             <Button
-              variant="secondary"
+              variant="quiet"
               size="sm"
               onClick={() => goTo("tickets", { id: ticket.id })}
             >

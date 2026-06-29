@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { DiffEditor, Editor } from "@monaco-editor/react";
 import * as api from "../lib/api";
 import type { ConflictFile } from "../types";
+import Button from "../components/Button";
 import "../lib/monacoSetup";
 import s from "./MergeEditor.module.scss";
 
@@ -111,34 +112,35 @@ export default function MergeEditor({
         <div className={s.actions}>
           {markersLeft && (
             <>
-              <button className="esc danger" onClick={() => setResult((r) => pickHunks(r, "theirs"))}>
+              <Button variant="danger" size="sm" onClick={() => setResult((r) => pickHunks(r, "theirs"))}>
                 Use main
-              </button>
-              <button className="esc success" onClick={() => setResult((r) => pickHunks(r, "ours"))}>
+              </Button>
+              <Button variant="success" size="sm" onClick={() => setResult((r) => pickHunks(r, "ours"))}>
                 Use this ticket
-              </button>
-              <button className="esc info" onClick={() => setResult((r) => pickHunks(r, "both"))}>
+              </Button>
+              <Button variant="info" size="sm" onClick={() => setResult((r) => pickHunks(r, "both"))}>
                 Use both
-              </button>
+              </Button>
               <span className={s.sep} aria-hidden />
             </>
           )}
           {dirty && (
-            <button className="esc amber" onClick={revert} title="restore the original conflict markers">
+            <Button variant="primary" size="sm" onClick={revert} title="restore the original conflict markers">
               Revert
-            </button>
+            </Button>
           )}
-          <button className="esc" onClick={onCancel}>
+          <Button variant="quiet" size="sm" onClick={onCancel}>
             Cancel
-          </button>
-          <button
-            className="esc success"
+          </Button>
+          <Button
+            variant="success"
+            size="sm"
             disabled={saving || busy || !cf || markersLeft}
             title={markersLeft ? "remove the conflict markers first" : "stage this resolution"}
             onClick={markResolved}
           >
             {saving ? "…" : "Mark resolved"}
-          </button>
+          </Button>
         </div>
       </div>
       {err && <div className="error">{err}</div>}

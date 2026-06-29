@@ -18,6 +18,7 @@ import DiffPatch from "../components/DiffPatch";
 import Modal from "../components/Modal";
 import ViewHeader from "../components/ViewHeader";
 import Badge from "../components/Badge";
+import Button from "../components/Button";
 import s from "./Review.module.scss";
 
 const MergeEditor = lazy(() => import("./MergeEditor"));
@@ -38,13 +39,7 @@ const TAB_LABELS: Record<Tab, string> = {
 // inspection (brief / implementation log / qa review / changes) plus a `conflicts` tab
 // that holds the merge-readiness workspace. Approve only ever fires when the
 // preflight guarantees the merge succeeds.
-export default function Review({
-  ws,
-  root,
-}: {
-  ws: Workspace;
-  root: string;
-}) {
+export default function Review({ ws, root }: { ws: Workspace; root: string }) {
   const { goTo } = useNav();
   const focusTicket = usePendingFocus("review");
   const pending = ws.tickets.filter((t) => t.state === "pending-human-qa");
@@ -233,11 +228,7 @@ export default function Review({
   if (pending.length === 0)
     return (
       <div className={s.view}>
-        <ViewHeader
-          dot={VIEWS.review.dot}
-          title="Review"
-          subtitle="deep review · pending-human-qa"
-        />
+        <ViewHeader dot={VIEWS.review.dot} title="Review" />
         <div className={s.empty}>Nothing awaiting human review.</div>
       </div>
     );
@@ -249,11 +240,7 @@ export default function Review({
 
   return (
     <div className={s.view}>
-      <ViewHeader
-        dot={VIEWS.review.dot}
-        title="Review"
-        subtitle="deep review · pending-human-qa"
-      />
+      <ViewHeader dot={VIEWS.review.dot} title="Review" />
       <div className={s.root}>
         <aside className={s.rail}>
           <div className={s.railHead}>PENDING HUMAN QA</div>
@@ -299,18 +286,20 @@ export default function Review({
             </div>
             {worktree && (
               <div className={s.headActions}>
-                <button
-                  className="esc"
+                <Button
+                  variant="quiet"
+                  size="sm"
                   onClick={() => revealInFinder(worktree)}
                 >
                   Reveal in Finder
-                </button>
-                <button
-                  className="esc"
+                </Button>
+                <Button
+                  variant="quiet"
+                  size="sm"
                   onClick={() => openFolderWith(worktree)}
                 >
                   Open with…
-                </button>
+                </Button>
               </div>
             )}
           </header>
@@ -345,8 +334,9 @@ export default function Review({
                 diff={diff}
                 noChangesHint="no changes vs merge-base"
                 fileActions={
-                  <button
-                    className="esc"
+                  <Button
+                    variant="quiet"
+                    size="sm"
                     onClick={() =>
                       worktree &&
                       selFile &&
@@ -354,7 +344,7 @@ export default function Review({
                     }
                   >
                     Open in editor
-                  </button>
+                  </Button>
                 }
               />
             ) : tab === "conflicts" ? (
@@ -395,9 +385,23 @@ export default function Review({
                 />
               )
             ) : (
-              <pre className={s.doc}>
-                {docText?.trim() ? docText : `(no ${TAB_LABELS[tab]})`}
-              </pre>
+              <div className={s.docSection}>
+                <div className={s.docHead}>
+                  <span className={s.docLabel}>{TAB_LABELS[tab]}</span>
+                  {selId && (
+                    <Button
+                      variant="quiet"
+                      size="sm"
+                      onClick={() => goTo("tickets", { id: selId })}
+                    >
+                      Go to Ticket
+                    </Button>
+                  )}
+                </div>
+                <pre className={s.doc}>
+                  {docText?.trim() ? docText : `(no ${TAB_LABELS[tab]})`}
+                </pre>
+              </div>
             )}
           </div>
 
@@ -588,9 +592,14 @@ function ConflictsTab({
             ⚠ Repo root has {pf.dirtyFiles.length} uncommitted change
             {pf.dirtyFiles.length === 1 ? "" : "s"} — commit or stash first.
           </span>
-          <button className="esc" disabled={busy} onClick={onShellRoot}>
+          <Button
+            variant="quiet"
+            size="sm"
+            disabled={busy}
+            onClick={onShellRoot}
+          >
             Open shell at root
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -607,15 +616,20 @@ function ConflictsTab({
             <span className={s.gateMsg}>
               ◐ Resolver agent working in the worktree…
             </span>
-            <button className="esc" disabled={busy} onClick={onWatch}>
+            <Button variant="quiet" size="sm" disabled={busy} onClick={onWatch}>
               Watch
-            </button>
-            <button className="esc danger" disabled={busy} onClick={onStop}>
+            </Button>
+            <Button variant="danger" size="sm" disabled={busy} onClick={onStop}>
               Stop
-            </button>
-            <button className="esc" disabled={busy} onClick={onRecheck}>
+            </Button>
+            <Button
+              variant="quiet"
+              size="sm"
+              disabled={busy}
+              onClick={onRecheck}
+            >
               Re-check
-            </button>
+            </Button>
           </div>
         )}
 
@@ -624,12 +638,22 @@ function ConflictsTab({
             <span className={s.gateMsg}>
               ✓ All conflicts resolved — commit to finish the merge.
             </span>
-            <button className="go" disabled={busy} onClick={onCommit}>
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={busy}
+              onClick={onCommit}
+            >
               Commit resolution
-            </button>
-            <button className="esc danger" disabled={busy} onClick={onAbort}>
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              disabled={busy}
+              onClick={onAbort}
+            >
               Abort
-            </button>
+            </Button>
           </div>
         ) : (
           <>
@@ -663,15 +687,30 @@ function ConflictsTab({
               </p>
             )}
             <div className={s.gateActions}>
-              <button className="esc" disabled={busy} onClick={onShellWorktree}>
+              <Button
+                variant="quiet"
+                size="sm"
+                disabled={busy}
+                onClick={onShellWorktree}
+              >
                 Open worktree shell
-              </button>
-              <button className="esc danger" disabled={busy} onClick={onAbort}>
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                disabled={busy}
+                onClick={onAbort}
+              >
                 Abort resolution
-              </button>
-              <button className="esc" disabled={busy} onClick={onRecheck}>
+              </Button>
+              <Button
+                variant="quiet"
+                size="sm"
+                disabled={busy}
+                onClick={onRecheck}
+              >
                 Re-check
-              </button>
+              </Button>
             </div>
           </>
         )}
@@ -700,18 +739,28 @@ function ConflictsTab({
         </span>
       </div>
       <div className={s.gateActions}>
-        <button className="esc info" disabled={busy} onClick={onResolveAgent}>
+        <Button
+          variant="info"
+          size="sm"
+          disabled={busy}
+          onClick={onResolveAgent}
+        >
           Resolve with agent
-        </button>
-        <button className="esc amber" disabled={busy} onClick={onBegin}>
+        </Button>
+        <Button variant="primary" size="sm" disabled={busy} onClick={onBegin}>
           Resolve manually
-        </button>
-        <button className="esc" disabled={busy} onClick={onShellWorktree}>
+        </Button>
+        <Button
+          variant="quiet"
+          size="sm"
+          disabled={busy}
+          onClick={onShellWorktree}
+        >
           Open worktree shell
-        </button>
-        <button className="esc" disabled={busy} onClick={onRecheck}>
+        </Button>
+        <Button variant="quiet" size="sm" disabled={busy} onClick={onRecheck}>
           Re-check
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -771,10 +820,12 @@ function RejectButton({
           onClose={() => setOpen(false)}
           actions={
             <>
-              <button className="ghost" onClick={() => setOpen(false)}>
+              <Button variant="quiet" size="md" onClick={() => setOpen(false)}>
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="danger"
+                size="md"
                 disabled={!reason.trim()}
                 onClick={() => {
                   onReject(reason.trim());
@@ -782,7 +833,7 @@ function RejectButton({
                 }}
               >
                 Reject
-              </button>
+              </Button>
             </>
           }
         >

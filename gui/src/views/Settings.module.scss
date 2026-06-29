@@ -286,6 +286,7 @@
   outline: none;
 }
 
+// Buttons inside are <Button> components (self-styled); this only lays them out.
 .actions {
   display: flex;
   align-items: center;
@@ -293,28 +294,6 @@
   gap: 12px;
   padding: 10px 12px;
   border-top: 1px solid t.$divider-mid;
-
-  button {
-    height: 22px;
-    padding: 0 14px;
-    color: t.$text;
-    cursor: pointer;
-    -webkit-user-select: none;
-    user-select: none;
-    font-size: 12px;
-    font-weight: 500;
-    font-family: t.$font-ui;
-
-    &:global(:not(.ghost)) {
-      border: 1px solid t.$amber-border;
-      background: t.$amber;
-    }
-
-    &:disabled {
-      opacity: 0.5;
-      cursor: default;
-    }
-  }
 }
 
 .savedOk {

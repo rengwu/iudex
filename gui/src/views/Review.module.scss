@@ -258,12 +258,36 @@
   min-height: 0;
   display: flex;
 }
+// Markdown tabs (brief / log / review): a labeled, non-editable field.
+.docSection {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 16px;
+  background: t.$panel-light;
+}
+.docHead {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.docLabel {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: t.$text-muted;
+}
 .doc {
   margin: 0;
   padding: 12px 14px;
   overflow: auto;
   flex: 1;
   background: t.$field-read;
+  border: 1px solid t.$field-border;
   font-family: t.$font-mono;
   font-size: 11px;
   line-height: 1.6;

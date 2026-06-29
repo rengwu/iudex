@@ -3,6 +3,7 @@ import * as api from "../lib/api";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { VIEWS, type AgentCmd, type Config } from "../types";
 import ViewHeader from "../components/ViewHeader";
+import Button from "../components/Button";
 import s from "./Settings.module.scss";
 
 type Saved = { ok: boolean; msg: string } | null;
@@ -274,9 +275,9 @@ export function CliTab({
       <div className={s.actions}>
         <SavedNote saved={saved} />
         {extraActions}
-        <button className={s.save} disabled={busy} onClick={save}>
+        <Button variant="primary" size="md" disabled={busy} onClick={save}>
           {busy ? "Saving…" : "Save"}
-        </button>
+        </Button>
       </div>
     </section>
   );
@@ -404,9 +405,9 @@ function GeneralTab({
 
       <div className={s.actions}>
         <SavedNote saved={saved} />
-        <button disabled={busy} onClick={save}>
+        <Button variant="primary" size="md" disabled={busy} onClick={save}>
           {busy ? "Saving…" : "Save general"}
-        </button>
+        </Button>
       </div>
     </section>
   );
@@ -506,9 +507,9 @@ function PromptsTab({
 
       <div className={s.actions}>
         <SavedNote saved={saved} />
-        <button disabled={busy} onClick={save}>
+        <Button variant="primary" size="md" disabled={busy} onClick={save}>
           {busy ? "Saving…" : "Save prompts"}
-        </button>
+        </Button>
       </div>
     </section>
   );
@@ -728,9 +729,9 @@ export function AgentsTab({
 
       <div className={s.actions}>
         <SavedNote saved={saved} />
-        <button disabled={busy} onClick={save}>
+        <Button variant="primary" size="md" disabled={busy} onClick={save}>
           {busy ? "Saving…" : "Save agents"}
-        </button>
+        </Button>
       </div>
     </section>
   );

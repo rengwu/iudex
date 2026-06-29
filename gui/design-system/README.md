@@ -106,11 +106,11 @@ All tokens live in **`src/styles/tokens.scss`** — one source of truth, consume
 - **camelCase** class names (scoping makes the old `ag-`/`rv-` prefixes unnecessary).
 - Dynamic classes via template strings: `` `${s.card} ${active ? s.active : ""}` ``; mix scoped
   + global freely: `` `${s.empty} muted` ``; target a global class inside a scoped rule with
-  `:global(.ghost)`; index dynamic variants with `` s[`st${status}`] ``.
+  `:global(.muted)`; index dynamic variants with `` s[`st${status}`] ``.
 - **Globals live only in `src/styles/base.scss`** — the resets plus a few intentionally
   unscoped utilities: `.mono`, `.muted`, `.error`, `.field` (label-over-control form field),
-  `.stub` / `.stub-tag` (empty/unavailable panels), and the interim flat buttons
-  `.ghost` / `.esc` / `.go` (being migrated to the shared `<Button>`).
+  and `.stub` / `.stub-tag` (empty/unavailable panels). (The interim flat buttons
+  `.ghost` / `.esc` / `.go` were retired — every action button is now the shared `<Button>`.)
 
 ### Clickable ⇒ not text-selectable
 
@@ -176,7 +176,7 @@ bespoke markup.
 
 | Component | Purpose | Key API |
 |-----------|---------|---------|
-| **`Button`** | Flat square action button; color = state | `variant` `primary`(amber) · `secondary`(gray) · `review`(violet) · `danger`(red) · `quiet`(transparent); `size` `sm`(20px) / `md`(22px) |
+| **`Button`** | Flat square action button; color = state | `variant` `primary`(amber) · `secondary`(gray) · `review`(violet) · `danger`(red) · `success`(green) · `info`(blue) · `quiet`(transparent); `size` `sm`(20px) / `md`(22px) |
 | **`Badge`** | The one filled chip across the app | `kind` `state`/`merge`/`role` + `value`; `tone` `light`/`dark`; `bg`/`fg` escape hatch; `children` overrides label. Mono 10px, radius 2px |
 | **`ViewHeader`** | 30px header strip atop every view | `dot` (from `VIEWS`), `title` (14/600), `subtitle?`, `children` = right-aligned action slot; bg `$panel-mid` |
 | **`TabSwitcher`** | Segmented pill for 2–4 tabs | `tabs`, `value`, `onChange`; active fill `$panel-light`, pill radius 3px |

@@ -2,7 +2,14 @@ import type { CSSProperties, ReactNode } from "react";
 
 // Flat, square-cornered action button. Color = state.
 // See gui/design-system/README.md §5.
-export type Variant = "primary" | "secondary" | "review" | "danger" | "quiet";
+export type Variant =
+  | "primary"
+  | "secondary"
+  | "review"
+  | "danger"
+  | "success"
+  | "info"
+  | "quiet";
 type Size = "sm" | "md";
 
 const VARIANT: Record<Variant, { bg: string; col: string; border: string; weight: number }> = {
@@ -10,6 +17,8 @@ const VARIANT: Record<Variant, { bg: string; col: string; border: string; weight
   secondary: { bg: "#9c9c9c", col: "#2a2a2a", border: "1px solid #6f6f6f", weight: 400 },
   review: { bg: "#836ddd", col: "#ffffff", border: "none", weight: 500 },
   danger: { bg: "#e0584c", col: "#ffffff", border: "1px solid #b03d33", weight: 500 },
+  success: { bg: "#3b853d", col: "#ffffff", border: "1px solid #2e6b30", weight: 500 },
+  info: { bg: "#3a6ea5", col: "#ffffff", border: "1px solid #2d5680", weight: 500 },
   quiet: { bg: "transparent", col: "#565656", border: "1px solid #6f6f6f", weight: 400 },
 };
 
@@ -37,7 +46,11 @@ export default function Button({
 }) {
   const v = VARIANT[variant];
   const s = SIZE[size];
-  const small = variant === "quiet" || variant === "danger";
+  const small =
+    variant === "quiet" ||
+    variant === "danger" ||
+    variant === "success" ||
+    variant === "info";
   return (
     <button
       type="button"

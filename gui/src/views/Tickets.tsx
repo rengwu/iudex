@@ -354,12 +354,12 @@ function ComposeTicketModal({
       onClose={onClose}
       actions={
         <>
-          <button className="ghost" onClick={onClose}>
+          <Button variant="quiet" size="md" onClick={onClose}>
             Cancel
-          </button>
-          <button disabled={busy} onClick={create}>
+          </Button>
+          <Button variant="primary" size="md" disabled={busy} onClick={create}>
             {busy ? "Creating…" : "Create"}
-          </button>
+          </Button>
         </>
       }
     >
@@ -438,12 +438,12 @@ function NewIdeaModal({
       onClose={onClose}
       actions={
         <>
-          <button className="ghost" onClick={onClose}>
+          <Button variant="quiet" size="md" onClick={onClose}>
             Cancel
-          </button>
-          <button disabled={busy} onClick={launch}>
+          </Button>
+          <Button variant="primary" size="md" disabled={busy} onClick={launch}>
             {busy ? "Launching…" : "Launch"}
-          </button>
+          </Button>
         </>
       }
     >
