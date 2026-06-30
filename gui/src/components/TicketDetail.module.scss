@@ -267,6 +267,15 @@
   align-items: center;
   gap: 6px;
 }
+// Muted, non-action note (e.g. "✓ merged" on a terminal ticket) — the panel
+// counterpart of the table's .actNote, so both surfaces read identically.
+.footerNote {
+  font-size: 11px;
+  white-space: nowrap;
+  color: t.$text-muted;
+  -webkit-user-select: none;
+  user-select: none;
+}
 .footerBtn {
   height: 24px;
   padding: 0 12px;

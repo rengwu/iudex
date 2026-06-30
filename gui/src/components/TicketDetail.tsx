@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as api from "../lib/api";
-import type { Ticket, Workspace } from "../types";
+import type { Session, Ticket, Workspace } from "../types";
 import { useTicketDocs } from "../lib/tickets";
 import { useNav } from "../lib/nav";
 import { useSessions } from "../lib/sessions";
+import { nextAction, type Intent } from "../lib/ticketActions";
 import {
   useAgentStatuses,
   STATUS_LABEL,
@@ -76,7 +77,6 @@ export default function TicketDetail({
   const statuses = useAgentStatuses(agentSessions, ws);
 
   const isQueued = ticket.state === "queued";
-  const isTerminal = ticket.state === "done" || ticket.state === "removed";
 
   // Editable state — only populated/used when queued.
   const parsed = docs ? parseBrief(docs.brief) : { title: "", body: "" };
@@ -306,32 +306,33 @@ export default function TicketDetail({
         </Section>
       </div>
 
-      {/* Footer: state actions + autosave status (queued, debounced + blur) */}
-      {!isTerminal && (
-        <div className={s.footer}>
-          {isQueued && (
-            <span className={s.saveStatus}>
-              {saveStatus === "saving"
-                ? "saving…"
-                : saveStatus === "error"
-                  ? "✗ save failed"
-                  : dirty
-                    ? "unsaved…"
-                    : saveStatus === "saved"
-                      ? "✓ saved"
-                      : ""}
-            </span>
-          )}
-          <div className={s.footerActions}>
-            <FooterActions
-              ticket={ticket}
-              root={root}
-              busy={actionBusy}
-              onAct={act}
-            />
-          </div>
+      {/* Footer: state actions + autosave status (queued, debounced + blur).
+          Rendered for terminal tickets too, so the panel shows the same muted
+          "✓ merged" note the table does (full table/panel symmetry). */}
+      <div className={s.footer}>
+        {isQueued && (
+          <span className={s.saveStatus}>
+            {saveStatus === "saving"
+              ? "saving…"
+              : saveStatus === "error"
+                ? "✗ save failed"
+                : dirty
+                  ? "unsaved…"
+                  : saveStatus === "saved"
+                    ? "✓ saved"
+                    : ""}
+          </span>
+        )}
+        <div className={s.footerActions}>
+          <FooterActions
+            ticket={ticket}
+            root={root}
+            busy={actionBusy}
+            sessions={sessions}
+            onAct={act}
+          />
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -355,11 +356,13 @@ function FooterActions({
   ticket,
   root,
   busy,
+  sessions,
   onAct,
 }: {
   ticket: Ticket;
   root: string;
   busy: boolean;
+  sessions: Session[];
   onAct: (fn: () => Promise<unknown>, closeAfter?: boolean) => void;
 }) {
   const { goTo } = useNav();
@@ -371,79 +374,71 @@ function FooterActions({
       goTo("agents", { id: s.name });
     });
 
+  // Same primary action the table row shows — single-sourced in `nextAction`.
+  const a = nextAction(ticket, sessions);
+  // Map intent → this panel's handler (busy/nav are panel-local; the *choice*
+  // is shared). `note` renders muted text rather than a button.
+  const runIntent = (intent: Intent) => {
+    switch (intent) {
+      case "activate-impl":
+        return onAct(async () => {
+          await api.runIudex(root, ["activate", ticket.id]);
+          const s = await api.spawnAgent(root, ticket.id, "impl");
+          goTo("agents", { id: s.name });
+        });
+      case "resume-impl":
+      case "open-agent":
+        return spawnAndJump("impl");
+      case "spawn-qa":
+        return spawnAndJump("qa");
+      case "review":
+        return goTo("review", { id: ticket.id });
+      case "retry":
+        return run(["retry", ticket.id]);
+      case "note":
+        return;
+    }
+  };
+
+  const isTerminal = ticket.state === "done" || ticket.state === "removed";
+
   return (
     <>
-      {ticket.state === "queued" && ticket.ready && (
+      {a.variant ? (
         <button
           className={s.footerBtn}
           disabled={busy}
-          onClick={() =>
-            onAct(async () => {
-              await api.runIudex(root, ["activate", ticket.id]);
-              const s = await api.spawnAgent(root, ticket.id, "impl");
-              goTo("agents", { id: s.name });
-            })
-          }
+          onClick={() => runIntent(a.intent)}
         >
-          Spawn agent
+          {a.label}
         </button>
-      )}
-      {ticket.state === "active" && (
-        <button
-          className={s.footerBtn}
-          disabled={busy}
-          onClick={() => spawnAndJump("impl")}
-        >
-          Spawn agent
-        </button>
-      )}
-      {ticket.state === "pending-qa" && (
-        <button
-          className={s.footerBtn}
-          disabled={busy}
-          onClick={() => spawnAndJump("qa")}
-        >
-          QA agent
-        </button>
-      )}
-      {ticket.state === "pending-human-qa" && (
-        <button
-          className={s.footerBtn}
-          disabled={busy}
-          onClick={() => goTo("review", { id: ticket.id })}
-        >
-          Go to Review
-        </button>
-      )}
-      {ticket.state === "failed" && (
-        <button
-          className={s.footerBtn}
-          disabled={busy}
-          onClick={() => run(["retry", ticket.id])}
-        >
-          Retry
-        </button>
-      )}
+      ) : a.label ? (
+        <span className={s.footerNote}>{a.label}</span>
+      ) : null}
       {/* Destructive / dangerous (and other tucked-away) actions live behind
-          the overflow menu. */}
-      <FooterOverflow>
-        {ticket.state === "active" && (
+          the overflow menu — non-terminal only (nothing to do once done/removed).
+          Finish lives here, not as a primary button: ideally the impl agent runs
+          `iudex finish` itself; this is the manual escape hatch. */}
+      {!isTerminal && (
+        <FooterOverflow>
+          {ticket.state === "active" && (
+            <button
+              className={s.menuItem}
+              disabled={busy}
+              onClick={() => run(["finish", ticket.id])}
+            >
+              Finish
+            </button>
+          )}
           <button
-            className={s.menuItem}
+            className={`${s.menuItem} ${s.danger}`}
             disabled={busy}
-            onClick={() => run(["finish", ticket.id])}
+            onClick={() => run(["remove", ticket.id], true)}
           >
-            Finish
+            Remove
           </button>
-        )}
-        <button
-          className={`${s.menuItem} ${s.danger}`}
-          disabled={busy}
-          onClick={() => run(["remove", ticket.id], true)}
-        >
-          Remove
-        </button>
-      </FooterOverflow>
+        </FooterOverflow>
+      )}
     </>
   );
 }

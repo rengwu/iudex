@@ -4,10 +4,12 @@ import type { Ticket, Workspace } from "../types";
 import { IDEA_SKILLS } from "../lib/skills";
 import { useNav, usePendingFocus } from "../lib/nav";
 import { useTicketTitles } from "../lib/agents";
+import { useSessions } from "../lib/sessions";
+import { nextAction, type Intent } from "../lib/ticketActions";
 import { stateDot } from "../lib/badges";
 import Badge from "../components/Badge";
 import Modal from "../components/Modal";
-import Button, { type Variant } from "../components/Button";
+import Button from "../components/Button";
 import TabSwitcher from "../components/TabSwitcher";
 import TicketDetail from "../components/TicketDetail";
 import TicketGraph from "./TicketGraph";
@@ -39,6 +41,11 @@ export default function Tickets({ ws, root }: { ws: Workspace; root: string }) {
   const { titles, refetch: refetchTitles } = useTicketTitles(root, ws);
   const titleOf = (t: Ticket) => titles[t.id] || "";
 
+  // The live tmux session pool — passed to `nextAction` so the table and the
+  // detail panel decide the next action from the same data (the agent-presence
+  // branch is #1/#5 follow-up; the param is wired now).
+  const { sessions } = useSessions(root);
+
   // Tickets shown across all three views: the live working set. Terminal
   // tickets are hidden — removed are gone, done graduate to the archive.
   const visible = ws.tickets.filter(
@@ -61,59 +68,35 @@ export default function Tickets({ ws, root }: { ws: Workspace; root: string }) {
     }
   };
 
-  const activate = (id: string) =>
-    act(id, async () => {
-      await api.runIudex(root, ["activate", id]);
-      const s = await api.spawnAgent(root, id, "impl");
-      goTo("agents", { id: s.name });
-    });
-  const finish = (id: string) =>
-    act(id, () => api.runIudex(root, ["finish", id]));
-  const spawnQa = (id: string) =>
-    act(id, async () => {
-      const s = await api.spawnAgent(root, id, "qa");
-      goTo("agents", { id: s.name });
-    });
-  const retry = (id: string) =>
-    act(id, () => api.runIudex(root, ["retry", id]));
-
-  // The single row action per state (secondary actions live in the detail menu).
-  // A `variant` + `onClick` renders a <Button>; a label without them is a muted
-  // non-action note (blocked / merged).
-  const rowAction = (
-    t: Ticket,
-  ): { label: string; variant?: Variant; onClick?: () => void } => {
-    switch (t.state) {
-      case "queued":
-        return t.ready
-          ? {
-              label: "Spawn Agent",
-              variant: "secondary",
-              onClick: () => activate(t.id),
-            }
-          : { label: "blocked" };
-      case "active":
-        return {
-          label: "Finish",
-          variant: "secondary",
-          onClick: () => finish(t.id),
-        };
-      case "pending-qa":
-        return {
-          label: "Spawn Agent",
-          variant: "secondary",
-          onClick: () => spawnQa(t.id),
-        };
-      case "failed":
-        return {
-          label: "Retry",
-          variant: "danger",
-          onClick: () => retry(t.id),
-        };
-      case "done":
-        return { label: "✓ merged" };
-      default:
-        return { label: "" };
+  // Run a `nextAction` intent. Mapping intent → side effect is per-view (busy is
+  // tracked per row here; the panel uses its own runner) but the *choice* of
+  // intent is single-sourced in `nextAction`. `note` never reaches here (it
+  // renders muted text, not a button).
+  const runIntent = (intent: Intent, id: string) => {
+    switch (intent) {
+      case "activate-impl":
+        return act(id, async () => {
+          await api.runIudex(root, ["activate", id]);
+          const s = await api.spawnAgent(root, id, "impl");
+          goTo("agents", { id: s.name });
+        });
+      case "resume-impl":
+      case "open-agent":
+        return act(id, async () => {
+          const s = await api.spawnAgent(root, id, "impl");
+          goTo("agents", { id: s.name });
+        });
+      case "spawn-qa":
+        return act(id, async () => {
+          const s = await api.spawnAgent(root, id, "qa");
+          goTo("agents", { id: s.name });
+        });
+      case "review":
+        return goTo("review", { id });
+      case "retry":
+        return act(id, () => api.runIudex(root, ["retry", id]));
+      case "note":
+        return;
     }
   };
 
@@ -181,7 +164,7 @@ export default function Tickets({ ws, root }: { ws: Workspace; root: string }) {
                 <div className={s.empty}>No tickets in the pipeline</div>
               )}
               {visible.map((t, i) => {
-                const a = rowAction(t);
+                const a = nextAction(t, sessions);
                 const on = t.id === selId;
                 return (
                   <div
@@ -242,12 +225,12 @@ export default function Tickets({ ws, root }: { ws: Workspace; root: string }) {
                     >
                       {busy === t.id ? (
                         <span className="muted">…</span>
-                      ) : a.variant && a.onClick ? (
+                      ) : a.variant ? (
                         <Button
                           variant={a.variant}
                           size="sm"
                           disabled={busy !== null}
-                          onClick={() => a.onClick?.()}
+                          onClick={() => runIntent(a.intent, t.id)}
                         >
                           {a.label}
                         </Button>
