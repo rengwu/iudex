@@ -56,7 +56,7 @@ Publish the approved slices **in dependency order — blockers first** — so ev
 For each slice, in order:
 
 1. **Get the id:** `id=$(iudex next-ticket-id)`
-2. **Author the brief:** write the ticket body to `.iudex/queue/t$id.md` using the template below.
+2. **Author the brief:** write the ticket body to `.iudex/queue/t$id.md` using the template below. The **first line must be an H1 title** — `# <short descriptive title>` (the slice's Title from step 4, no `tN:` prefix — the id is shown separately). The GUI reads a ticket's title from the brief's first `# ` heading, so a brief without one shows no title in the Tickets, Agents, and Review views. Use a single `#` — section headings inside the brief are `##` or deeper.
 3. **Register it (with deps):** `iudex queue t$id --deps t<blocker-ids>` (comma-separated blocker ids; omit `--deps` entirely if the slice has none).
 
 **Do not put status or dependencies inside the `t<id>.md` file.** iudex's event log is the single source of truth — dependencies live ONLY in the `iudex queue --deps` command. You may mention blockers in the brief's prose for a human reader, but the canonical dependency edge is the registered queue event. The markdown carries the spec, nothing else.
@@ -64,6 +64,8 @@ For each slice, in order:
 After registering, run `iudex status` to show the user the queued tickets (each annotated `ready` or `blocked by`).
 
 <ticket-template>
+# <short descriptive title>
+
 ## What to build
 
 A concise description of this vertical slice. Describe the end-to-end behavior, not layer-by-layer implementation.
