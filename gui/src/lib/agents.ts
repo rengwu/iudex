@@ -87,6 +87,18 @@ export function resolveStatus(opts: {
   return quietMs < 5000 ? "working" : "idle";
 }
 
+// An idea-shaping agent's status. Idea agents aren't ticket-scoped (no role
+// phase to compare against), so their status is pure process liveness: a clean
+// exit is done, a non-zero exit crashed, otherwise working/idle by output quiet.
+export function ideaStatus(opts: {
+  dead: boolean;
+  exitCode: number | null;
+  quietMs: number;
+}): AgentStatus {
+  if (opts.dead) return opts.exitCode !== 0 ? "crashed" : "done";
+  return opts.quietMs < 5000 ? "working" : "idle";
+}
+
 // Synthesize an agent's status from process liveness (pane dead/exit), output
 // activity, and the ticket's state relative to the agent's role. iudex has no
 // liveness signal of its own; these are the signals a bare `iudex status` can't
@@ -149,6 +161,18 @@ export function useAgentStatuses(
               ? ws.tickets.find((t) => t.id === a.ticket)
               : undefined;
             const quietMs = Date.now() - act.last;
+
+            // Idea agents are ticket-less; status is pure liveness.
+            if (a.kind === "idea") {
+              return [
+                a.name,
+                ideaStatus({
+                  dead: live.dead,
+                  exitCode: live.exitCode,
+                  quietMs,
+                }),
+              ] as const;
+            }
 
             // Resolver agents derive their outcome from the merge state, not just
             // process liveness, so the panel shows resolved / flagged / working.

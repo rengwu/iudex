@@ -60,8 +60,12 @@ export default function Agents({
 }) {
   const focus = usePendingFocus("agents");
   const { sessions, available } = useSessions(root);
+  // Both ticket agents (impl/qa/resolve) and idea-shaping agents live here — one
+  // home for everything running (#8). Idea agents are ticket-less; the rendering
+  // below special-cases them (an "idea" chip + the skill as the title). Terminal
+  // is left to pure shells.
   const agents = sessions
-    .filter((x) => x.kind === "agent")
+    .filter((x) => x.kind === "agent" || x.kind === "idea")
     .sort(
       (a, b) =>
         (a.ticket ?? "").localeCompare(b.ticket ?? "") ||
@@ -181,6 +185,7 @@ export default function Agents({
             {agents.map((a) => {
               const w = worktreeOf(a);
               const status = statuses[a.name] ?? "idle";
+              const isIdea = a.kind === "idea";
               return (
                 <button
                   key={a.name}
@@ -188,13 +193,15 @@ export default function Agents({
                   onClick={() => setSelName(a.name)}
                 >
                   <span className={s.cardTop}>
-                    <span className={s.cardId}>{a.ticket ?? "agent"}</span>
+                    <span className={s.cardId}>
+                      {isIdea ? "idea" : (a.ticket ?? "agent")}
+                    </span>
                     <span className={s.cardTitle}>
-                      {(w && titles[w]) || ""}
+                      {isIdea ? (a.role ?? "") : (w && titles[w]) || ""}
                     </span>
                   </span>
                   <span className={s.cardBot}>
-                    <RoleChip role={a.role ?? "agent"} />
+                    <RoleChip role={isIdea ? "idea" : (a.role ?? "agent")} />
                     <span className={s.cardStatus}>
                       <StatusDot status={status} />
                     </span>
@@ -278,8 +285,12 @@ function AgentDetail({
   return (
     <div className={s.detail}>
       <header className={s.head}>
-        <span className={s.headId}>agent·{agent.ticket ?? "—"}</span>
-        <RoleChip role={agent.role ?? "agent"} />
+        <span className={s.headId}>
+          {agent.kind === "idea"
+            ? `idea·${agent.role ?? "—"}`
+            : `agent·${agent.ticket ?? "—"}`}
+        </span>
+        <RoleChip role={agent.kind === "idea" ? "idea" : (agent.role ?? "agent")} />
         {title && <span className={s.headTitle}>{title}</span>}
         {!title && <span className={s.headTitle} />}
         <span className={s.headStatus}>

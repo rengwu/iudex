@@ -4,7 +4,7 @@ import type { Ticket, Workspace } from "../types";
 import { IDEA_SKILLS } from "../lib/skills";
 import { useNav, usePendingFocus } from "../lib/nav";
 import { useTicketTitles } from "../lib/agents";
-import { useSessions } from "../lib/sessions";
+import { useSessions, addSession } from "../lib/sessions";
 import {
   nextAction,
   liveAgentFor,
@@ -283,7 +283,7 @@ export default function Tickets({ ws, root }: { ws: Workspace; root: string }) {
           onClose={() => setIdeating(false)}
           onLaunched={(name) => {
             setIdeating(false);
-            goTo("terminal", { id: name });
+            goTo("agents", { id: name });
           }}
         />
       )}
@@ -413,6 +413,7 @@ function NewIdeaModal({
     setError(null);
     try {
       const s = await api.spawnIdea(root, skill, seed);
+      addSession(s); // seed the pool so Agents can focus it before the next poll
       onLaunched(s.name);
     } catch (e) {
       setError(String(e));
@@ -458,7 +459,7 @@ function NewIdeaModal({
       </label>
       <p className={s.hint}>
         Launches an agent at the workspace root preloaded with this skill and
-        opens it in the Terminal. It drives the chain to{" "}
+        opens it in the Agents view. It drives the chain to{" "}
         <code>iudex queue</code>; new tickets appear here on their own.
       </p>
       {error && <div className="error">{error}</div>}

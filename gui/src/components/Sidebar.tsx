@@ -37,10 +37,11 @@ export default function Sidebar({
   const cnt = (st: string) => tickets.filter((t) => t.state === st).length;
   const activeCount = cnt("active");
   const navCounts: Partial<Record<View, number>> = {
-    terminal: sessions.filter((x) => x.kind !== "agent").length,
+    terminal: sessions.filter((x) => x.kind === "shell").length,
     tickets: tickets.filter((t) => t.state !== "removed" && t.state !== "done")
       .length,
-    agents: sessions.filter((x) => x.kind === "agent").length,
+    agents: sessions.filter((x) => x.kind === "agent" || x.kind === "idea")
+      .length,
     worktrees: new Set(
       tickets.filter((t) => t.hasWorktree && t.worktree).map((t) => t.worktree),
     ).size,

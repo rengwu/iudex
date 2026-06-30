@@ -47,7 +47,7 @@ export default function Terminal({
   // closing a tab stays closed for the rest of the session.
   useEffect(() => {
     if (!loaded || restored) return;
-    const shells = sessions.filter((x) => x.kind !== "agent").map((x) => x.name);
+    const shells = sessions.filter((x) => x.kind === "shell").map((x) => x.name);
     if (shells.length > 0) {
       setOpen((o) => Array.from(new Set([...o, ...shells])));
       setActiveTab((t) => t ?? shells[0]);
