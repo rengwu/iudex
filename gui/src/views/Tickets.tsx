@@ -18,13 +18,7 @@ import s from "./Tickets.module.scss";
 // funnel launchers (compose a ticket / shape an idea via a skill agent). Every
 // mutation shells through `iudex`; we never re-read after one — the events.jsonl
 // doorbell refreshes the table.
-export default function Tickets({
-  ws,
-  root,
-}: {
-  ws: Workspace;
-  root: string;
-}) {
+export default function Tickets({ ws, root }: { ws: Workspace; root: string }) {
   const { goTo } = useNav();
   const focus = usePendingFocus("tickets");
   const [busy, setBusy] = useState<string | null>(null); // ticket id mid-action
@@ -184,7 +178,7 @@ export default function Tickets({
                 <div>ACTION</div>
               </div>
               {visible.length === 0 && (
-                <div className={s.empty}>no tickets yet</div>
+                <div className={s.empty}>No tickets in the pipeline</div>
               )}
               {visible.map((t, i) => {
                 const a = rowAction(t);

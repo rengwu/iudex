@@ -66,7 +66,11 @@ export default function TicketBoard({
   const selRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (selId && selRef.current) {
-      selRef.current.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+      selRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "nearest",
+      });
     }
   }, [selId]);
 
@@ -74,7 +78,8 @@ export default function TicketBoard({
   const freeSlots = maxActive > 0 ? Math.max(0, maxActive - activeCount) : 0;
 
   const live = tickets.filter((t) => COLUMNS.some((c) => c.state === t.state));
-  if (live.length === 0) return <div className={s.empty}>no tickets in the pipeline</div>;
+  if (live.length === 0)
+    return <div className={s.empty}>No tickets in the pipeline</div>;
 
   return (
     <div className={s.board}>
@@ -100,8 +105,16 @@ export default function TicketBoard({
                 // Selected card: paint the whole clip with the selection color
                 // (matches the nav-row selection language) rather than a border.
                 const fill = sel
-                  ? { background: SEL.bg, borderColor: SEL.border, color: SEL.fg }
-                  : { background: col.bg, borderColor: col.border, color: col.fg };
+                  ? {
+                      background: SEL.bg,
+                      borderColor: SEL.border,
+                      color: SEL.fg,
+                    }
+                  : {
+                      background: col.bg,
+                      borderColor: col.border,
+                      color: col.fg,
+                    };
                 return (
                   <div
                     key={t.id}
@@ -114,14 +127,14 @@ export default function TicketBoard({
                       <span className={s.cardId}>{t.id}</span>
                       {meta && <span className={s.cardMeta}>{meta}</span>}
                     </div>
-                    {titleOf(t) && <div className={s.cardTitle}>{titleOf(t)}</div>}
+                    {titleOf(t) && (
+                      <div className={s.cardTitle}>{titleOf(t)}</div>
+                    )}
                   </div>
                 );
               })}
               {c.state === "active" && freeSlots > 0 && (
-                <div className={s.slot}>
-                  slot · {freeSlots} free
-                </div>
+                <div className={s.slot}>slot · {freeSlots} free</div>
               )}
             </div>
           );
