@@ -148,15 +148,24 @@
   }
 }
 
-.checkRow {
+// Toggle field: label on the left, switch pushed to the right edge (like the
+// Sidebar automation rail), with the explanatory note beneath. A boolean
+// control, so it skips .field's label-over-input layout.
+.toggleField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.toggleRow {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
-
-  input {
-    flex: none;
-    margin: 0;
-  }
+}
+.toggleLabel {
+  font-size: 12px;
+  color: t.$text;
 }
 
 .browse {

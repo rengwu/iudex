@@ -335,9 +335,11 @@ function BehaviorTab() {
       </div>
 
       <div className={s.fields}>
-        <div className="field">
-          <span>On fully quitting the app</span>
-          <div className={s.checkRow}>
+        <div className={s.toggleField}>
+          <div className={s.toggleRow}>
+            <span className={s.toggleLabel}>
+              Kill running agents &amp; shells when the app fully quits
+            </span>
             <Toggle
               checked={killOnExit ?? true}
               disabled={killOnExit === null}
@@ -346,26 +348,25 @@ function BehaviorTab() {
                 setSaved(null);
               }}
             />
-            <span>Kill all running agents and shells</span>
           </div>
           <small className={s.note}>
-            On (default): quitting tears down the tmux pool — nothing keeps
-            running in the background. Off: agents and shells stay detached and
-            are rediscovered next launch. Switching workspaces never kills them
-            either way.
+            On (default): quitting stops all agents and shells. Off: they keep
+            running in the background and reattach next launch. Switching
+            workspaces never stops them either way.
           </small>
         </div>
-        <div className={s.actions}>
-          <SavedNote saved={saved} />
-          <Button
-            variant="primary"
-            size="md"
-            disabled={busy || killOnExit === null}
-            onClick={save}
-          >
-            {busy ? "Saving…" : "Save"}
-          </Button>
-        </div>
+      </div>
+
+      <div className={s.actions}>
+        <SavedNote saved={saved} />
+        <Button
+          variant="primary"
+          size="md"
+          disabled={busy || killOnExit === null}
+          onClick={save}
+        >
+          {busy ? "Saving…" : "Save"}
+        </Button>
       </div>
     </section>
   );
