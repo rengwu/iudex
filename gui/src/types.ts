@@ -50,6 +50,10 @@ export interface Worktree {
   branch: string;
   head: string;
   tickets: { id: string; state: string }[];
+  // Synthetic front-of-rail entry for the repo root (the canonical main
+  // worktree). It has no diff-vs-main, so it only offers the "all files"
+  // browser; set by the useWorktrees hook, never by the backend.
+  isMain?: boolean;
 }
 
 // A changed file in a worktree vs main (from `worktree_changes`).
@@ -64,6 +68,13 @@ export interface FileChange {
 export interface FileDiff {
   original: string;
   modified: string;
+  language: string;
+}
+
+// Current on-disk content of one file (from `read_file`), for the read-only
+// single-file viewer in the "all files" browser.
+export interface FileView {
+  content: string;
   language: string;
 }
 

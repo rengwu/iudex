@@ -12,6 +12,7 @@ import type {
   TaskDocs,
   FileChange,
   FileDiff,
+  FileView,
   Preflight,
   Resolution,
   ResolutionSummary,
@@ -93,6 +94,11 @@ export const worktreeFileDiff = (
   mainBranch: string,
   threeDot?: boolean,
 ) => invoke<FileDiff>("worktree_file_diff", { worktree, path, mainBranch, threeDot });
+// Read-only "all files" browser: the gitignored-filtered file list, and one
+// file's current on-disk content.
+export const listTree = (worktree: string) => invoke<string[]>("list_tree", { worktree });
+export const readFile = (worktree: string, path: string) =>
+  invoke<FileView>("read_file", { worktree, path });
 export const worktreeTaskDocs = (worktree: string) =>
   invoke<TaskDocs>("worktree_task_docs", { worktree });
 // Count of uncommitted changes (excluding .task/) — used to warn before a manual

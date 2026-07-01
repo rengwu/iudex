@@ -4,6 +4,7 @@ import {
   VIEWS,
   type FileChange,
   type FileDiff,
+  type FileView,
   type Workspace,
   type Worktree,
 } from "../types";
@@ -12,21 +13,24 @@ import { useNav } from "../lib/nav";
 import Badge from "../components/Badge";
 import ViewHeader from "../components/ViewHeader";
 import Button from "../components/Button";
+import FileTree from "./FileTree";
 import s from "./Worktrees.module.scss";
 
-// Monaco is heavy; load it only when this view first needs a diff.
+// Monaco is heavy; load the diff/file surfaces only when first needed.
 const DiffViewer = lazy(() => import("./DiffViewer"));
+const FileViewer = lazy(() => import("./FileViewer"));
 
 // A worktree's display name: its branch, or the dir basename when detached.
 function wtLabel(w: Worktree): string {
   return w.branch || w.path.split("/").pop() || w.path;
 }
 
-// Read-only, editor-style inspection of any worktree: pick a worktree (left),
-// see its changed files vs main (middle), read the diff in Monaco (right), with
-// escape hatches out to a real editor / shell. The rail is keyed on physical
-// worktrees, not tickets, so a worktree appears once even if several tickets map
-// onto it; the relationship shows as ticket badges.
+// Read-only, editor-style inspection of any worktree. Pick a worktree (left),
+// then either its changed files vs main (the diff mode) or its full file tree
+// (the "all files" browser) — with escape hatches out to a real editor / shell.
+// The rail is keyed on physical worktrees, not tickets, so a worktree appears
+// once even if several tickets map onto it; the relationship shows as ticket
+// badges. The repo root ("main") is pinned on top and offers only the browser.
 export default function Worktrees({
   ws,
   root,
@@ -38,14 +42,26 @@ export default function Worktrees({
   const { worktrees, error } = useWorktrees(root, ws);
 
   const [selPath, setSelPath] = useState<string | null>(null);
+  const [mode, setMode] = useState<"changed" | "all">("changed");
+  const [paneErr, setPaneErr] = useState<string | null>(null);
+
+  // Changed-files (diff) mode state.
   const [changes, setChanges] = useState<FileChange[]>([]);
   const [selFile, setSelFile] = useState<string | null>(null);
   const [diff, setDiff] = useState<FileDiff | null>(null);
-  const [paneErr, setPaneErr] = useState<string | null>(null);
+
+  // "All files" browser state. `treeReload` bumps to re-fetch (the refresh
+  // button) — file content never rings the events.jsonl doorbell, so a manual
+  // refresh is the honest way to pick up on-disk edits.
+  const [tree, setTree] = useState<string[]>([]);
+  const [treeFile, setTreeFile] = useState<string | null>(null);
+  const [fileView, setFileView] = useState<FileView | null>(null);
+  const [treeReload, setTreeReload] = useState(0);
 
   const selected = worktrees.find((w) => w.path === selPath) ?? null;
+  const isMain = selected?.isMain ?? false;
 
-  // Default-select the first worktree; keep selection valid as the list changes.
+  // Default-select the first worktree (main); keep selection valid as the list changes.
   useEffect(() => {
     if (worktrees.length === 0) {
       setSelPath(null);
@@ -54,12 +70,17 @@ export default function Worktrees({
     }
   }, [worktrees, selPath]);
 
-  // Load the changed-files list when the selected worktree changes.
+  // Reset to the right mode when the selection changes: main is browser-only.
   useEffect(() => {
-    setSelFile(null);
-    setDiff(null);
-    if (!selPath) {
+    setMode(isMain ? "all" : "changed");
+  }, [selPath, isMain]);
+
+  // Changed-files mode: load the changed-file list.
+  useEffect(() => {
+    if (!selPath || mode !== "changed") {
       setChanges([]);
+      setSelFile(null);
+      setDiff(null);
       return;
     }
     let alive = true;
@@ -75,11 +96,11 @@ export default function Worktrees({
     return () => {
       alive = false;
     };
-  }, [selPath, ws.mainBranch]);
+  }, [selPath, mode, ws.mainBranch]);
 
-  // Load the diff for the selected file.
+  // Changed-files mode: load the diff for the selected file.
   useEffect(() => {
-    if (!selPath || !selFile) {
+    if (!selPath || !selFile || mode !== "changed") {
       setDiff(null);
       return;
     }
@@ -91,7 +112,46 @@ export default function Worktrees({
     return () => {
       alive = false;
     };
-  }, [selPath, selFile, ws.mainBranch]);
+  }, [selPath, selFile, mode, ws.mainBranch]);
+
+  // "All files" mode: load the tree, keeping the open file selected if it survives.
+  useEffect(() => {
+    if (!selPath || mode !== "all") {
+      setTree([]);
+      setTreeFile(null);
+      setFileView(null);
+      return;
+    }
+    let alive = true;
+    api
+      .listTree(selPath)
+      .then((t) => {
+        if (!alive) return;
+        setTree(t);
+        setTreeFile((prev) => (prev && t.includes(prev) ? prev : (t[0] ?? null)));
+        setPaneErr(null);
+      })
+      .catch((e) => alive && setPaneErr(String(e)));
+    return () => {
+      alive = false;
+    };
+  }, [selPath, mode, treeReload]);
+
+  // "All files" mode: load the selected file's on-disk content.
+  useEffect(() => {
+    if (!selPath || !treeFile || mode !== "all") {
+      setFileView(null);
+      return;
+    }
+    let alive = true;
+    api
+      .readFile(selPath, treeFile)
+      .then((f) => alive && setFileView(f))
+      .catch((e) => alive && setPaneErr(String(e)));
+    return () => {
+      alive = false;
+    };
+  }, [selPath, treeFile, mode, treeReload]);
 
   const openInEditor = (file: string) =>
     api.openInEditor(`${selPath}/${file}`).catch((e) => setPaneErr(String(e)));
@@ -99,8 +159,8 @@ export default function Worktrees({
   const openShell = async () => {
     if (!selPath) return;
     try {
-      const s = await api.createShell(root, selPath);
-      goTo("terminal", { id: s.name });
+      const sess = await api.createShell(root, selPath);
+      goTo("terminal", { id: sess.name });
     } catch (e) {
       setPaneErr(String(e));
     }
@@ -116,26 +176,13 @@ export default function Worktrees({
   );
 
   if (error) return <div className="error">{error}</div>;
-  if (worktrees.length === 0)
-    return (
-      <div className={s.wrap}>
-        <ViewHeader
-          dot={VIEWS.worktrees.dot}
-          title="Worktrees"
-          subtitle="read-only inspection · two-dot vs main"
-        />
-        <div className={s.empty}>
-          No active worktrees. Activate a ticket to create one.
-        </div>
-      </div>
-    );
 
   return (
     <div className={s.wrap}>
       <ViewHeader
         dot={VIEWS.worktrees.dot}
         title="Worktrees"
-        subtitle="read-only inspection · two-dot vs main"
+        subtitle="read-only inspection · diff vs main or full-tree browse"
       />
       <div className={s.root}>
         <aside className={s.rail}>
@@ -148,7 +195,11 @@ export default function Worktrees({
             >
               <span className={s.branch}>{wtLabel(w)}</span>
               <span className={s.badges}>
-                {w.tickets.length === 0 ? (
+                {w.isMain ? (
+                  <Badge bg="#c7a24e" fg="#2a2a2a">
+                    main
+                  </Badge>
+                ) : w.tickets.length === 0 ? (
                   <Badge bg="#9c9c9c" fg="#565656">
                     no ticket
                   </Badge>
@@ -170,53 +221,129 @@ export default function Worktrees({
             {selected && (
               <>
                 <span className={s.worktreeHeadInfo}>
-                  {wtLabel(selected)} · {selected.head.slice(0, 7)} · vs{" "}
-                  {ws.mainBranch}
+                  {mode === "all"
+                    ? `${wtLabel(selected)}${isMain ? " · read-only" : " · all files"}`
+                    : `${wtLabel(selected)} · ${selected.head.slice(0, 7)} · vs ${ws.mainBranch}`}
                 </span>
-                <Button variant="quiet" size="sm" onClick={openShell}>
-                  Launch Terminal Session
-                </Button>
+                <div className={s.headTools}>
+                  {!isMain && (
+                    <div className={s.seg}>
+                      <button
+                        className={mode === "changed" ? s.on : ""}
+                        onClick={() => setMode("changed")}
+                      >
+                        changed files
+                      </button>
+                      <button
+                        className={mode === "all" ? s.on : ""}
+                        onClick={() => setMode("all")}
+                      >
+                        all files
+                      </button>
+                    </div>
+                  )}
+                  {mode === "all" && (
+                    <Button
+                      variant="quiet"
+                      size="sm"
+                      onClick={() => setTreeReload((n) => n + 1)}
+                    >
+                      ↻ refresh
+                    </Button>
+                  )}
+                  <Button variant="quiet" size="sm" onClick={openShell}>
+                    Launch Terminal Session
+                  </Button>
+                </div>
               </>
             )}
           </div>
           <div className={s.panes}>
             <div className={s.files}>
-              <ul className={s.filelist}>
-                {changes.length === 0 && (
-                  <li className="muted" style={{ margin: "8px" }}>
-                    no changes vs {ws.mainBranch}
-                  </li>
-                )}
-                {changes.map((c) => (
-                  <li
-                    key={c.path}
-                    className={`${s.file} ${c.path === selFile ? s.active : ""}`}
-                    onClick={() => setSelFile(c.path)}
-                  >
-                    <span className={`${s.st} ${s[`st${c.status}`] ?? ""}`}>
-                      {c.status}
-                    </span>
-                    <span className={s.path}>{c.path}</span>
-                  </li>
-                ))}
-              </ul>
-              {changes.length > 0 && (
-                <div className={s.filesFoot}>
-                  {changes.length} file{changes.length === 1 ? "" : "s"}
-                  {(totals.add > 0 || totals.del > 0) && (
-                    <>
-                      {" "}
-                      <span className={s.add}>+{totals.add}</span>{" "}
-                      <span className={s.del}>−{totals.del}</span>
-                    </>
+              {mode === "all" ? (
+                <>
+                  {tree.length === 0 ? (
+                    <div className="muted" style={{ margin: "8px" }}>
+                      no files
+                    </div>
+                  ) : (
+                    <FileTree
+                      paths={tree}
+                      selected={treeFile}
+                      onSelect={setTreeFile}
+                    />
                   )}
-                </div>
+                  {tree.length > 0 && (
+                    <div className={s.filesFoot}>
+                      {tree.length} file{tree.length === 1 ? "" : "s"}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <ul className={s.filelist}>
+                    {changes.length === 0 && (
+                      <li className="muted" style={{ margin: "8px" }}>
+                        no changes vs {ws.mainBranch}
+                      </li>
+                    )}
+                    {changes.map((c) => (
+                      <li
+                        key={c.path}
+                        className={`${s.file} ${c.path === selFile ? s.active : ""}`}
+                        onClick={() => setSelFile(c.path)}
+                      >
+                        <span className={`${s.st} ${s[`st${c.status}`] ?? ""}`}>
+                          {c.status}
+                        </span>
+                        <span className={s.path}>{c.path}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {changes.length > 0 && (
+                    <div className={s.filesFoot}>
+                      {changes.length} file{changes.length === 1 ? "" : "s"}
+                      {(totals.add > 0 || totals.del > 0) && (
+                        <>
+                          {" "}
+                          <span className={s.add}>+{totals.add}</span>{" "}
+                          <span className={s.del}>−{totals.del}</span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
             <div className={s.diff}>
               {paneErr && <div className="error">{paneErr}</div>}
-              {selFile && diff ? (
+              {mode === "all" ? (
+                treeFile && fileView ? (
+                  <Suspense
+                    fallback={<div className={s.loading}>loading editor…</div>}
+                  >
+                    <FileViewer
+                      content={fileView.content}
+                      language={fileView.language}
+                      title={treeFile}
+                      actions={
+                        <Button
+                          variant="quiet"
+                          size="sm"
+                          onClick={() => openInEditor(treeFile)}
+                        >
+                          Open in editor
+                        </Button>
+                      }
+                    />
+                  </Suspense>
+                ) : (
+                  <div className={s.diffEmpty}>
+                    {tree.length > 0 ? "Select a file to view it." : ""}
+                  </div>
+                )
+              ) : selFile && diff ? (
                 <Suspense
                   fallback={<div className={s.loading}>loading editor…</div>}
                 >

@@ -194,6 +194,74 @@
   font-size: 11px;
   color: t.$text-muted;
 }
+.headTools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+// Mode toggle (changed files | all files) — mirrors DiffViewer's inline/split seg.
+.seg {
+  display: flex;
+  border: 1px solid t.$divider-mid;
+
+  button {
+    padding: 1px 9px;
+    border: none;
+    background: transparent;
+    color: t.$text-muted;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+    font-size: 11px;
+    font-family: t.$font-ui;
+  }
+  button.on {
+    background: t.$panel-light;
+    color: t.$text;
+  }
+}
+
+// ── File tree (the "all files" browser) ───────────────────────────────────────
+.tree {
+  flex: 1;
+  overflow: auto;
+  padding: 2px 0;
+  font-family: t.$font-mono;
+  font-size: 11px;
+}
+.node {
+  height: 20px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 8px;
+  cursor: pointer;
+  color: t.$text;
+  white-space: nowrap;
+  -webkit-user-select: none;
+  user-select: none;
+
+  &:hover {
+    background: t.$surface-c8;
+  }
+  &.active {
+    background: t.$surface-c8;
+  }
+}
+.folder {
+  color: t.$text-muted;
+}
+.twisty {
+  width: 10px;
+  flex: none;
+  text-align: center;
+  font-size: 8px;
+}
+.nodeName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .panes {
   flex: 1;
   min-height: 0;

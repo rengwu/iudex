@@ -1005,6 +1005,56 @@ fn language_for(path: &str) -> String {
     lang.to_string()
 }
 
+/// A flat, sorted list of the worktree's files as git sees them: tracked +
+/// untracked, minus everything gitignored (so `node_modules`/`target`/`.iudex`
+/// never appear). Powers the read-only "all files" codebase browser — the
+/// frontend builds the tree from these paths. Read-only git plumbing, like the
+/// diff commands.
+#[tauri::command]
+fn list_tree(worktree: String) -> Result<Vec<String>, String> {
+    let out = Command::new("git")
+        .args([
+            "-C",
+            &worktree,
+            "ls-files",
+            "--cached",
+            "--others",
+            "--exclude-standard",
+        ])
+        .output()
+        .map_err(|e| format!("git ls-files: {e}"))?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
+    let mut paths: Vec<String> = String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(str::to_string)
+        .collect();
+    paths.sort();
+    Ok(paths)
+}
+
+/// The current on-disk content of one file in a worktree, for the read-only
+/// single-file viewer. Reads the working tree (uncommitted edits included);
+/// a binary/unreadable file returns a placeholder rather than erroring.
+#[derive(serde::Serialize)]
+struct FileView {
+    content: String,
+    language: String,
+}
+
+#[tauri::command]
+fn read_file(worktree: String, path: String) -> Result<FileView, String> {
+    let full = Path::new(&worktree).join(&path);
+    let content = std::fs::read_to_string(&full)
+        .unwrap_or_else(|_| "(binary or unreadable file)".to_string());
+    Ok(FileView {
+        content,
+        language: language_for(&path),
+    })
+}
+
 /// The `.task/` docs for a ticket, read straight from its worktree — the same
 /// files `iudex review` prints, surfaced structured for the Review workspace.
 #[derive(serde::Serialize)]
@@ -1869,6 +1919,8 @@ pub fn run() {
             list_worktrees,
             worktree_changes,
             worktree_file_diff,
+            list_tree,
+            read_file,
             read_queue_brief,
             write_queue_brief,
             worktree_task_docs,

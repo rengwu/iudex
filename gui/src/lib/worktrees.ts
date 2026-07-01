@@ -6,6 +6,10 @@ import type { Workspace, Worktree } from "../types";
 // map onto it (by worktree path from `status --json`). Re-fetches whenever `ws`
 // changes — `ws` is itself driven by the events.jsonl doorbell, so activating or
 // merging a ticket (which adds/removes a worktree) refreshes this for free.
+//
+// The repo root (the canonical main worktree, which `list_worktrees` drops) is
+// prepended as a synthetic `isMain` entry so the codebase is always browsable —
+// it has no diff-vs-main, only the read-only "all files" mode.
 export function useWorktrees(root: string, ws: Workspace) {
   const [worktrees, setWorktrees] = useState<Worktree[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +26,14 @@ export function useWorktrees(root: string, ws: Workspace) {
             .filter((t) => t.worktree === w.path)
             .map((t) => ({ id: t.id, state: t.state })),
         }));
-        setWorktrees(joined);
+        const main: Worktree = {
+          path: root,
+          branch: ws.mainBranch,
+          head: "",
+          tickets: [],
+          isMain: true,
+        };
+        setWorktrees([main, ...joined]);
         setError(null);
       })
       .catch((e) => alive && setError(String(e)));
