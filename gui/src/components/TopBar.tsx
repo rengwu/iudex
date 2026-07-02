@@ -16,11 +16,16 @@ export default function TopBar({
   lastSync: string;
   onPick: () => void;
 }) {
+  // This bar doubles as the window's title bar: it's the drag region (macOS
+  // titleBarStyle=Overlay keeps the native traffic lights floating top-left, so
+  // .topbar reserves left padding for them). Interactive children (the WS
+  // picker) opt out of dragging by simply not carrying the attribute.
   return (
-    <header className={s.topbar}>
-      <div className={s.brand}>
-        <span className={s.brandDot} />
-        <span className={s.brandName}>iudex</span>
+    <header className={s.topbar} data-tauri-drag-region>
+      <div className={s.brand} data-tauri-drag-region>
+        <span className={s.brandName} data-tauri-drag-region>
+          iudex
+        </span>
       </div>
       <div
         className={s.wsPicker}
@@ -31,7 +36,7 @@ export default function TopBar({
         <span className={s.wsPath}>{root ? basename(root) : ""}</span>
         <span className={s.wsChev}>▾</span>
       </div>
-      <div className={s.spacer} />
+      <div className={s.spacer} data-tauri-drag-region />
     </header>
   );
 }

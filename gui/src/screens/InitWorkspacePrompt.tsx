@@ -14,7 +14,7 @@ export default function InitWorkspacePrompt({
   onPickOther: () => void;
 }) {
   return (
-    <div className={s.splash}>
+    <div className={s.splash} data-tauri-drag-region>
       <p className={s.notWs}>not an iudex workspace</p>
       <button className={s.openBtn} disabled={initing} onClick={onInit}>
         {initing ? "Initializing…" : "Initialize"}

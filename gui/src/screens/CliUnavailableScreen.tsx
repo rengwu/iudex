@@ -17,7 +17,7 @@ export default function CliUnavailableScreen({
   onOpenSettings: () => void;
 }) {
   return (
-    <div className={s.splash}>
+    <div className={s.splash} data-tauri-drag-region>
       <section className={s.errPanel}>
         <header className={s.errHead}>
           <span className={s.errBrand}>

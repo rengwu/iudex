@@ -5,8 +5,8 @@ import s from "./screens.module.scss";
 // the <main> app frame.
 export default function LoadingSplash() {
   return (
-    <div className={s.splash}>
-      <h1 className={s.logo}>iudex</h1>
+    <div className={s.splash} data-tauri-drag-region>
+      <h1 className={s.brand}>iudex</h1>
     </div>
   );
 }

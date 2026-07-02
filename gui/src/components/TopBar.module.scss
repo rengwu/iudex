@@ -1,13 +1,17 @@
 @use "../styles/tokens" as t;
 
-// The app-wide top bar (44px): brand + workspace picker.
+// The app-wide top bar. Doubles as the window title bar: it's the draggable
+// region, and with macOS titleBarStyle=Overlay the native traffic lights float
+// over its top-left. Height is kept to a real title-bar band (32px) so the OS
+// traffic lights and our content share one centerline instead of floating in an
+// over-tall bar; left padding reserves the traffic-light zone.
 .topbar {
-  height: 44px;
+  height: 32px;
   flex: none;
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 0 12px;
+  gap: 12px;
+  padding: 0 10px 0 80px;
   background: t.$chrome;
   border-bottom: 1px solid t.$divider-dark;
   color: #d8d8d8;
@@ -18,22 +22,19 @@
   align-items: center;
   gap: 7px;
 }
-.brandDot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: t.$amber;
-}
 .brandName {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
+  line-height: 1;
   color: t.$text-bright;
   letter-spacing: 0.01em;
 }
 
+// The WS picker sits flush inside the title-bar band: it fills the bar height
+// (minus a hair of inset) so its top/bottom edges align with the brand text.
 .wsPicker {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   height: 22px;
   border: 1px solid t.$divider-chrome;
   background: t.$sidebar;
@@ -48,24 +49,27 @@
 }
 .wsTag {
   font-size: 10px;
+  line-height: 1;
   color: t.$text-meta;
   padding: 0 7px;
   border-right: 1px solid t.$divider-chrome;
-  align-self: stretch;
   display: flex;
   align-items: center;
 }
 .wsPath {
   font-family: t.$font-mono;
   font-size: 12px;
+  line-height: 1;
   color: t.$text-light;
   padding: 0 8px;
+  display: flex;
+  align-items: center;
 }
 .wsChev {
+  font-size: 10px;
   color: t.$text-meta;
   padding: 0 7px;
   border-left: 1px solid t.$divider-chrome;
-  align-self: stretch;
   display: flex;
   align-items: center;
 }
