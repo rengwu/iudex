@@ -1,0 +1,103 @@
+# Release builds, triggered by pushing a version tag (v0.1.0, …). Produces a
+# DRAFT GitHub release carrying:
+#   - the GUI bundles (macOS arm64 .dmg, Linux x86_64 .AppImage/.deb), each
+#     with the iudex CLI baked in as a sidecar (scripts/build-cli.mjs runs via
+#     beforeBuildCommand and stamps the version from tauri.conf.json), and
+#   - standalone CLI binaries for people who want just `iudex`.
+#
+# The tag must match gui/src-tauri/tauri.conf.json's version — checked first so
+# a mismatched bundle can never ship. macOS bundles are currently UNSIGNED
+# (no Developer ID yet): the release notes must include the xattr -cr hint.
+# When signing lands, export APPLE_CERTIFICATE / APPLE_SIGNING_IDENTITY /
+# APPLE_ID secrets into the gui job and Tauri picks them up.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check-version:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag matches tauri.conf.json version
+        run: |
+          conf=$(node -p "require('./gui/src-tauri/tauri.conf.json').version")
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$conf" != "$tag" ]; then
+            echo "tag v$tag != tauri.conf.json version $conf" >&2
+            exit 1
+          fi
+
+  gui:
+    needs: check-version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14 # arm64
+          - os: ubuntu-22.04 # x86_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: gui/pnpm-lock.yaml
+      - name: Linux system deps (webkit et al.)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl \
+            wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+      - run: pnpm install --frozen-lockfile
+        working-directory: gui
+      - run: pnpm tauri build
+        working-directory: gui
+      - name: Attach bundles to draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: |
+            gui/src-tauri/target/release/bundle/dmg/*.dmg
+            gui/src-tauri/target/release/bundle/appimage/*.AppImage
+            gui/src-tauri/target/release/bundle/deb/*.deb
+
+  cli:
+    needs: check-version
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Cross-compile standalone CLI binaries
+        run: |
+          mkdir -p dist
+          for target in darwin/arm64 linux/amd64 linux/arm64; do
+            GOOS=${target%/*} GOARCH=${target#*/} \
+              go build -trimpath \
+                -ldflags "-s -w -X iudex/internal/cmd.version=${GITHUB_REF_NAME}" \
+                -o "dist/iudex-${target%/*}-${target#*/}" .
+          done
+          (cd dist && shasum -a 256 iudex-* > checksums.txt)
+      - name: Attach CLI binaries to draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: |
+            dist/iudex-*
+            dist/checksums.txt

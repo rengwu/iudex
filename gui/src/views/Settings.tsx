@@ -170,13 +170,6 @@ export default function Settings({
   );
 }
 
-// Result<String,String> from Rust serializes as {Ok: …} | {Err: …}.
-type IudexSettings = {
-  savedPath: string;
-  envBin: string | null;
-  resolved: { Ok: string } | { Err: string };
-};
-
 // GLOBAL tab: the iudex binary the GUI shells every command through, stored in
 // ~/.iudex/config.yml. Saving validates the path first (the backend refuses a
 // broken one and keeps the old value), so a typo can't strand the app.
@@ -187,7 +180,7 @@ export function CliTab({
   extraActions?: ReactNode;
   onSaveSuccess?: () => void;
 }) {
-  const [data, setData] = useState<IudexSettings | null>(null);
+  const [data, setData] = useState<api.IudexSettings | null>(null);
   const [path, setPath] = useState("");
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState<Saved>(null);
@@ -230,9 +223,12 @@ export function CliTab({
       ? "Using the saved path."
       : data.envBin
         ? "No saved path — using $IUDEX_BIN."
-        : "No saved path — using ‘iudex’ from your PATH.";
+        : data.bundled
+          ? "No saved path — using the CLI bundled with the app."
+          : "No saved path — using ‘iudex’ from your PATH.";
 
   return (
+    <>
     <section className={s.card}>
       <div className={s.head}>
         <span className={s.title}>CLI</span>
@@ -258,8 +254,8 @@ export function CliTab({
           </div>
           <small className={s.note}>
             The binary the GUI runs every command through. Leave empty to fall
-            back to <code>$IUDEX_BIN</code>, then <code>iudex</code> on your
-            PATH.
+            back to <code>$IUDEX_BIN</code>, then the CLI bundled with the app,
+            then <code>iudex</code> on your PATH.
           </small>
         </label>
 
@@ -283,6 +279,90 @@ export function CliTab({
         <Button variant="primary" size="md" disabled={busy} onClick={save}>
           {busy ? "Saving…" : "Save"}
         </Button>
+      </div>
+    </section>
+    <BundledCliCard />
+    </>
+  );
+}
+
+// The CLI shipped inside the app bundle. The GUI and its tmux sessions use it
+// automatically (zero setup); this card lets the user's own terminal have it
+// too, via a symlink into ~/.local/bin. Renders nothing when running unbundled
+// (plain cargo/dev runs without the sidecar).
+function BundledCliCard() {
+  const [status, setStatus] = useState<api.CliInstallStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState<Saved>(null);
+
+  const load = () =>
+    api
+      .cliInstallStatus()
+      .then(setStatus)
+      .catch(() => setStatus(null));
+  useEffect(() => {
+    load();
+  }, []);
+
+  if (!status?.bundledVersion) return null;
+
+  // Installed but resolving to something other than the bundled version: the
+  // link is stale or points at a different binary — offer to relink.
+  const outdated =
+    status.installedPath !== null &&
+    status.installedVersion !== status.bundledVersion;
+
+  const install = async () => {
+    setBusy(true);
+    setSaved(null);
+    try {
+      const path = await api.installCli();
+      setSaved({ ok: true, msg: `linked ${path}` });
+      await load();
+    } catch (e) {
+      setSaved({ ok: false, msg: String(e) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className={s.card}>
+      <div className={s.head}>
+        <span className={s.title}>Bundled CLI</span>
+        <code className={s.path}>~/.local/bin/iudex</code>
+      </div>
+
+      <div className={s.fields}>
+        <small className={s.note}>
+          This app ships with <code>{status.bundledVersion}</code> and uses it
+          automatically — agents launched from here already have it. To run{" "}
+          <code>iudex</code> from your own terminal too, link it into{" "}
+          <code>~/.local/bin</code>.
+        </small>
+        {status.installedPath && (
+          <small className={s.note}>
+            ✓ Linked at <code>{status.installedPath}</code>
+            {status.installedVersion ? <> ({status.installedVersion})</> : null}
+            .{" "}
+            {!status.binDirOnPath && (
+              <span className={s.savedErr}>
+                ~/.local/bin is not on your shell’s PATH — add{" "}
+                <code>export PATH=&quot;$HOME/.local/bin:$PATH&quot;</code> to
+                your shell profile.
+              </span>
+            )}
+          </small>
+        )}
+      </div>
+
+      <div className={s.actions}>
+        <SavedNote saved={saved} />
+        {(!status.installedPath || outdated) && (
+          <Button variant="primary" size="md" disabled={busy} onClick={install}>
+            {busy ? "Linking…" : outdated ? "Update link" : "Install CLI command"}
+          </Button>
+        )}
       </div>
     </section>
   );

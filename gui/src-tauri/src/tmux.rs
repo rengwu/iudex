@@ -189,6 +189,48 @@ fn enable_mouse(name: &str) {
         .status();
 }
 
+/// PATH for new sessions when the GUI runs its *bundled* CLI: ~/.iudex/bin
+/// prepended to the GUI's own PATH. Agents inside sessions run bare
+/// `iudex finish`/`iudex qa`, which a zero-setup install (nothing on the user's
+/// PATH) could not resolve otherwise. None when the user overrode the binary —
+/// their PATH story, don't shadow it.
+fn session_path() -> Option<String> {
+    let dir = crate::session_path_prepend()?;
+    let cur = std::env::var("PATH").unwrap_or_default();
+    Some(if cur.is_empty() {
+        dir
+    } else {
+        format!("{dir}:{cur}")
+    })
+}
+
+/// `tmux new-session -d -s <name> [-c cwd] [cmd]`, with the bundled-CLI PATH
+/// injection (`-e`, tmux ≥ 3.2) when active.
+fn new_session(name: &str, cwd: Option<&str>, cmd: Option<&str>) -> Result<(), String> {
+    let mut args: Vec<&str> = vec!["new-session", "-d", "-s", name];
+    let env;
+    if let Some(p) = session_path() {
+        env = format!("PATH={p}");
+        args.push("-e");
+        args.push(&env);
+    }
+    if let Some(dir) = cwd {
+        args.push("-c");
+        args.push(dir);
+    }
+    if let Some(c) = cmd {
+        args.push(c);
+    }
+    let st = Command::new("tmux")
+        .args(&args)
+        .status()
+        .map_err(|e| format!("tmux new-session: {e}"))?;
+    if !st.success() {
+        return Err("tmux new-session failed".to_string());
+    }
+    Ok(())
+}
+
 /// Create a fresh detached shell session with the lowest free index. An optional
 /// `cwd` starts the shell in that directory (used by Worktrees' "Open shell" to
 /// drop into a worktree); omitted, it starts wherever tmux defaults.
@@ -201,18 +243,7 @@ pub fn create_shell(root: String, cwd: Option<String>) -> Result<Session, String
         n += 1;
     }
     let name = format!("{PREFIX}shell-{n}");
-    let mut args = vec!["new-session", "-d", "-s", &name];
-    if let Some(dir) = cwd.as_deref() {
-        args.push("-c");
-        args.push(dir);
-    }
-    let st = Command::new("tmux")
-        .args(&args)
-        .status()
-        .map_err(|e| format!("tmux new-session: {e}"))?;
-    if !st.success() {
-        return Err("tmux new-session failed".to_string());
-    }
+    new_session(&name, cwd.as_deref(), None)?;
     enable_mouse(&name);
     // Scope the shell to the workspace it was opened from (read back by list_sessions).
     let _ = Command::new("tmux")
@@ -262,13 +293,7 @@ pub fn spawn_agent(root: String, ticket: String, role: String) -> Result<Session
         "{PREFIX}agent-{started}-{}",
         SEQ.fetch_add(1, Ordering::Relaxed)
     );
-    let st = Command::new("tmux")
-        .args(["new-session", "-d", "-s", &name, &cmd])
-        .status()
-        .map_err(|e| format!("tmux new-session: {e}"))?;
-    if !st.success() {
-        return Err("tmux new-session failed".to_string());
-    }
+    new_session(&name, None, Some(&cmd))?;
     // Keep the pane after the agent process exits, so its exit status survives
     // for the status heuristic (alive→working/idle, exited 0→awaiting-finish,
     // exited non-zero→crashed). Without this the session would just vanish.
@@ -331,13 +356,7 @@ pub fn spawn_idea(root: String, skill: String, seed: String) -> Result<Session, 
         "{PREFIX}idea-{started}-{}",
         SEQ.fetch_add(1, Ordering::Relaxed)
     );
-    let st = Command::new("tmux")
-        .args(["new-session", "-d", "-s", &name, &cmd])
-        .status()
-        .map_err(|e| format!("tmux new-session: {e}"))?;
-    if !st.success() {
-        return Err("tmux new-session failed".to_string());
-    }
+    new_session(&name, None, Some(&cmd))?;
     let _ = Command::new("tmux")
         .args(["set-option", "-w", "-t", &name, "remain-on-exit", "on"])
         .status();
@@ -404,13 +423,7 @@ pub fn spawn_resolver(root: String, ticket: String, worktree: String) -> Result<
         "{PREFIX}agent-{started}-{}",
         SEQ.fetch_add(1, Ordering::Relaxed)
     );
-    let st = Command::new("tmux")
-        .args(["new-session", "-d", "-s", &name, &cmd])
-        .status()
-        .map_err(|e| format!("tmux new-session: {e}"))?;
-    if !st.success() {
-        return Err("tmux new-session failed".to_string());
-    }
+    new_session(&name, None, Some(&cmd))?;
     let _ = Command::new("tmux")
         .args(["set-option", "-w", "-t", &name, "remain-on-exit", "on"])
         .status();

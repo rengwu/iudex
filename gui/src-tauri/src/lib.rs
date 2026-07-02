@@ -28,15 +28,100 @@ fn iudex_bin_override() -> &'static Mutex<Option<String>> {
     OVERRIDE.get_or_init(|| Mutex::new(None))
 }
 
-/// The iudex binary to invoke: the saved override if set, else $IUDEX_BIN, else
-/// `iudex` from PATH.
+/// The iudex binary to invoke: the saved override if set, else `fallback_bin`.
 pub(crate) fn iudex_bin() -> String {
     if let Some(p) = iudex_bin_override().lock().unwrap().clone() {
         if !p.is_empty() {
             return p;
         }
     }
-    std::env::var("IUDEX_BIN").unwrap_or_else(|_| "iudex".to_string())
+    fallback_bin()
+}
+
+/// Resolution below the saved override: $IUDEX_BIN, then the CLI bundled with
+/// the app, then its managed copy, then `iudex` from PATH. The bundled tiers
+/// sit *above* PATH so a packaged GUI always runs the CLI it was released and
+/// tested with; a user who wants a different binary states so explicitly (saved
+/// path or env), which wins.
+fn fallback_bin() -> String {
+    if let Ok(v) = std::env::var("IUDEX_BIN") {
+        return v;
+    }
+    if let Some(b) = bundled_cli() {
+        return b.to_string();
+    }
+    if let Some(m) = managed_cli().filter(|p| p.is_file()) {
+        return m.to_string_lossy().into_owned();
+    }
+    "iudex".to_string()
+}
+
+/// The CLI bundled next to the GUI executable (Tauri's externalBin places it
+/// there). Named `iudex-cli` because the GUI executable in the same directory
+/// is itself named `iudex`. None when running unbundled (plain cargo runs).
+fn bundled_cli() -> Option<&'static str> {
+    static BUNDLED: OnceLock<Option<String>> = OnceLock::new();
+    BUNDLED
+        .get_or_init(|| {
+            let exe = std::env::current_exe().ok()?;
+            let p = exe.parent()?.join("iudex-cli");
+            p.is_file().then(|| p.to_string_lossy().into_owned())
+        })
+        .as_deref()
+}
+
+/// The managed copy of the bundled CLI at ~/.iudex/bin/iudex, refreshed at
+/// startup by `sync_managed_cli`. It exists so processes *outside* the GUI can
+/// run `iudex` by name: tmux sessions get its dir prepended to PATH (agents
+/// call `iudex finish`/`iudex qa` themselves) and the Settings "Install CLI"
+/// symlink points at it. A copy rather than a symlink into the .app because
+/// Gatekeeper translocation randomizes an unsigned bundle's path per launch and
+/// AppImages mount read-only.
+fn managed_cli() -> Option<PathBuf> {
+    let home = std::env::var_os("HOME")?;
+    Some(PathBuf::from(home).join(".iudex").join("bin").join("iudex"))
+}
+
+/// Refresh the managed copy from the bundled CLI when it is missing or reports
+/// a different version. Copy-to-temp + rename, so an agent mid-run never sees a
+/// truncated binary. Best-effort: the GUI itself uses the bundled path
+/// directly, so a failure here only degrades the outside-the-GUI conveniences.
+fn sync_managed_cli() {
+    let Some(bundled) = bundled_cli() else { return };
+    let Some(dest) = managed_cli() else { return };
+    if dest.is_file() {
+        let same = match (iudex_version(bundled), iudex_version(&dest.to_string_lossy())) {
+            (Ok(a), Ok(b)) => a == b,
+            _ => false,
+        };
+        if same {
+            return;
+        }
+    }
+    let res = (|| -> std::io::Result<()> {
+        let dir = dest.parent().expect("managed cli path has a parent");
+        std::fs::create_dir_all(dir)?;
+        let tmp = dir.join(".iudex.new");
+        std::fs::copy(bundled, &tmp)?;
+        std::fs::rename(&tmp, &dest)
+    })();
+    if let Err(e) = res {
+        eprintln!("iudex: cannot sync bundled CLI to {}: {e}", dest.display());
+    }
+}
+
+/// The PATH prepend for tmux sessions — the managed CLI's directory — but only
+/// while the GUI itself resolves to the bundled/managed binary. Agents inside
+/// sessions run bare `iudex`, so a zero-setup install needs the injection; a
+/// user who overrode the binary (saved path / $IUDEX_BIN) has their own PATH
+/// story and must not be shadowed by the bundle.
+pub(crate) fn session_path_prepend() -> Option<String> {
+    let effective = iudex_bin();
+    let managed = managed_cli()?;
+    let active = bundled_cli() == Some(effective.as_str())
+        || managed.to_string_lossy() == effective.as_str();
+    (active && managed.is_file())
+        .then(|| managed.parent().unwrap().to_string_lossy().into_owned())
 }
 
 /// ~/.iudex/config.yml — the single per-user config file. It holds the
@@ -224,17 +309,112 @@ fn require_command(bin: &str, name: &str) -> Result<(), String> {
 struct IudexSettings {
     saved_path: String,
     env_bin: Option<String>,
+    /// True when resolution falls through to the CLI bundled with the app
+    /// (no saved path, no $IUDEX_BIN, a bundled/managed binary present).
+    bundled: bool,
     resolved: Result<String, String>,
 }
 
 #[tauri::command]
 fn get_iudex_settings(app: AppHandle) -> IudexSettings {
     let saved_path = read_iudex_bin(&app);
+    let env_bin = std::env::var("IUDEX_BIN").ok();
+    let bundled = saved_path.is_empty()
+        && env_bin.is_none()
+        && (bundled_cli().is_some() || managed_cli().is_some_and(|p| p.is_file()));
     IudexSettings {
         saved_path,
-        env_bin: std::env::var("IUDEX_BIN").ok(),
+        env_bin,
+        bundled,
         resolved: check_iudex(),
     }
+}
+
+/// What the Settings CLI tab's "bundled CLI" section renders. `bundled_version`
+/// None means the app is running unbundled — the section hides itself.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CliInstallStatus {
+    bundled_version: Option<String>,
+    installed_path: Option<String>,
+    installed_version: Option<String>,
+    bin_dir_on_path: bool,
+}
+
+/// ~/.local/bin/iudex — where "Install CLI" links the binary for the user's own
+/// terminal (the XDG-conventional per-user bin dir; no sudo needed).
+fn local_bin_iudex() -> Option<PathBuf> {
+    let home = std::env::var_os("HOME")?;
+    Some(PathBuf::from(home).join(".local").join("bin").join("iudex"))
+}
+
+/// The user's PATH as their login shell sees it. The GUI's own env is often
+/// narrower (Finder launches don't source shell rc files), which would make
+/// the "is ~/.local/bin on your PATH" hint cry wolf.
+fn login_shell_path() -> String {
+    if let Ok(shell) = std::env::var("SHELL") {
+        if let Ok(out) = Command::new(&shell)
+            .args(["-lc", "printf %s \"$PATH\""])
+            .output()
+        {
+            if out.status.success() {
+                let p = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                if !p.is_empty() {
+                    return p;
+                }
+            }
+        }
+    }
+    std::env::var("PATH").unwrap_or_default()
+}
+
+#[tauri::command]
+fn cli_install_status() -> CliInstallStatus {
+    let bundled_version = bundled_cli().and_then(|b| iudex_version(b).ok());
+    let installed = local_bin_iudex().filter(|p| p.exists());
+    let installed_version = installed
+        .as_ref()
+        .and_then(|p| iudex_version(&p.to_string_lossy()).ok());
+    let bin_dir_on_path = local_bin_iudex()
+        .and_then(|p| p.parent().map(PathBuf::from))
+        .is_some_and(|dir| login_shell_path().split(':').any(|d| Path::new(d) == dir));
+    CliInstallStatus {
+        bundled_version,
+        installed_path: installed.map(|p| p.display().to_string()),
+        installed_version,
+        bin_dir_on_path,
+    }
+}
+
+/// Install the CLI for the user's own terminal: symlink ~/.local/bin/iudex →
+/// ~/.iudex/bin/iudex. The link targets the managed copy (stable across app
+/// updates and moves), never the .app bundle. Replaces an existing symlink;
+/// refuses to clobber a real file (that's a user-installed iudex — their call).
+#[tauri::command]
+fn install_cli() -> Result<String, String> {
+    sync_managed_cli();
+    let managed = managed_cli().ok_or("cannot resolve your home directory")?;
+    if !managed.is_file() {
+        return Err("no bundled CLI to install (is the app running unbundled?)".to_string());
+    }
+    let dest = local_bin_iudex().ok_or("cannot resolve your home directory")?;
+    let dir = dest.parent().expect("install path has a parent");
+    std::fs::create_dir_all(dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
+    match std::fs::symlink_metadata(&dest) {
+        Ok(md) if md.file_type().is_symlink() => {
+            std::fs::remove_file(&dest).map_err(|e| format!("replace {}: {e}", dest.display()))?;
+        }
+        Ok(_) => {
+            return Err(format!(
+                "{} already exists and is not a symlink — remove it first if you want the bundled CLI there",
+                dest.display()
+            ));
+        }
+        Err(_) => {}
+    }
+    std::os::unix::fs::symlink(&managed, &dest)
+        .map_err(|e| format!("symlink {}: {e}", dest.display()))?;
+    Ok(dest.display().to_string())
 }
 
 /// Persist the user's iudex binary path. A non-empty path is validated first and
@@ -245,8 +425,9 @@ fn get_iudex_settings(app: AppHandle) -> IudexSettings {
 fn set_iudex_bin(app: AppHandle, path: String) -> Result<String, String> {
     let path = path.trim().to_string();
     let resolved = if path.is_empty() {
-        // Cleared: validate whatever env/PATH now resolves to, for feedback.
-        iudex_version(&std::env::var("IUDEX_BIN").unwrap_or_else(|_| "iudex".to_string()))
+        // Cleared: validate whatever the fallback chain (env → bundled →
+        // managed → PATH) now resolves to, for feedback.
+        iudex_version(&fallback_bin())
     } else {
         iudex_version(&path)
     }?;
@@ -1896,12 +2077,17 @@ pub fn run() {
         .setup(|app| {
             // Load the saved iudex binary path before any command can run.
             load_iudex_override(app.handle());
+            // Keep ~/.iudex/bin/iudex current with the bundled CLI (tmux
+            // sessions and the Install-CLI symlink resolve through it).
+            sync_managed_cli();
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             check_iudex,
             get_iudex_settings,
             set_iudex_bin,
+            cli_install_status,
+            install_cli,
             get_kill_pool_on_exit,
             set_kill_pool_on_exit,
             discover_workspace,

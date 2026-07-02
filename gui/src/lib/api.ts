@@ -27,10 +27,18 @@ import type {
 // Command return shapes that aren't reused elsewhere (so they live here, not in
 // types.ts).
 export type SessionStatus = { dead: boolean; exitCode: number | null };
+// `resolved` is a Rust Result<String,String>: {Ok: …} | {Err: …}.
 export type IudexSettings = {
   savedPath: string;
   envBin: string | null;
+  bundled: boolean;
   resolved: { Ok: string } | { Err: string };
+};
+export type CliInstallStatus = {
+  bundledVersion: string | null; // null → running unbundled; hide the section
+  installedPath: string | null; // ~/.local/bin/iudex when present
+  installedVersion: string | null;
+  binDirOnPath: boolean;
 };
 export type BriefTitle = { worktree: string; title: string };
 export type TicketTitle = { id: string; title: string };
@@ -70,6 +78,10 @@ export const readPrd = (root: string, file: string) =>
   invoke<string>("read_prd", { root, file });
 export const getIudexSettings = () => invoke<IudexSettings>("get_iudex_settings");
 export const setIudexBin = (path: string) => invoke<string>("set_iudex_bin", { path });
+// The CLI bundled inside the app: install status + the ~/.local/bin symlink.
+export const cliInstallStatus = () =>
+  invoke<CliInstallStatus>("cli_install_status");
+export const installCli = () => invoke<string>("install_cli");
 // GUI behavior pref (machine-level, ~/.iudex/config.yml): kill the tmux pool on
 // full app exit. Default true; off keeps agents/shells detached across a quit.
 export const getKillPoolOnExit = () => invoke<boolean>("get_kill_pool_on_exit");

@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.rengwu.iudex",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "pnpm build:cli && pnpm dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "pnpm build:cli && pnpm build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -27,6 +27,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "externalBin": ["binaries/iudex-cli"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

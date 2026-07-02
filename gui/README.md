@@ -23,22 +23,50 @@ the CLI deliberately never does.
 
 - **Rust** (`cargo`) — Tauri's backend toolchain.
 - **Node + pnpm** — the frontend uses pnpm.
-- **tmux** — backs the terminal/agent session pool (the Terminal and Agents
-  views degrade to a hint without it).
-- A built **`iudex`** binary on `PATH`, or pointed at via `$IUDEX_BIN`.
+- **Go 1.22+** — the iudex CLI is compiled into the bundle as a sidecar
+  (`scripts/build-cli.mjs`, run automatically before dev/build).
+- **tmux ≥ 3.2** — backs the terminal/agent session pool (the Terminal and
+  Agents views degrade to a hint without it).
 
 ## Run
 
 ```bash
 cd gui
 pnpm install
-# point the GUI at your iudex binary; the first cargo build is slow, then cached
-IUDEX_BIN=/path/to/iudex pnpm tauri dev
+pnpm tauri dev   # the first cargo build is slow, then cached
 ```
 
 The window opens with a path field — enter any iudex workspace and click **Open**
-(opening a folder with no workspace offers to `iudex init` it). Build a release
-bundle with `pnpm tauri build`.
+(opening a folder with no workspace offers to `iudex init` it).
+
+## The bundled CLI (packaging)
+
+The app ships with the iudex CLI baked in, so a packaged install needs no
+separate `iudex` setup. `scripts/build-cli.mjs` compiles the Go CLI from the
+repo root into `src-tauri/binaries/iudex-cli-<triple>` (Tauri `externalBin`),
+stamping `iudex --version` from `tauri.conf.json` — the single version source
+for a release. `iudex-cli` because the GUI executable in the same bundle dir is
+itself named `iudex`.
+
+Binary resolution, highest tier wins: the saved path from Settings →
+`$IUDEX_BIN` → the bundled CLI → its managed copy → `iudex` on PATH. The
+bundled tiers sit above PATH so a packaged GUI always runs the CLI it was
+released with; an explicit override still wins.
+
+At startup the app refreshes a **managed copy** at `~/.iudex/bin/iudex` (a
+copy, not a symlink — unsigned bundles get path-randomized by Gatekeeper
+translocation and AppImages mount read-only). That copy is what lets things
+*outside* the GUI process run `iudex`:
+
+- **tmux sessions** get `~/.iudex/bin` prepended to `PATH` (agents run
+  `iudex finish` / `iudex qa` themselves) — but only while the GUI resolves to
+  the bundled CLI, so a user's own binary is never shadowed;
+- **Settings → CLI → Install CLI command** symlinks
+  `~/.local/bin/iudex → ~/.iudex/bin/iudex` for the user's own terminal.
+
+Release builds: `scripts/release-macos.sh` for a local unsigned macOS bundle;
+`.github/workflows/release.yml` (tag-triggered) builds macOS arm64 + Linux
+x86_64 bundles plus standalone CLI binaries into a draft GitHub release.
 
 ## The seven views
 
