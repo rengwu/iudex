@@ -125,10 +125,16 @@
 }
 
 .toggles {
-  padding: 5px 11px;
+  padding: 8px 11px 9px;
   display: flex;
   flex-direction: column;
   gap: 3px;
+}
+.togglesTitle {
+  font-size: 10px;
+  color: t.$text-meta;
+  letter-spacing: 0.08em;
+  margin-bottom: 3px;
 }
 .toggleRow {
   display: flex;
@@ -141,6 +147,60 @@
 }
 // The toggle switch itself now lives in the shared <Toggle> component
 // (components/Toggle.module.scss); the rows above only do layout.
+
+// ── Concurrency mode (policy) ────────────────────────────────────────────────
+// Set apart from the Auto-* engine toggles by its own top-bordered block: a
+// two-segment Parallel|Sequential switch + a hint spelling out the active mode,
+// so "off" is never left to interpretation.
+.mode {
+  padding: 8px 11px 9px;
+  border-top: 1px solid #1a1a1a;
+}
+.modeTitle {
+  font-size: 10px;
+  color: t.$text-meta;
+  letter-spacing: 0.08em;
+  margin-bottom: 5px;
+}
+.segmented {
+  display: flex;
+  border: 1px solid t.$divider-chrome;
+}
+.segment {
+  flex: 1;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: t.$text-meta;
+  font-family: t.$font-ui;
+  font-size: 10.5px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+
+  & + & {
+    border-left: 1px solid t.$divider-chrome;
+  }
+  &:hover:not(.segOn) {
+    color: t.$text-light;
+  }
+  &.segOn {
+    background: t.$amber;
+    color: #2a2a2a;
+    font-weight: 600;
+    cursor: default;
+  }
+}
+.modeHint {
+  margin-top: 5px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: t.$text-meta;
+}
 
 .sysinfo {
   padding: 9px 11px;
@@ -173,4 +233,13 @@
   &.on {
     background: t.$mint;
   }
+}
+
+// Auto-Resolve row status suffix: dim while an agent is working, amber when
+// the line is parked on the human (flagged files / crashed resolver).
+.resolveBusy {
+  color: t.$text-meta;
+}
+.resolveParked {
+  color: #f4bc41;
 }

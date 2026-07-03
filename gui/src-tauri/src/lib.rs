@@ -2095,6 +2095,45 @@ fn watch_workspace(
     Ok(())
 }
 
+/// Set once the user confirms the quit prompt, so the follow-up `app.exit(0)`
+/// (which re-enters ExitRequested) is allowed straight through instead of
+/// re-prompting into a loop.
+static EXIT_CONFIRMED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Payload for the `quit-requested` event: how many live sessions the quit
+/// would tear down, so the frontend modal can name the stakes.
+#[derive(Clone, serde::Serialize)]
+struct QuitGuard {
+    agents: u32,
+    shells: u32,
+}
+
+/// The quit guard only fires when quitting would actually destroy work: the
+/// kill-pool-on-exit pref is on AND the pool has live sessions. Returns the
+/// counts to prompt with, or None to let the quit proceed unguarded (already
+/// confirmed, pool kept detached, or nothing running).
+fn quit_would_kill_sessions(app: &AppHandle) -> Option<QuitGuard> {
+    if EXIT_CONFIRMED.load(std::sync::atomic::Ordering::SeqCst) {
+        return None;
+    }
+    if !read_kill_pool_on_exit(app) {
+        return None;
+    }
+    let (agents, shells) = tmux::pool_summary();
+    if agents + shells == 0 {
+        return None;
+    }
+    Some(QuitGuard { agents, shells })
+}
+
+/// Frontend calls this when the user confirms the quit prompt: mark confirmed
+/// and exit for real (which runs the RunEvent::Exit pool teardown).
+#[tauri::command]
+fn confirm_quit(app: AppHandle) {
+    EXIT_CONFIRMED.store(true, std::sync::atomic::Ordering::SeqCst);
+    app.exit(0);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -2102,6 +2141,17 @@ pub fn run() {
         .manage(tmux::PtyState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        // Window close button (and Cmd+W): if quitting would tear down live
+        // sessions, veto the close and hand off to the frontend confirm modal.
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let app = window.app_handle();
+                if let Some(guard) = quit_would_kill_sessions(app) {
+                    api.prevent_close();
+                    let _ = app.emit("quit-requested", guard);
+                }
+            }
+        })
         .setup(|app| {
             // Load the saved iudex binary path before any command can run.
             load_iudex_override(app.handle());
@@ -2118,6 +2168,7 @@ pub fn run() {
             install_cli,
             get_kill_pool_on_exit,
             set_kill_pool_on_exit,
+            confirm_quit,
             get_sequential,
             set_sequential,
             discover_workspace,
@@ -2176,17 +2227,27 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|app, event| {
+        .run(|app, event| match event {
+            // Cmd+Q / menu-Quit: same guard as the close button. Veto the exit
+            // and prompt via the frontend; confirm_quit re-enters here with
+            // EXIT_CONFIRMED set, so the guard returns None and the quit lands.
+            tauri::RunEvent::ExitRequested { api, .. } => {
+                if let Some(guard) = quit_would_kill_sessions(app) {
+                    api.prevent_exit();
+                    let _ = app.emit("quit-requested", guard);
+                }
+            }
             // On full quit, tear down the whole iudex tmux pool unless the user
             // opted to keep agents/shells running detached (gui_kill_pool_on_exit,
             // default on). Workspace switches never reach here, so those sessions
             // keep running and reappear on return regardless. See Decision #2 in
             // .context/prd/gui-ux-fixes.md.
-            if let tauri::RunEvent::Exit = event {
+            tauri::RunEvent::Exit => {
                 if read_kill_pool_on_exit(app) {
                     tmux::kill_pool();
                 }
             }
+            _ => {}
         });
 }
 

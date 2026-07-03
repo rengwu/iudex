@@ -544,6 +544,21 @@ pub fn kill_session(name: String) -> Result<(), String> {
 /// running and reappear when you return. Best-effort: a missing tmux server just
 /// means an empty pool, so failures are ignored. (Pool is machine-level, so this
 /// also stops any other GUI instance's sessions — fine under a single instance.)
+/// Live-session counts for the quit guard: (agents, shells). Agents and
+/// idea-shaping agents are grouped as "agents"; ad-hoc shells counted apart.
+/// The whole pool, machine-wide, since `kill_pool` tears down all of it.
+pub fn pool_summary() -> (u32, u32) {
+    let mut agents = 0u32;
+    let mut shells = 0u32;
+    for s in list_all().unwrap_or_default() {
+        match s.kind.as_str() {
+            "shell" => shells += 1,
+            _ => agents += 1, // "agent" | "idea"
+        }
+    }
+    (agents, shells)
+}
+
 pub fn kill_pool() {
     let out = match Command::new("tmux")
         .args(["list-sessions", "-F", "#{session_name}"])

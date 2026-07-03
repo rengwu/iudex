@@ -82,8 +82,11 @@ x86_64 bundles plus standalone CLI binaries into a draft GitHub release.
 
 The sidebar transport drives the opt-in automation engine (Auto-Activate —
 which also respawns impl agents for tickets QA/human-rejected back to `active`
-— Auto-QA, Auto-Retire; all session-only so an app launch never silently
-spends tokens) plus **Sequential**: a persisted per-workspace policy
+— Auto-QA, Auto-Retire, and Auto-Resolve — pre-resolves merge conflicts on
+the first review-ready ticket, one at a time, parking on flagged files for
+the human; armed individually, never by ▶; all session-only so an app launch
+never silently spends tokens) plus **Sequential**: a persisted per-workspace
+policy
 (`gui_sequential` in `.iudex/config.yml`) that allows at most one ticket in
 flight and hard-blocks GUI activation past it, engine on or off. Design:
 [`.context/prd/sequential-mode.md`](../.context/prd/sequential-mode.md).

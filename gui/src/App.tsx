@@ -70,10 +70,13 @@ export default function App() {
     autoActivate,
     autoQA,
     autoRetire,
+    autoResolve,
+    resolveStatus,
     sequential,
     toggleAutoActivate,
     toggleAutoQA,
     toggleAutoRetire,
+    toggleAutoResolve,
     toggleSequential,
   } = useAutomation(root, ws, sessions, load, setError);
 
@@ -190,10 +193,13 @@ export default function App() {
                 autoActivate,
                 autoQA,
                 autoRetire,
+                autoResolve,
+                resolveStatus,
                 sequential,
                 toggleAutoActivate,
                 toggleAutoQA,
                 toggleAutoRetire,
+                toggleAutoResolve,
                 toggleSequential,
               }}
             />

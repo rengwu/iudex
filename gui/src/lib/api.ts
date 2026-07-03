@@ -87,6 +87,9 @@ export const installCli = () => invoke<string>("install_cli");
 export const getKillPoolOnExit = () => invoke<boolean>("get_kill_pool_on_exit");
 export const setKillPoolOnExit = (value: boolean) =>
   invoke<void>("set_kill_pool_on_exit", { value });
+// Quit guard: the backend vetoes a close/quit that would tear down live
+// sessions and emits `quit-requested`; this confirms and exits for real.
+export const confirmQuit = () => invoke<void>("confirm_quit");
 // Sequential mode (workspace policy, persisted in .iudex/config.yml as a
 // gui_* key the CLI ignores): at most one ticket in flight.
 export const getSequential = (root: string) =>

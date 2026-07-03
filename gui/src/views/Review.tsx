@@ -168,6 +168,15 @@ export default function Review({ ws, root }: { ws: Workspace; root: string }) {
   const reject = (reason: string) =>
     act(async () => {
       if (!selId) return;
+      // A reject sends the ticket back to active — where an impl agent (auto-
+      // respawned or human-launched) will work in this worktree. A resolution
+      // merge left in progress (MERGE_HEAD + conflict markers) would poison
+      // that, so abort it first; a rejected ticket is being re-implemented
+      // anyway, which makes the stale resolution worthless.
+      if (worktree) {
+        const res = await api.readResolution(worktree).catch(() => null);
+        if (res?.mergeInProgress) await api.abortResolution(worktree);
+      }
       await api.runIudex(root, [
         "human-qa",
         "reject",

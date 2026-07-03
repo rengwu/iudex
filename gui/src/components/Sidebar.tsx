@@ -5,6 +5,7 @@ import {
   type Workspace,
   type Session,
 } from "../types";
+import type { ResolveStatus } from "../lib/automation";
 import SectionHeader from "./SectionHeader";
 import Toggle from "./Toggle";
 import s from "./Sidebar.module.scss";
@@ -13,10 +14,13 @@ type Automation = {
   autoActivate: boolean;
   autoQA: boolean;
   autoRetire: boolean;
+  autoResolve: boolean;
+  resolveStatus: ResolveStatus | null;
   sequential: boolean;
   toggleAutoActivate: (v: boolean) => void;
   toggleAutoQA: (v: boolean) => void;
   toggleAutoRetire: (v: boolean) => void;
+  toggleAutoResolve: (v: boolean) => void;
   toggleSequential: (v: boolean) => void;
 };
 
@@ -106,7 +110,7 @@ export default function Sidebar({
 
       <div className={s.railBottom}>
         <PipelineSummary pipeline={pipeline} />
-        <TransportControls automation={automation} />
+        <TransportControls automation={automation} maxActive={ws.maxActive} />
         <SysInfo
           mainBranch={ws.mainBranch}
           activeCount={activeCount}
@@ -139,15 +143,24 @@ function PipelineSummary({
   );
 }
 
-function TransportControls({ automation }: { automation: Automation }) {
+function TransportControls({
+  automation,
+  maxActive,
+}: {
+  automation: Automation;
+  maxActive: number;
+}) {
   const {
     autoActivate,
     autoQA,
     autoRetire,
+    autoResolve,
+    resolveStatus,
     sequential,
     toggleAutoActivate,
     toggleAutoQA,
     toggleAutoRetire,
+    toggleAutoResolve,
     toggleSequential,
   } = automation;
   const allOn = autoActivate && autoQA && autoRetire;
@@ -179,6 +192,7 @@ function TransportControls({ automation }: { automation: Automation }) {
         </span>
       </div>
       <div className={s.toggles}>
+        <div className={s.togglesTitle}>AUTOMATION</div>
         <div className={s.toggleRow}>
           <span className={s.toggleLabel}>Auto-Activate</span>
           <Toggle checked={autoActivate} onChange={toggleAutoActivate} />
@@ -191,16 +205,86 @@ function TransportControls({ automation }: { automation: Automation }) {
           <span className={s.toggleLabel}>Auto-Retire</span>
           <Toggle checked={autoRetire} onChange={toggleAutoRetire} />
         </div>
-        {/* Policy, not engine: persisted per workspace, in force even with the
-            engine stopped, untouched by the play/stop buttons. */}
+        {/* Deliberately NOT armed by ▶ — the one toggle that spends tokens
+            with no human click between qa-approve and review; arming it is
+            its own explicit act. The row doubles as status: a parked line
+            (flagged/crashed = your turn) is visible from every view. */}
         <div
           className={s.toggleRow}
-          title="At most one ticket in flight (active / QA / your review). Persisted for this workspace; applies to manual activation too."
+          title="Spawns a conflict-resolution agent when a review-ready ticket can't merge cleanly; up to one more run each time main moves. One at a time; flagged files park it for you. Not armed by ▶."
         >
-          <span className={s.toggleLabel}>Sequential</span>
-          <Toggle checked={sequential} onChange={toggleSequential} />
+          <span className={s.toggleLabel}>
+            Auto-Resolve
+            {resolveStatus && (
+              <span
+                className={
+                  resolveStatus.phase === "resolving"
+                    ? s.resolveBusy
+                    : s.resolveParked
+                }
+              >
+                {" "}
+                · {resolveStatus.ticket}{" "}
+                {resolveStatus.phase === "resolving"
+                  ? "…"
+                  : resolveStatus.phase}
+              </span>
+            )}
+          </span>
+          <Toggle checked={autoResolve} onChange={toggleAutoResolve} />
         </div>
       </div>
+      <ModeSwitch
+        sequential={sequential}
+        onChange={toggleSequential}
+        maxActive={maxActive}
+      />
+    </div>
+  );
+}
+
+// The concurrency POLICY — not part of the automation engine above (persisted
+// per workspace, in force even when the engine is stopped, and it governs
+// manual activation too). Framed as an explicit Parallel|Sequential mode switch
+// rather than a lone "Sequential" toggle, whose "off" state read as ambiguous.
+function ModeSwitch({
+  sequential,
+  onChange,
+  maxActive,
+}: {
+  sequential: boolean;
+  onChange: (v: boolean) => void;
+  maxActive: number;
+}) {
+  const hint = sequential
+    ? "One ticket in flight at a time."
+    : maxActive > 0
+      ? `Up to ${maxActive} tickets in flight at once.`
+      : "Multiple tickets in flight at once.";
+  return (
+    <div className={s.mode}>
+      <div className={s.modeTitle}>MODE</div>
+      <div className={s.segmented} role="radiogroup" aria-label="Concurrency mode">
+        <button
+          type="button"
+          role="radio"
+          aria-checked={!sequential}
+          className={`${s.segment} ${!sequential ? s.segOn : ""}`}
+          onClick={() => onChange(false)}
+        >
+          Parallel
+        </button>
+        <button
+          type="button"
+          role="radio"
+          aria-checked={sequential}
+          className={`${s.segment} ${sequential ? s.segOn : ""}`}
+          onClick={() => onChange(true)}
+        >
+          Sequential
+        </button>
+      </div>
+      <div className={s.modeHint}>{hint}</div>
     </div>
   );
 }

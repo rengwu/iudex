@@ -42,6 +42,13 @@ export function useAutomation(
   const sequentialRef = useRef(false);
   const implDrainingRef = useRef(false);
   const implHandledRef = useRef<Set<string>>(new Set()); // active ids whose impl spawn was issued this episode
+  const [autoResolve, setAutoResolve] = useState(false);
+  const autoResolveRef = useRef(false);
+  const resolveDrainingRef = useRef(false);
+  const resolveHandledRef = useRef<Set<string>>(new Set()); // pending-human-qa ids resolved this episode
+  const autoBegunRef = useRef<Set<string>>(new Set()); // merges *we* began (vs the human's — hands off those)
+  const doneCountRef = useRef(-1); // detects merges: done-count change ⇒ main moved ⇒ new episode
+  const [resolveStatus, setResolveStatus] = useState<ResolveStatus | null>(null);
 
   // Sequential is persisted per workspace — load it whenever the root changes
   // (unlike the engine toggles below, which deliberately reset to off).
@@ -85,11 +92,17 @@ export function useAutomation(
     qaHandledRef.current.clear();
     implHandledRef.current.clear();
     retiredRef.current.clear();
+    resolveHandledRef.current.clear();
+    autoBegunRef.current.clear();
+    doneCountRef.current = -1;
     autoActivateRef.current = false;
     autoQARef.current = false;
+    autoResolveRef.current = false;
     setAutoActivate(false);
     setAutoQA(false);
     setAutoRetire(false);
+    setAutoResolve(false);
+    setResolveStatus(null);
   }, [root]);
 
   const toggleAutoActivate = useCallback((v: boolean) => {
@@ -108,6 +121,13 @@ export function useAutomation(
   const toggleAutoRetire = useCallback((v: boolean) => {
     retiredRef.current.clear();
     setAutoRetire(v);
+  }, []);
+
+  const toggleAutoResolve = useCallback((v: boolean) => {
+    autoResolveRef.current = v;
+    resolveHandledRef.current.clear();
+    setResolveStatus(null);
+    setAutoResolve(v);
   }, []);
 
   // Auto-activate: while on, activate the first ready ticket (registration
@@ -268,6 +288,107 @@ export function useAutomation(
     })();
   }, [autoQA, root, ws, sessions, onError]);
 
+  // Auto-resolve: keep the front of the review queue mergeable. Candidate =
+  // the FIRST pending-human-qa ticket (registration order) whose preflight
+  // predicts conflicts — clean ones are skipped past. Strictly one resolution
+  // at a time: while the candidate is being resolved or is parked (flagged /
+  // crashed / the human's own merge), no other ticket is touched. Episode
+  // guards clear whenever the done-count changes (a sibling merged ⇒ main
+  // moved ⇒ the next *incremental* pass may fire). Full design:
+  // .context/prd/auto-resolve.md.
+  useEffect(() => {
+    if (!root || !ws) return;
+    // Track merges even while the toggle is off, so arming it mid-session
+    // starts from the current episode rather than a stale one.
+    const done = ws.tickets.filter((t) => t.state === "done").length;
+    if (done !== doneCountRef.current) {
+      doneCountRef.current = done;
+      resolveHandledRef.current.clear();
+    }
+    if (!autoResolve || resolveDrainingRef.current) return;
+    const candidates = ws.tickets.filter(
+      (t) => t.state === "pending-human-qa" && t.worktree,
+    );
+    if (candidates.length === 0) {
+      setResolveStatus(null);
+      return;
+    }
+    resolveDrainingRef.current = true;
+    (async () => {
+      let status: ResolveStatus | null = null;
+      try {
+        for (const t of candidates) {
+          if (!autoResolveRef.current) break;
+          const wt = t.worktree!;
+
+          // Resolver session state for this ticket (fresh probe, like auto-QA).
+          const resolveSessions = sessions.filter(
+            (s) => s.kind === "agent" && s.role === "resolve" && s.ticket === t.id,
+          );
+          let live = false;
+          let crashed = false;
+          for (const sx of resolveSessions) {
+            try {
+              const st = await api.sessionStatus(sx.name);
+              if (!st.dead) {
+                live = true;
+                break;
+              }
+              if (st.exitCode !== null && st.exitCode !== 0) crashed = true;
+            } catch {
+              // unknown → treat as not-live
+            }
+          }
+
+          const res = await api.readResolution(wt);
+          if (res.mergeInProgress) {
+            if (live) {
+              status = { ticket: t.id, phase: "resolving" };
+            } else if (crashed) {
+              // Notify-only, like impl crashes: never respawn into a merge a
+              // crashed agent may have half-touched. The line waits for you.
+              status = { ticket: t.id, phase: "crashed" };
+            } else if (res.hasReport && res.flagged.length > 0) {
+              status = { ticket: t.id, phase: "flagged" };
+            } else if (!res.hasReport && !autoBegunRef.current.has(t.id)) {
+              // The human's own merge (manual Begin-resolution / hand-editing):
+              // hands off entirely — and per one-at-a-time, the line waits.
+              status = null;
+            } else {
+              // Our merge with no live agent and no flags (spawn failed, or a
+              // report without a commit): needs a human look.
+              status = { ticket: t.id, phase: "crashed" };
+            }
+            break; // one at a time — never look past an in-progress merge
+          }
+
+          const pf = await api.mergePreflight(root, wt, ws.mainBranch);
+          if (!pf.wouldConflict) continue; // mergeable — not our problem; next
+          if (resolveHandledRef.current.has(t.id)) {
+            // Already ran this episode (e.g. the human aborted our merge —
+            // their call). Wait for the next episode rather than re-spawning.
+            status = null;
+            break;
+          }
+          resolveHandledRef.current.add(t.id);
+          autoBegunRef.current.add(t.id);
+          try {
+            await api.beginResolution(wt, ws.mainBranch);
+            await api.spawnResolver(root, t.id, wt);
+            status = { ticket: t.id, phase: "resolving" };
+          } catch (e) {
+            onError(String(e));
+            status = { ticket: t.id, phase: "crashed" };
+          }
+          break; // strictly one
+        }
+      } finally {
+        resolveDrainingRef.current = false;
+        setResolveStatus(status);
+      }
+    })();
+  }, [autoResolve, root, ws, sessions, onError]);
+
   // Auto-retire: kill agents whose ticket has moved past their role's phase — a
   // clean transition supersedes them (the work is committed, the phase advanced).
   // Derived from ws+sessions alone (no tmux liveness poll), so it fires on the
@@ -298,22 +419,33 @@ export function useAutomation(
   // re-evaluate on a steady cadence (not only on the events doorbell) — freeing
   // slots / newly-queued / newly-pending-qa tickets get picked up.
   useEffect(() => {
-    if (!root || (!autoActivate && !autoQA && !autoRetire)) return;
+    if (!root || (!autoActivate && !autoQA && !autoRetire && !autoResolve))
+      return;
     const h = setInterval(() => load(root), 5000);
     return () => clearInterval(h);
-  }, [autoActivate, autoQA, autoRetire, root, load]);
+  }, [autoActivate, autoQA, autoRetire, autoResolve, root, load]);
 
   return {
     autoActivate,
     autoQA,
     autoRetire,
+    autoResolve,
+    resolveStatus,
     sequential,
     toggleAutoActivate,
     toggleAutoQA,
     toggleAutoRetire,
+    toggleAutoResolve,
     toggleSequential,
   };
 }
+
+// What Auto-Resolve is currently doing / waiting on — rendered on its
+// transport row so a parked line ("your turn") is visible from every view.
+export type ResolveStatus = {
+  ticket: string;
+  phase: "resolving" | "flagged" | "crashed";
+};
 
 // The ticket state in which each agent role is the one doing the work; once the
 // ticket leaves it, that role's agent is superseded. idea agents have no phase
