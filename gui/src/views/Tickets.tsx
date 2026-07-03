@@ -176,6 +176,7 @@ export default function Tickets({
             <TicketBoard
               tickets={visible}
               titles={titles}
+              sessions={sessions}
               maxActive={ws.maxActive}
               selId={selId}
               onSelect={setSelId}

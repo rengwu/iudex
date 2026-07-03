@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { Ticket } from "../types";
+import type { Ticket, Session } from "../types";
 import { stateDot } from "../lib/badges";
 import s from "./TicketBoard.module.scss";
 
@@ -48,18 +48,30 @@ function clipMeta(t: Ticket): string {
 export default function TicketBoard({
   tickets,
   titles,
+  sessions,
   maxActive,
   selId,
   onSelect,
 }: {
   tickets: Ticket[];
   titles: Record<string, string>;
+  sessions: Session[];
   maxActive: number;
   selId: string | null;
   onSelect: (id: string | null) => void;
 }) {
   const byState = (st: string) => tickets.filter((t) => t.state === st);
   const titleOf = (t: Ticket) => titles[t.id] || "";
+
+  // Running-agent indicator (presence-based, matching the rest of the app):
+  // the distinct roles of agent sessions in the pool tagged to this ticket, so
+  // the board shows "an agent is on it" without opening the detail panel.
+  const agentRoles = (t: Ticket): string[] => {
+    const roles = sessions
+      .filter((x) => x.kind === "agent" && x.ticket === t.id)
+      .map((x) => x.role || "agent");
+    return [...new Set(roles)];
+  };
 
   // Scroll the selected card into view: opening the detail panel can clip the
   // clicked card off-screen, so pull it back into the visible area.
@@ -101,6 +113,7 @@ export default function TicketBoard({
             <div key={c.state} className={s.col}>
               {byState(c.state).map((t) => {
                 const meta = clipMeta(t);
+                const roles = agentRoles(t);
                 const sel = t.id === selId;
                 // Selected card: paint the whole clip with the selection color
                 // (matches the nav-row selection language) rather than a border.
@@ -129,6 +142,15 @@ export default function TicketBoard({
                     </div>
                     {titleOf(t) && (
                       <div className={s.cardTitle}>{titleOf(t)}</div>
+                    )}
+                    {roles.length > 0 && (
+                      <div
+                        className={s.cardAgent}
+                        title={`Agent running: ${roles.join(", ")}`}
+                      >
+                        <span className={s.agentDot} />
+                        <span className={s.agentRole}>{roles.join(" · ")}</span>
+                      </div>
                     )}
                   </div>
                 );
