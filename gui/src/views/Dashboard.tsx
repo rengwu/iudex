@@ -108,7 +108,7 @@ export default function Dashboard({
       <ViewHeader dot={VIEWS.dashboard.dot} title="Dashboard" />
       <div className={s.grid}>
         <NowStrip actions={actions} onRun={runAction} />
-        <StartPanel root={root} seedRef={seedRef} goTo={goTo} />
+        <StartPanel root={root} seedRef={seedRef} goTo={goTo} sessions={sessions} />
         <Pipeline ws={ws} sessions={sessions} titles={titles} rail={rail} goTo={goTo} />
         <AutomationPanel automation={automation} maxActive={ws.maxActive} />
         <Activity events={events} goTo={goTo} ws={ws} />
@@ -156,10 +156,12 @@ function StartPanel({
   root,
   seedRef,
   goTo,
+  sessions,
 }: {
   root: string;
   seedRef: React.RefObject<HTMLTextAreaElement | null>;
   goTo: (v: View, f?: { id: string }) => void;
+  sessions: ReturnType<typeof useSessions>["sessions"];
 }) {
   const [skill, setSkill] = useState(IDEA_SKILLS[0].slug);
   const [seed, setSeed] = useState("");
@@ -217,6 +219,7 @@ function StartPanel({
         </Button>
       </div>
       {err && <div className={s.err}>{err}</div>}
+      <ShellList sessions={sessions} goTo={goTo} />
       <div className={s.links}>
         <button className={s.link} onClick={() => goTo("tickets")}>
           Compose a ticket ▸
@@ -229,6 +232,34 @@ function StartPanel({
         </button>
       </div>
     </section>
+  );
+}
+
+// Live shell sessions from the tmux pool — click to jump to that terminal tab.
+// Presence only (shells have no status to synthesize); hidden when none.
+function ShellList({
+  sessions,
+  goTo,
+}: {
+  sessions: ReturnType<typeof useSessions>["sessions"];
+  goTo: (v: View, f?: { id: string }) => void;
+}) {
+  const shells = sessions.filter((x) => x.kind === "shell");
+  if (shells.length === 0) return null;
+  return (
+    <div className={s.shells}>
+      <div className={s.shellsTitle}>SHELLS</div>
+      {shells.map((sh) => (
+        <button
+          key={sh.name}
+          className={s.shellRow}
+          onClick={() => goTo("terminal", { id: sh.name })}
+        >
+          <span className={s.shellDot} />
+          <span className={s.shellName}>{sh.title || sh.name}</span>
+        </button>
+      ))}
+    </div>
   );
 }
 
