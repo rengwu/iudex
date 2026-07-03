@@ -220,7 +220,7 @@ function TransportControls({
 // per workspace, in force even when the engine is stopped, and it governs
 // manual activation too). Framed as an explicit Parallel|Sequential mode switch
 // rather than a lone "Sequential" toggle, whose "off" state read as ambiguous.
-export function ModeSwitch({
+function ModeSwitch({
   sequential,
   onChange,
   maxActive,

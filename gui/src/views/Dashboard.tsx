@@ -6,7 +6,7 @@ import { useNav } from "../lib/nav";
 import { useSessions, addSession } from "../lib/sessions";
 import { useTicketTitles } from "../lib/agents";
 import { IDEA_SKILLS } from "../lib/skills";
-import { stateDot } from "../lib/badges";
+import { stateDot, ticketState } from "../lib/badges";
 import { liveAgentFor } from "../lib/ticketActions";
 import {
   workspaceActions,
@@ -16,17 +16,16 @@ import {
   type HomeAction,
 } from "../lib/home";
 import type { Automation } from "../components/Sidebar";
-import { ModeSwitch } from "../components/Sidebar";
 import ViewHeader from "../components/ViewHeader";
 import Button from "../components/Button";
-import Toggle from "../components/Toggle";
+import Badge from "../components/Badge";
 import s from "./Dashboard.module.scss";
 
 // Home. The job: open the app cold → within two seconds know the state of the
-// line and the single next thing worth doing. Glance first (NOW hero +
-// pipeline + activity), control and starting work second (automation cluster,
-// idea launcher). Everything here is read-derived and *navigational* — the
-// target views own the actions. Design: .context/prd/dashboard.md.
+// line and the next things worth doing. One aligned CSS-grid of modules — NOW
+// and PIPELINE span the full width; START / SHELLS stack beside AUTOMATION and
+// ACTIVITY. Everything is read-derived and *navigational* — the target views
+// own the actions. Design: .context/prd/dashboard.md.
 export default function Dashboard({
   ws,
   root,
@@ -108,16 +107,19 @@ export default function Dashboard({
       <ViewHeader dot={VIEWS.dashboard.dot} title="Dashboard" />
       <div className={s.grid}>
         <NowStrip actions={actions} onRun={runAction} />
-        <StartPanel root={root} seedRef={seedRef} goTo={goTo} sessions={sessions} />
         <Pipeline ws={ws} sessions={sessions} titles={titles} rail={rail} goTo={goTo} />
+        <StartPanel root={root} seedRef={seedRef} goTo={goTo} />
         <AutomationPanel automation={automation} maxActive={ws.maxActive} />
         <Activity events={events} goTo={goTo} ws={ws} />
+        <ShellsPanel root={root} sessions={sessions} goTo={goTo} />
       </div>
     </div>
   );
 }
 
-// ── NOW: the hero + two runners ──────────────────────────────────────────────
+// ── NOW: equal-emphasis action chips, ordered by priority ───────────────────
+const NOW_CAP = 6;
+
 function NowStrip({
   actions,
   onRun,
@@ -125,43 +127,38 @@ function NowStrip({
   actions: HomeAction[];
   onRun: (a: HomeAction) => void;
 }) {
-  const [hero, ...rest] = actions;
-  const runners = rest.slice(0, 2);
   return (
     <section className={`${s.zone} ${s.now}`}>
       <div className={s.zoneTitle}>NOW</div>
-      <button
-        className={`${s.hero} ${s[`tone_${hero.tone}`]}`}
-        onClick={() => onRun(hero)}
-      >
-        <span className={s.heroLabel}>{hero.label}</span>
-        <span className={s.heroArrow}>→</span>
-      </button>
-      {runners.length > 0 && (
-        <div className={s.runners}>
-          then:
-          {runners.map((r) => (
-            <button key={r.key} className={s.runner} onClick={() => onRun(r)}>
-              {r.label}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className={s.nowGrid}>
+        {actions.slice(0, NOW_CAP).map((a) => (
+          <button
+            key={a.key}
+            className={`${s.nowChip} ${s[`tone_${a.tone}`]}`}
+            onClick={() => onRun(a)}
+          >
+            <span className={s.nowDot} />
+            <span className={s.nowLabel}>{a.label}</span>
+            <span className={s.nowArrow}>→</span>
+          </button>
+        ))}
+        {actions.length > NOW_CAP && (
+          <div className={s.nowMore}>+{actions.length - NOW_CAP} more</div>
+        )}
+      </div>
     </section>
   );
 }
 
-// ── START: the funnel's front door, inline (no door-to-a-door modal) ────────
+// ── START: the funnel's front door, inline ───────────────────────────────────
 function StartPanel({
   root,
   seedRef,
   goTo,
-  sessions,
 }: {
   root: string;
   seedRef: React.RefObject<HTMLTextAreaElement | null>;
   goTo: (v: View, f?: { id: string }) => void;
-  sessions: ReturnType<typeof useSessions>["sessions"];
 }) {
   const [skill, setSkill] = useState(IDEA_SKILLS[0].slug);
   const [seed, setSeed] = useState("");
@@ -181,14 +178,6 @@ function StartPanel({
     } finally {
       setBusy(false);
     }
-  };
-  const openShell = async () => {
-    try {
-      await api.createShell(root);
-    } catch {
-      // Terminal's own view surfaces tmux problems; still navigate.
-    }
-    goTo("terminal");
   };
 
   return (
@@ -219,51 +208,60 @@ function StartPanel({
         </Button>
       </div>
       {err && <div className={s.err}>{err}</div>}
-      <ShellList sessions={sessions} goTo={goTo} />
-      <div className={s.links}>
-        <button className={s.link} onClick={() => goTo("tickets")}>
-          Compose a ticket ▸
-        </button>
-        <button className={s.link} onClick={openShell}>
-          Open a shell ▸
-        </button>
-        <button className={s.link} onClick={() => goTo("specifications")}>
-          Browse specs ▸
-        </button>
+      <div className={s.startFoot}>
+        <Button variant="secondary" size="sm" onClick={() => goTo("tickets")}>
+          Compose a ticket
+        </Button>
       </div>
     </section>
   );
 }
 
-// Live shell sessions from the tmux pool — click to jump to that terminal tab.
-// Presence only (shells have no status to synthesize); hidden when none.
-function ShellList({
+// ── SHELLS: the live shell pool + the way in ─────────────────────────────────
+function ShellsPanel({
+  root,
   sessions,
   goTo,
 }: {
+  root: string;
   sessions: ReturnType<typeof useSessions>["sessions"];
   goTo: (v: View, f?: { id: string }) => void;
 }) {
   const shells = sessions.filter((x) => x.kind === "shell");
-  if (shells.length === 0) return null;
+  const openShell = async () => {
+    try {
+      await api.createShell(root);
+    } catch {
+      // Terminal's own view surfaces tmux problems; still navigate.
+    }
+    goTo("terminal");
+  };
   return (
-    <div className={s.shells}>
-      <div className={s.shellsTitle}>SHELLS</div>
-      {shells.map((sh) => (
-        <button
-          key={sh.name}
-          className={s.shellRow}
-          onClick={() => goTo("terminal", { id: sh.name })}
-        >
-          <span className={s.shellDot} />
-          <span className={s.shellName}>{sh.title || sh.name}</span>
-        </button>
-      ))}
-    </div>
+    <section className={`${s.zone} ${s.shells}`}>
+      <div className={s.zoneTitle}>SHELLS</div>
+      <div className={s.shellList}>
+        {shells.length === 0 && <div className={s.quiet}>no open shells</div>}
+        {shells.map((sh) => (
+          <button
+            key={sh.name}
+            className={s.chip}
+            onClick={() => goTo("terminal", { id: sh.name })}
+          >
+            <span className={s.shellDot} />
+            <span className={s.chipId}>{sh.title || sh.name}</span>
+          </button>
+        ))}
+      </div>
+      <div className={s.shellFoot}>
+        <Button variant="secondary" size="sm" onClick={openShell}>
+          Open a shell
+        </Button>
+      </div>
+    </section>
   );
 }
 
-// ── PIPELINE: the state machine as the assembly line it is ──────────────────
+// ── PIPELINE: the state machine as the assembly line it is (full width) ─────
 const COLS: { label: string; state: string; view: View }[] = [
   { label: "QUEUED", state: "queued", view: "tickets" },
   { label: "ACTIVE", state: "active", view: "tickets" },
@@ -359,7 +357,7 @@ function Pipeline({
   );
 }
 
-// ── AUTOMATION: the roomy twin of the sidebar transport (same state) ────────
+// ── AUTOMATION: 2×2 latch grid + light-canvas MODE ──────────────────────────
 function AutomationPanel({
   automation,
   maxActive,
@@ -367,62 +365,87 @@ function AutomationPanel({
   automation: Automation;
   maxActive: number;
 }) {
-  const rows: { label: string; hint: string; on: boolean; set: (v: boolean) => void }[] = [
+  const latches: { label: string; hint: string; on: boolean; set: (v: boolean) => void }[] = [
     {
       label: "Auto-Activate",
-      hint: "activate ready tickets + keep impl staffed (respawns after rejects)",
+      hint: "Activate ready tickets and keep impl staffed (respawns after rejects).",
       on: automation.autoActivate,
       set: automation.toggleAutoActivate,
     },
     {
       label: "Auto-QA",
-      hint: "spawn a QA agent when a ticket reaches pending-qa",
+      hint: "Spawn a QA agent when a ticket reaches pending-qa.",
       on: automation.autoQA,
       set: automation.toggleAutoQA,
     },
     {
       label: "Auto-Retire",
-      hint: "kill agents once their phase has passed",
+      hint: "Kill agents once their phase has passed.",
       on: automation.autoRetire,
       set: automation.toggleAutoRetire,
     },
     {
       label: "Auto-Resolve",
-      hint: "pre-resolve merge conflicts on the first review-ready ticket",
+      hint: "Pre-resolve merge conflicts on the first review-ready ticket.",
       on: automation.autoResolve,
       set: automation.toggleAutoResolve,
     },
   ];
   const rs = automation.resolveStatus;
+  const seq = automation.sequential;
   return (
     <section className={`${s.zone} ${s.auto}`}>
       <div className={s.zoneTitle}>AUTOMATION</div>
-      {rows.map((r) => (
-        <div key={r.label} className={s.autoRow}>
-          <div className={s.autoText}>
-            <span className={s.autoLabel}>{r.label}</span>
-            <span className={s.autoHint}>{r.hint}</span>
-          </div>
-          <Toggle checked={r.on} onChange={r.set} />
-        </div>
-      ))}
+      <div className={s.latchGrid}>
+        {latches.map((l) => (
+          <button
+            key={l.label}
+            className={`${s.latch} ${l.on ? s.latchOn : ""}`}
+            title={l.hint}
+            onClick={() => l.set(!l.on)}
+          >
+            {l.label}
+          </button>
+        ))}
+      </div>
       {rs && (
         <div className={rs.phase === "resolving" ? s.rsBusy : s.rsParked}>
           resolver: {rs.ticket} {rs.phase === "resolving" ? "working…" : rs.phase}
         </div>
       )}
-      <div className={s.modeWrap}>
-        <ModeSwitch
-          sequential={automation.sequential}
-          onChange={automation.toggleSequential}
-          maxActive={maxActive}
-        />
+      <div className={s.modeTitle}>MODE</div>
+      <div className={s.modeSeg} role="radiogroup" aria-label="Concurrency mode">
+        <button
+          type="button"
+          role="radio"
+          aria-checked={!seq}
+          className={`${s.modeBtn} ${!seq ? s.modeOn : ""}`}
+          onClick={() => automation.toggleSequential(false)}
+        >
+          Parallel
+        </button>
+        <button
+          type="button"
+          role="radio"
+          aria-checked={seq}
+          className={`${s.modeBtn} ${seq ? s.modeOn : ""}`}
+          onClick={() => automation.toggleSequential(true)}
+        >
+          Sequential
+        </button>
+      </div>
+      <div className={s.modeHint}>
+        {seq
+          ? "One ticket in flight at a time."
+          : maxActive > 0
+            ? `Up to ${maxActive} tickets in flight at once.`
+            : "Multiple tickets in flight at once."}
       </div>
     </section>
   );
 }
 
-// ── ACTIVITY: the event log, human-rendered ─────────────────────────────────
+// ── ACTIVITY: the event log, human-rendered with state badges ────────────────
 function Activity({
   events,
   ws,
@@ -443,25 +466,26 @@ function Activity({
   return (
     <section className={`${s.zone} ${s.activity}`}>
       <div className={s.zoneTitle}>ACTIVITY</div>
-      {events.length === 0 && <div className={s.quiet}>no events yet</div>}
-      {events.map((e, i) => {
-        const dest = viewFor(e.ticket);
-        return (
-          <button
-            key={`${e.ts}-${i}`}
-            className={s.evt}
-            onClick={() => goTo(dest.view, dest.focus)}
-          >
-            <span className={s.evtDot} style={{ background: stateDot(e.to) }} />
-            <span className={s.evtTicket}>{e.ticket}</span>
-            <span className={s.evtWhat}>
-              {e.trigger || `→ ${e.to}`}
-              {e.trigger && <span className={s.evtTo}> → {e.to}</span>}
-            </span>
-            <span className={s.evtAge}>{timeAgo(e.ts)}</span>
-          </button>
-        );
-      })}
+      <div className={s.evtList}>
+        {events.length === 0 && <div className={s.quiet}>no events yet</div>}
+        {events.map((e, i) => {
+          const dest = viewFor(e.ticket);
+          return (
+            <button
+              key={`${e.ts}-${i}`}
+              className={s.evt}
+              onClick={() => goTo(dest.view, dest.focus)}
+            >
+              <span className={s.evtTicket}>{e.ticket}</span>
+              <span className={s.evtWhat}>{e.trigger || "→"}</span>
+              <Badge kind="state" value={e.to}>
+                {ticketState(e.to).short}
+              </Badge>
+              <span className={s.evtAge}>{timeAgo(e.ts)}</span>
+            </button>
+          );
+        })}
+      </div>
     </section>
   );
 }

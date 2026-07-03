@@ -1,26 +1,30 @@
 @use "../styles/tokens" as t;
 
-// Home: dense zones on the gray canvas. Flat, square, 11–13px; saturated hue
-// only where it means state (hero tone, dots, badges) — never decoration.
+// Home: one aligned CSS grid of modules on the gray canvas. Flat, square,
+// 11–13px; saturated hue only where it means state (NOW tone edges, dots,
+// badges, latched-on amber) — never decoration.
 
 .dash {
   height: 100%;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto 1fr;
   background: t.$canvas;
 }
 
+// The module grid. NOW and PIPELINE span full width; the lower band is three
+// aligned columns with AUTOMATION and ACTIVITY spanning both rows beside the
+// START / SHELLS stack.
 .grid {
-  flex: 1;
   min-height: 0;
   overflow: auto;
   display: grid;
-  grid-template-columns: 280px 1fr 1fr;
-  grid-template-rows: auto auto 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: auto auto auto auto;
   grid-template-areas:
     "now now now"
-    "start pipe pipe"
-    "start auto activity";
+    "pipe pipe pipe"
+    "start auto activity"
+    "shells auto activity";
   gap: 8px;
   padding: 8px;
 }
@@ -40,89 +44,104 @@
   margin-bottom: 6px;
 }
 
-// ── NOW ──────────────────────────────────────────────────────────────────────
+.quiet {
+  font-size: 11px;
+  color: t.$text-muted;
+}
+
+// ── NOW: equal chips, tone-accented left edge ────────────────────────────────
 .now {
   grid-area: now;
 }
 
-.hero {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid;
-  background: t.$panel-light;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  text-align: left;
+.nowGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 6px;
 }
 
-.heroLabel {
+.nowChip {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #9a9a9a;
+  border-left: 4px solid; // tone color set per-tone below
+  background: t.$panel-light;
+  padding: 7px 9px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #2a2a2a;
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+}
+.nowChip:hover {
+  background: #e6e6e6;
+}
+
+.nowDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor; // tone classes set color on the chip's accents
+}
+
+.nowLabel {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: #2a2a2a;
 }
 
-.heroArrow {
-  flex: none;
+.nowArrow {
+  color: t.$text-muted;
 }
 
-// Hero tone = the state being surfaced (the load-bearing color rule).
+// Tone = the state being surfaced; the edge + dot carry it, the chip stays calm.
 .tone_danger {
-  border-color: t.$danger-border;
-  background: t.$danger;
-  color: #fff;
+  border-left-color: t.$danger;
+  .nowDot {
+    background: t.$danger;
+  }
 }
 .tone_review {
-  border-color: t.$violet-border;
-  background: t.$violet;
-  color: #fff;
+  border-left-color: t.$violet;
+  .nowDot {
+    background: t.$violet;
+  }
 }
 .tone_work {
-  border-color: t.$amber-border;
-  background: t.$amber;
-  color: #2a2000;
+  border-left-color: t.$amber;
+  .nowDot {
+    background: t.$amber;
+  }
 }
 .tone_idle {
-  border-color: #7f7f7f;
-  background: t.$panel-light;
-  color: t.$text-muted;
+  border-left-color: #8a8a8a;
+  .nowDot {
+    background: #8a8a8a;
+  }
 }
 
-.runners {
-  margin-top: 6px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.nowMore {
+  align-self: center;
   font-size: 11px;
   color: t.$text-muted;
-}
-
-.runner {
-  background: none;
-  border: none;
-  padding: 0;
-  font-size: 11px;
-  color: #33417a;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
 }
 
 // ── START ────────────────────────────────────────────────────────────────────
 .start {
   grid-area: start;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
   gap: 6px;
+  align-content: start;
 }
 
 .seed {
   width: 100%;
-  min-height: 72px;
+  min-height: 150px;
   resize: vertical;
   background: t.$field-edit;
   border: 1px solid #8a8a8a;
@@ -131,13 +150,13 @@
 }
 
 .startRow {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto;
   gap: 6px;
   align-items: center;
 }
 
 .skill {
-  flex: 1;
   min-width: 0;
   background: t.$field-read;
   border: 1px solid #8a8a8a;
@@ -150,75 +169,40 @@
   color: t.$danger;
 }
 
-// Live shells: presence list, click → that terminal tab.
+.startFoot {
+  border-top: 1px solid #9a9a9a;
+  padding-top: 6px;
+}
+
+// ── SHELLS ───────────────────────────────────────────────────────────────────
 .shells {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.shellsTitle {
-  font-family: t.$font-mono;
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  color: t.$text-muted;
-}
-
-.shellRow {
-  display: flex;
-  align-items: center;
+  grid-area: shells;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
   gap: 6px;
-  background: none;
-  border: none;
-  padding: 2px 0;
-  font-size: 11px;
-  cursor: pointer;
-  text-align: left;
+  align-content: start;
 }
-.shellRow:hover .shellName {
-  text-decoration: underline;
-  text-underline-offset: 2px;
+
+.shellList {
+  display: grid;
+  gap: 3px;
+  align-content: start;
 }
 
 .shellDot {
   flex: none;
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: #1e6f1e; // live, same green as the pipeline agent dot
 }
 
-.shellName {
-  font-family: t.$font-mono;
-  color: #2f2f2f;
+.shellFoot {
+  border-top: 1px solid #9a9a9a;
+  padding-top: 6px;
 }
 
-.links {
-  margin-top: auto; // no shells → links anchor the bottom themselves
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.shells + .links {
-  margin-top: 0; // shells present → they hold the auto margin
-}
-
-.link {
-  background: none;
-  border: none;
-  padding: 2px 0;
-  text-align: left;
-  font-size: 11px;
-  color: #33417a;
-  cursor: pointer;
-}
-.link:hover {
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-// ── PIPELINE ─────────────────────────────────────────────────────────────────
+// ── PIPELINE (full width) ────────────────────────────────────────────────────
 .pipe {
   grid-area: pipe;
 }
@@ -231,13 +215,14 @@
 
 .col {
   min-width: 0;
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 3px;
+  align-content: start;
 }
 
 .colHead {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 5px;
   font-family: t.$font-mono;
@@ -250,18 +235,16 @@
 }
 
 .colDot,
-.chipDot,
-.evtDot {
-  flex: none;
+.chipDot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
 }
 
 .colN {
-  margin-left: auto;
   font-weight: 600;
   color: #3a3a3a;
+  justify-self: end;
 }
 
 .chip {
@@ -352,10 +335,10 @@
   margin-top: 8px;
   padding-top: 6px;
   border-top: 1px solid #9a9a9a;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto repeat(auto-fill, minmax(160px, max-content));
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
 
   .chip {
     width: auto;
@@ -371,39 +354,41 @@
   font-weight: 600;
 }
 
-// ── AUTOMATION ───────────────────────────────────────────────────────────────
+// ── AUTOMATION: 2×2 latch grid + light MODE segmented ───────────────────────
 .auto {
   grid-area: auto;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.latchGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 6px;
 }
 
-.autoRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+// Ableton clip-slot latch: quiet until engaged, amber while on.
+.latch {
+  border: 1px solid #8a8a8a;
+  background: t.$surface-c8;
+  color: #3a3a3a;
+  font: 600 11px t.$font-ui;
+  padding: 10px 6px;
+  cursor: pointer;
+  text-align: center;
+}
+.latch:hover {
+  background: t.$panel-light;
 }
 
-.autoText {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
+.latchOn {
+  background: t.$amber;
+  border-color: t.$amber-border;
+  color: #2a2000;
 }
-
-.autoLabel {
-  font-size: 12px;
-  font-weight: 600;
-  color: #2f2f2f;
-}
-
-.autoHint {
-  font-size: 10px;
-  color: t.$text-muted;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.latchOn:hover {
+  background: t.$amber;
 }
 
 .rsBusy {
@@ -418,35 +403,66 @@
   font-weight: 600;
 }
 
-// The sidebar ModeSwitch is styled for the dark rail; give it a framed spot.
-.modeWrap {
-  margin-top: auto;
-  background: t.$sidebar;
+.modeTitle {
+  margin-top: 4px;
+  font-family: t.$font-mono;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: t.$text-muted;
+}
+
+.modeSeg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid #8a8a8a;
+}
+
+.modeBtn {
+  border: none;
+  background: t.$surface-c8;
+  color: #3a3a3a;
+  font: 600 11px t.$font-ui;
   padding: 6px;
+  cursor: pointer;
+}
+.modeBtn + .modeBtn {
+  border-left: 1px solid #8a8a8a;
+}
+
+.modeOn {
+  background: t.$amber;
+  color: #2a2000;
+}
+
+.modeHint {
+  font-size: 10px;
+  color: t.$text-muted;
 }
 
 // ── ACTIVITY ─────────────────────────────────────────────────────────────────
 .activity {
   grid-area: activity;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  align-content: start;
+  overflow: hidden;
+}
+
+.evtList {
+  display: grid;
   gap: 2px;
+  align-content: start;
   overflow: auto;
 }
 
-.quiet {
-  font-size: 11px;
-  color: t.$text-muted;
-}
-
 .evt {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto auto auto 1fr;
   align-items: center;
   gap: 6px;
-  width: 100%;
   background: none;
   border: none;
-  padding: 2px 2px;
+  padding: 2px;
   font-size: 11px;
   cursor: pointer;
   text-align: left;
@@ -459,23 +475,16 @@
 .evtTicket {
   font-family: t.$font-mono;
   font-weight: 600;
-  flex: none;
 }
 
 .evtWhat {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   color: #2f2f2f;
-}
-
-.evtTo {
-  color: t.$text-muted;
+  font-family: t.$font-mono;
+  font-size: 10px;
 }
 
 .evtAge {
-  margin-left: auto;
-  flex: none;
+  justify-self: end;
   font-family: t.$font-mono;
   font-size: 10px;
   color: t.$text-muted;
