@@ -1,6 +1,7 @@
 @use "../styles/tokens" as t;
 
 .host {
+  position: relative; // anchors .hint
   height: 100%;
   width: 100%;
   background: t.$module;
@@ -8,4 +9,43 @@
   border: none;
   border-radius: 0;
   overflow: hidden;
+}
+
+// Selection affordance: tmux owns the mouse, so plain drags don't select —
+// surface the modifier exactly when the user reaches for the mouse (hover),
+// then get out of the way. Each hover plays the flash once: a short delay (so
+// a pass-through never triggers it), ~3s visible, fade out; leaving and
+// re-entering restarts it. pointer-events: none keeps it out of the
+// terminal's mouse stream.
+.hint {
+  position: absolute;
+  right: 10px;
+  top: 8px;
+  z-index: 2;
+  pointer-events: none;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: t.$text-meta;
+  background: rgba(29, 29, 29, 0.88);
+  padding: 2px 6px;
+  opacity: 0;
+}
+
+.host:hover .hint {
+  // 4s total: 0.4s delay, 0.2s in, 3s hold, 0.4s out (see keyframe stops).
+  animation: hint-flash 4s ease forwards;
+}
+
+@keyframes hint-flash {
+  0%,
+  10% {
+    opacity: 0;
+  }
+  15%,
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }

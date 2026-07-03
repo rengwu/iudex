@@ -34,6 +34,14 @@ export default function XtermPane({
       fontSize: 13,
       theme: { background: "#1d1d1d", foreground: "#c9ccd1" },
       cursorBlink: true,
+      // tmux owns the mouse (mouse-on, for wheel scrollback), so plain drags
+      // are forwarded to it — tmux's own selection, landing in tmux's paste
+      // buffer. This makes Option-drag force xterm's *local* selection (the
+      // one Cmd+C below copies to the system clipboard). Off by default, and
+      // without it macOS has NO selection modifier at all: xterm's check is
+      // `isMac ? altKey && this option : shiftKey` — Shift-drag only works on
+      // Linux/Windows. Same convention as iTerm2 with tmux mouse mode.
+      macOptionClickForcesSelection: true,
     });
     const fit = new FitAddon();
     term.loadAddon(fit);
@@ -41,6 +49,39 @@ export default function XtermPane({
     fit.fit();
     termRef.current = term;
     fitRef.current = fit;
+
+    // Copy. xterm keeps its own selection model (overlay, no DOM selection),
+    // so the OS copy shortcut sees nothing — copy term.getSelection()
+    // ourselves. Chords: Cmd+C (macOS) / Ctrl+Shift+C (Linux terminal
+    // convention); a bare Ctrl+C still reaches the shell as SIGINT, and
+    // Cmd+C with no selection falls through harmlessly.
+    //
+    // Paste is deliberately NOT intercepted on macOS: xterm lets Cmd+V fall
+    // through to the WebView's native paste, which reaches its hidden textarea
+    // and flows through term.paste() — bracketed-paste aware (raw writes of
+    // multi-line clipboard into a shell would execute every line). Linux gets
+    // Ctrl+Shift+V via the async clipboard API (best-effort — WebKit may gate
+    // reads), routed through term.paste() for the same reason.
+    term.attachCustomKeyEventHandler((e) => {
+      if (e.type !== "keydown") return true;
+      const macChord = e.metaKey && !e.ctrlKey && !e.altKey;
+      const linuxChord = e.ctrlKey && e.shiftKey && !e.metaKey;
+      if ((macChord && e.key === "c") || (linuxChord && e.key === "C")) {
+        if (!term.hasSelection()) return true;
+        navigator.clipboard.writeText(term.getSelection()).catch(() => {});
+        return false;
+      }
+      if (linuxChord && e.key === "V") {
+        navigator.clipboard
+          .readText()
+          .then((text) => {
+            if (text) term.paste(text);
+          })
+          .catch(() => {});
+        return false;
+      }
+      return true;
+    });
 
     const b64ToBytes = (b64: string) =>
       Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
@@ -132,5 +173,19 @@ export default function XtermPane({
     });
   }, [active]);
 
-  return <div className={s.host} ref={hostRef} />;
+  return (
+    <div className={s.host} ref={hostRef}>
+      {/* React-owned sibling of the xterm-appended element: absolutely
+          positioned so it never affects floorFit's height math, and xterm
+          appends after it so React's unmount cleanup stays consistent. */}
+      <span className={s.hint}>{SELECT_HINT}</span>
+    </div>
+  );
 }
+
+// Platform-matched to the chords in the key handler above (xterm on macOS only
+// force-selects on Option-drag via macOptionClickForcesSelection; Shift-drag is
+// the built-in on Linux/Windows).
+const SELECT_HINT = /Mac/.test(navigator.userAgent)
+  ? "⌥ drag to select · ⌘C to copy"
+  : "Shift+drag to select · Ctrl+Shift+C to copy";
