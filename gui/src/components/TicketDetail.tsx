@@ -63,12 +63,14 @@ export default function TicketDetail({
   root,
   ticket,
   ws,
+  seqBlocker,
   onClose,
   onSaved,
 }: {
   root: string;
   ticket: Ticket;
   ws: Workspace;
+  seqBlocker?: string | null; // sequential policy: in-flight ticket gating activation
   onClose: () => void;
   onSaved?: () => void;
 }) {
@@ -333,6 +335,7 @@ export default function TicketDetail({
             root={root}
             busy={actionBusy}
             sessions={sessions}
+            seqBlocker={seqBlocker}
             onAct={act}
           />
         </div>
@@ -361,12 +364,14 @@ function FooterActions({
   root,
   busy,
   sessions,
+  seqBlocker,
   onAct,
 }: {
   ticket: Ticket;
   root: string;
   busy: boolean;
   sessions: Session[];
+  seqBlocker?: string | null;
   onAct: (fn: () => Promise<unknown>, closeAfter?: boolean) => void;
 }) {
   const { goTo } = useNav();
@@ -379,7 +384,7 @@ function FooterActions({
     });
 
   // Same primary action the table row shows — single-sourced in `nextAction`.
-  const a = nextAction(ticket, sessions);
+  const a = nextAction(ticket, sessions, seqBlocker);
   // Map intent → this panel's handler (busy/nav are panel-local; the *choice*
   // is shared). `note` renders muted text rather than a button.
   const runIntent = (intent: Intent) => {

@@ -70,9 +70,11 @@ export default function App() {
     autoActivate,
     autoQA,
     autoRetire,
+    sequential,
     toggleAutoActivate,
     toggleAutoQA,
     toggleAutoRetire,
+    toggleSequential,
   } = useAutomation(root, ws, sessions, load, setError);
 
   // First-run agent setup, gated on the CLI being reachable (the read shells
@@ -188,16 +190,21 @@ export default function App() {
                 autoActivate,
                 autoQA,
                 autoRetire,
+                sequential,
                 toggleAutoActivate,
                 toggleAutoQA,
                 toggleAutoRetire,
+                toggleSequential,
               }}
             />
 
             <section className={a.main}>
               {error && <div className="error">{error}</div>}
               {renderView("dashboard", <Dashboard />)}
-              {renderView("tickets", <Tickets ws={ws} root={root} />)}
+              {renderView(
+                "tickets",
+                <Tickets ws={ws} root={root} sequential={sequential} />,
+              )}
               {renderView("specifications", <Specifications root={root} />)}
               {renderView(
                 "terminal",

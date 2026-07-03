@@ -9,6 +9,7 @@ import {
   nextAction,
   liveAgentFor,
   expectedRole,
+  inFlightBlocker,
   type Intent,
 } from "../lib/ticketActions";
 import { stateDot } from "../lib/badges";
@@ -25,7 +26,15 @@ import s from "./Tickets.module.scss";
 // funnel launchers (compose a ticket / shape an idea via a skill agent). Every
 // mutation shells through `iudex`; we never re-read after one — the events.jsonl
 // doorbell refreshes the table.
-export default function Tickets({ ws, root }: { ws: Workspace; root: string }) {
+export default function Tickets({
+  ws,
+  root,
+  sequential,
+}: {
+  ws: Workspace;
+  root: string;
+  sequential: boolean;
+}) {
   const { goTo } = useNav();
   const focus = usePendingFocus("tickets");
   const [busy, setBusy] = useState<string | null>(null); // ticket id mid-action
@@ -50,6 +59,10 @@ export default function Tickets({ ws, root }: { ws: Workspace; root: string }) {
   // detail panel decide the next action from the same data (the agent-presence
   // branch is #1/#5 follow-up; the param is wired now).
   const { sessions } = useSessions(root);
+
+  // Sequential policy gate: while a ticket is in flight, activation is blocked
+  // (hard policy — the note names the blocker; the CLI can still bypass).
+  const seqBlocker = sequential ? inFlightBlocker(ws.tickets) : null;
 
   // Legend for the QA column (a bare count is opaque) — explains what the number
   // means and how it relates to the configured reject limit.
@@ -185,7 +198,7 @@ export default function Tickets({ ws, root }: { ws: Workspace; root: string }) {
                 <div className={s.empty}>No tickets in the pipeline</div>
               )}
               {visible.map((t, i) => {
-                const a = nextAction(t, sessions);
+                const a = nextAction(t, sessions, seqBlocker);
                 const on = t.id === selId;
                 return (
                   <div
@@ -273,6 +286,7 @@ export default function Tickets({ ws, root }: { ws: Workspace; root: string }) {
               root={root}
               ticket={sel}
               ws={ws}
+              seqBlocker={seqBlocker}
               onClose={() => setSelId(null)}
               onSaved={refetchTitles}
             />

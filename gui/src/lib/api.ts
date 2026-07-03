@@ -87,6 +87,12 @@ export const installCli = () => invoke<string>("install_cli");
 export const getKillPoolOnExit = () => invoke<boolean>("get_kill_pool_on_exit");
 export const setKillPoolOnExit = (value: boolean) =>
   invoke<void>("set_kill_pool_on_exit", { value });
+// Sequential mode (workspace policy, persisted in .iudex/config.yml as a
+// gui_* key the CLI ignores): at most one ticket in flight.
+export const getSequential = (root: string) =>
+  invoke<boolean>("get_sequential", { root });
+export const setSequential = (root: string, value: boolean) =>
+  invoke<void>("set_sequential", { root, value });
 
 // ── Tickets ─────────────────────────────────────────────────────────────────
 export const readQueueBrief = (root: string, id: string) =>

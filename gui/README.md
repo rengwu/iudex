@@ -80,6 +80,14 @@ x86_64 bundles plus standalone CLI binaries into a draft GitHub release.
 | **Review** | Deep-review workspace for `pending-human-qa`: brief / log / QA-review tabs + three-dot diff, with a **preflighted** approve & merge (predicts conflicts via `git merge-tree`; one-click Begin-resolution) and reject-with-reason. |
 | **Settings** | General / Prompts subtabs: edit `config.yml` fields and the impl/review prompt templates (surgical writes preserve comments). |
 
+The sidebar transport drives the opt-in automation engine (Auto-Activate —
+which also respawns impl agents for tickets QA/human-rejected back to `active`
+— Auto-QA, Auto-Retire; all session-only so an app launch never silently
+spends tokens) plus **Sequential**: a persisted per-workspace policy
+(`gui_sequential` in `.iudex/config.yml`) that allows at most one ticket in
+flight and hard-blocks GUI activation past it, engine on or off. Design:
+[`.context/prd/sequential-mode.md`](../.context/prd/sequential-mode.md).
+
 ## Architecture
 
 ```

@@ -233,6 +233,34 @@ fn set_kill_pool_on_exit(app: AppHandle, value: bool) -> Result<(), String> {
     std::fs::write(&cfg, out).map_err(|e| format!("write {}: {e}", cfg.display()))
 }
 
+/// Sequential mode: the workspace policy "at most one ticket in flight"
+/// (active | pending-qa | pending-human-qa). Stored per workspace in
+/// .iudex/config.yml as a GUI-owned key the CLI ignores (its YAML parsing
+/// skips unknown fields), matching the gui_* precedent in the global config.
+/// The policy persists; the automation-engine toggles deliberately don't.
+/// Absent → false (parallel is the historical behavior).
+#[tauri::command]
+fn get_sequential(root: String) -> bool {
+    std::fs::read_to_string(config_path(&root))
+        .ok()
+        .and_then(|t| yaml_scalar(&t, "gui_sequential"))
+        .map(|v| v == "true")
+        .unwrap_or(false)
+}
+
+#[tauri::command]
+fn set_sequential(root: String, value: bool) -> Result<(), String> {
+    let path = config_path(&root);
+    let text =
+        std::fs::read_to_string(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
+    let out = yaml_upsert_scalar(
+        &text,
+        "gui_sequential",
+        Some(if value { "true" } else { "false" }),
+    );
+    std::fs::write(&path, out).map_err(|e| format!("write {}: {e}", path.display()))
+}
+
 /// Load the persisted iudex binary path into the global override. Called once at
 /// startup, before any command runs.
 fn load_iudex_override(app: &AppHandle) {
@@ -2090,6 +2118,8 @@ pub fn run() {
             install_cli,
             get_kill_pool_on_exit,
             set_kill_pool_on_exit,
+            get_sequential,
+            set_sequential,
             discover_workspace,
             init_workspace,
             read_config,

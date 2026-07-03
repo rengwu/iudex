@@ -1,6 +1,23 @@
 import type { Variant } from "../components/Button";
 import type { Session, Ticket } from "../types";
 
+// "In flight" for the sequential policy: a ticket someone (or some agent) is
+// actively responsible for. `failed` is deliberately excluded — it is a parked
+// human decision (retry/remove), and blocking the line on it would deadlock
+// the pipeline on its least-productive member (.context/prd/sequential-mode.md).
+export const IN_FLIGHT_STATES = new Set([
+  "active",
+  "pending-qa",
+  "pending-human-qa",
+]);
+
+// The ticket currently occupying the sequential line, if any — the id shown in
+// the "sequential — tN in flight" hint and the gate for new activations.
+export function inFlightBlocker(tickets: Ticket[]): string | null {
+  const t = tickets.find((t) => IN_FLIGHT_STATES.has(t.state));
+  return t ? t.id : null;
+}
+
 // The single source of "what's the next thing to do with this ticket" — consumed
 // by both the Tickets table row (`rowAction`) and the detail panel footer
 // (`FooterActions`), so the two can never disagree on which primary action a
@@ -50,12 +67,21 @@ export function liveAgentFor(
     .sort((a, b) => (b.started ?? "").localeCompare(a.started ?? ""))[0];
 }
 
-export function nextAction(t: Ticket, sessions: Session[]): TicketAction {
+// `seqBlocker`: the in-flight ticket id when sequential mode gates activation
+// (null/undefined otherwise). Sequential is a hard policy — the GUI refuses to
+// activate past it even manually — but the CLI can always bypass, so the note
+// names the blocker instead of pretending the action doesn't exist.
+export function nextAction(
+  t: Ticket,
+  sessions: Session[],
+  seqBlocker?: string | null,
+): TicketAction {
   switch (t.state) {
     case "queued":
-      return t.ready
-        ? { intent: "activate-impl", label: "Activate & start", variant: "secondary" }
-        : { intent: "note", label: "blocked" };
+      if (!t.ready) return { intent: "note", label: "blocked" };
+      return seqBlocker
+        ? { intent: "note", label: `sequential — ${seqBlocker} in flight` }
+        : { intent: "activate-impl", label: "Activate & start", variant: "secondary" };
     case "active":
       // A live impl agent already on it → jump to it rather than spawning a
       // second (#1); otherwise offer to (re)start impl — the resume path a

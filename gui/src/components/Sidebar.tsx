@@ -13,9 +13,11 @@ type Automation = {
   autoActivate: boolean;
   autoQA: boolean;
   autoRetire: boolean;
+  sequential: boolean;
   toggleAutoActivate: (v: boolean) => void;
   toggleAutoQA: (v: boolean) => void;
   toggleAutoRetire: (v: boolean) => void;
+  toggleSequential: (v: boolean) => void;
 };
 
 // The left navigation rail: the view buttons (BUILD / OTHERS) over a bottom panel
@@ -142,9 +144,11 @@ function TransportControls({ automation }: { automation: Automation }) {
     autoActivate,
     autoQA,
     autoRetire,
+    sequential,
     toggleAutoActivate,
     toggleAutoQA,
     toggleAutoRetire,
+    toggleSequential,
   } = automation;
   const allOn = autoActivate && autoQA && autoRetire;
   const allOff = !autoActivate && !autoQA && !autoRetire;
@@ -186,6 +190,15 @@ function TransportControls({ automation }: { automation: Automation }) {
         <div className={s.toggleRow}>
           <span className={s.toggleLabel}>Auto-Retire</span>
           <Toggle checked={autoRetire} onChange={toggleAutoRetire} />
+        </div>
+        {/* Policy, not engine: persisted per workspace, in force even with the
+            engine stopped, untouched by the play/stop buttons. */}
+        <div
+          className={s.toggleRow}
+          title="At most one ticket in flight (active / QA / your review). Persisted for this workspace; applies to manual activation too."
+        >
+          <span className={s.toggleLabel}>Sequential</span>
+          <Toggle checked={sequential} onChange={toggleSequential} />
         </div>
       </div>
     </div>
