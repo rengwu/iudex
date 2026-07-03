@@ -86,43 +86,6 @@
 .transport {
   border-bottom: 1px solid t.$divider-chrome;
 }
-.transportBtns {
-  padding: 6px 11px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  border-bottom: 1px solid #1a1a1a;
-}
-.tBtn {
-  width: 22px;
-  height: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid t.$divider-chrome;
-  background: t.$divider-chrome;
-  cursor: pointer;
-  -webkit-user-select: none;
-  user-select: none;
-  flex: none;
-  padding: 0;
-
-  &.tActive {
-    border-color: t.$success;
-  }
-}
-.playTri {
-  width: 0;
-  height: 0;
-  border-left: 8px solid t.$success;
-  border-top: 5px solid transparent;
-  border-bottom: 5px solid transparent;
-}
-.stopSq {
-  width: 8px;
-  height: 8px;
-  background: #b8b8b8;
-}
 
 .toggles {
   padding: 8px 11px 9px;
@@ -208,6 +171,14 @@
   font-size: 11px;
   color: t.$text-meta;
   line-height: 1.7;
+}
+.sysTitle {
+  font-family: t.$font-ui;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: t.$text-meta;
+  line-height: 1.4;
+  margin-bottom: 4px;
 }
 .sysBranch {
   color: t.$text-light;

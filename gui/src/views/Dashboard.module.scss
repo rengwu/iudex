@@ -1,0 +1,435 @@
+@use "../styles/tokens" as t;
+
+// Home: dense zones on the gray canvas. Flat, square, 11–13px; saturated hue
+// only where it means state (hero tone, dots, badges) — never decoration.
+
+.dash {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: t.$canvas;
+}
+
+.grid {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: 280px 1fr 1fr;
+  grid-template-rows: auto auto 1fr;
+  grid-template-areas:
+    "now now now"
+    "start pipe pipe"
+    "start auto activity";
+  gap: 8px;
+  padding: 8px;
+}
+
+.zone {
+  background: t.$panel-rail;
+  border: 1px solid #7f7f7f;
+  padding: 8px;
+  min-width: 0;
+}
+
+.zoneTitle {
+  font-family: t.$font-mono;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: t.$text-muted;
+  margin-bottom: 6px;
+}
+
+// ── NOW ──────────────────────────────────────────────────────────────────────
+.now {
+  grid-area: now;
+}
+
+.hero {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid;
+  background: t.$panel-light;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.heroLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.heroArrow {
+  flex: none;
+}
+
+// Hero tone = the state being surfaced (the load-bearing color rule).
+.tone_danger {
+  border-color: t.$danger-border;
+  background: t.$danger;
+  color: #fff;
+}
+.tone_review {
+  border-color: t.$violet-border;
+  background: t.$violet;
+  color: #fff;
+}
+.tone_work {
+  border-color: t.$amber-border;
+  background: t.$amber;
+  color: #2a2000;
+}
+.tone_idle {
+  border-color: #7f7f7f;
+  background: t.$panel-light;
+  color: t.$text-muted;
+}
+
+.runners {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: t.$text-muted;
+}
+
+.runner {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 11px;
+  color: #33417a;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+// ── START ────────────────────────────────────────────────────────────────────
+.start {
+  grid-area: start;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.seed {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  background: t.$field-edit;
+  border: 1px solid #8a8a8a;
+  padding: 6px;
+  font: 12px t.$font-ui;
+}
+
+.startRow {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.skill {
+  flex: 1;
+  min-width: 0;
+  background: t.$field-read;
+  border: 1px solid #8a8a8a;
+  font: 11px t.$font-ui;
+  padding: 4px;
+}
+
+.err {
+  font-size: 11px;
+  color: t.$danger;
+}
+
+.links {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.link {
+  background: none;
+  border: none;
+  padding: 2px 0;
+  text-align: left;
+  font-size: 11px;
+  color: #33417a;
+  cursor: pointer;
+}
+.link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+// ── PIPELINE ─────────────────────────────────────────────────────────────────
+.pipe {
+  grid-area: pipe;
+}
+
+.cols {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.colHead {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: t.$font-mono;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: t.$text-muted;
+  border-bottom: 1px solid #9a9a9a;
+  padding-bottom: 3px;
+  margin-bottom: 2px;
+}
+
+.colDot,
+.chipDot,
+.evtDot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.colN {
+  margin-left: auto;
+  font-weight: 600;
+  color: #3a3a3a;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  border: 1px solid #9a9a9a;
+  background: t.$surface-c8;
+  padding: 3px 5px;
+  font-size: 11px;
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+}
+.chip:hover {
+  background: t.$panel-light;
+}
+
+.chipId {
+  font-family: t.$font-mono;
+  font-weight: 600;
+  flex: none;
+}
+
+.chipTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: t.$text-muted;
+}
+
+.ready {
+  margin-left: auto;
+  flex: none;
+  color: #1e6f1e;
+  font-family: t.$font-mono;
+  font-size: 10px;
+}
+
+.blocked {
+  margin-left: auto;
+  flex: none;
+  color: t.$text-muted;
+  font-family: t.$font-mono;
+  font-size: 10px;
+}
+
+.agentOn {
+  margin-left: auto;
+  flex: none;
+  color: #1e6f1e;
+  font-size: 9px;
+}
+
+.mbadge {
+  margin-left: auto;
+  flex: none;
+  font-family: t.$font-mono;
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+.m_clean {
+  background: #237723;
+  color: #cee0ce;
+}
+.m_conflicts {
+  background: #e6b54c;
+  color: #3a2a00;
+}
+.m_resolving {
+  background: #5bc7d8;
+  color: #10333a;
+}
+
+.more {
+  background: none;
+  border: none;
+  padding: 2px 0;
+  font-size: 10px;
+  color: t.$text-muted;
+  cursor: pointer;
+  text-align: left;
+}
+
+.failedStrip {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #9a9a9a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+
+  .chip {
+    width: auto;
+    max-width: 220px;
+  }
+}
+
+.failedLabel {
+  font-family: t.$font-mono;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: t.$danger;
+  font-weight: 600;
+}
+
+// ── AUTOMATION ───────────────────────────────────────────────────────────────
+.auto {
+  grid-area: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.autoRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.autoText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.autoLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: #2f2f2f;
+}
+
+.autoHint {
+  font-size: 10px;
+  color: t.$text-muted;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rsBusy {
+  font-family: t.$font-mono;
+  font-size: 10px;
+  color: t.$text-muted;
+}
+.rsParked {
+  font-family: t.$font-mono;
+  font-size: 10px;
+  color: #8a5a00;
+  font-weight: 600;
+}
+
+// The sidebar ModeSwitch is styled for the dark rail; give it a framed spot.
+.modeWrap {
+  margin-top: auto;
+  background: t.$sidebar;
+  padding: 6px;
+}
+
+// ── ACTIVITY ─────────────────────────────────────────────────────────────────
+.activity {
+  grid-area: activity;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: auto;
+}
+
+.quiet {
+  font-size: 11px;
+  color: t.$text-muted;
+}
+
+.evt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 2px 2px;
+  font-size: 11px;
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+}
+.evt:hover {
+  background: t.$surface-c8;
+}
+
+.evtTicket {
+  font-family: t.$font-mono;
+  font-weight: 600;
+  flex: none;
+}
+
+.evtWhat {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #2f2f2f;
+}
+
+.evtTo {
+  color: t.$text-muted;
+}
+
+.evtAge {
+  margin-left: auto;
+  flex: none;
+  font-family: t.$font-mono;
+  font-size: 10px;
+  color: t.$text-muted;
+}

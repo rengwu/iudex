@@ -72,7 +72,7 @@ x86_64 bundles plus standalone CLI binaries into a draft GitHub release.
 
 | View | What it does |
 |------|--------------|
-| **Dashboard** | Glanceable triage piles (ready-to-activate, pending human review, in-QA, failed); each item jumps to its view. Default landing. |
+| **Dashboard** | Home + default landing. NOW hero (single-sourced `workspaceNextAction` ranking, problems-first), the pipeline as clickable columns, inline idea launcher, roomy automation controls, and an events.jsonl activity feed. Navigational — target views own the actions. |
 | **Terminal** | Tabbed live tmux sessions (interactive). Stays mounted across view switches so PTYs survive. |
 | **Tickets** | Reactive table + a state-aware action column (activate/finish/agent/retry) and the front-of-funnel launchers (compose a ticket, shape an idea via a skill agent). |
 | **Agents** | Grid of read-only `capture-pane` peeks into each live agent, with a synthesized status (working / idle / awaiting-finish / crashed / done). Click a peek → focus its terminal. |

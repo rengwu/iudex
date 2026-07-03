@@ -10,7 +10,7 @@ import SectionHeader from "./SectionHeader";
 import Toggle from "./Toggle";
 import s from "./Sidebar.module.scss";
 
-type Automation = {
+export type Automation = {
   autoActivate: boolean;
   autoQA: boolean;
   autoRetire: boolean;
@@ -109,8 +109,8 @@ export default function Sidebar({
       <div className={s.railSpacer} />
 
       <div className={s.railBottom}>
-        <PipelineSummary pipeline={pipeline} />
         <TransportControls automation={automation} maxActive={ws.maxActive} />
+        <PipelineSummary pipeline={pipeline} />
         <SysInfo
           mainBranch={ws.mainBranch}
           activeCount={activeCount}
@@ -163,34 +163,8 @@ function TransportControls({
     toggleAutoResolve,
     toggleSequential,
   } = automation;
-  const allOn = autoActivate && autoQA && autoRetire;
-  const allOff = !autoActivate && !autoQA && !autoRetire;
   return (
     <div className={s.transport}>
-      <div className={s.transportBtns}>
-        <span
-          className={`${s.tBtn} ${allOn ? s.tActive : ""}`}
-          title="Start automation (Auto-Activate + Auto-QA + Auto-Retire on)"
-          onClick={() => {
-            toggleAutoActivate(true);
-            toggleAutoQA(true);
-            toggleAutoRetire(true);
-          }}
-        >
-          <span className={s.playTri} />
-        </span>
-        <span
-          className={`${s.tBtn} ${allOff ? s.tActive : ""}`}
-          title="Stop automation (all off)"
-          onClick={() => {
-            toggleAutoActivate(false);
-            toggleAutoQA(false);
-            toggleAutoRetire(false);
-          }}
-        >
-          <span className={s.stopSq} />
-        </span>
-      </div>
       <div className={s.toggles}>
         <div className={s.togglesTitle}>AUTOMATION</div>
         <div className={s.toggleRow}>
@@ -205,13 +179,12 @@ function TransportControls({
           <span className={s.toggleLabel}>Auto-Retire</span>
           <Toggle checked={autoRetire} onChange={toggleAutoRetire} />
         </div>
-        {/* Deliberately NOT armed by ▶ — the one toggle that spends tokens
-            with no human click between qa-approve and review; arming it is
-            its own explicit act. The row doubles as status: a parked line
+        {/* The one toggle that spends tokens with no human click between
+            qa-approve and review. The row doubles as status: a parked line
             (flagged/crashed = your turn) is visible from every view. */}
         <div
           className={s.toggleRow}
-          title="Spawns a conflict-resolution agent when a review-ready ticket can't merge cleanly; up to one more run each time main moves. One at a time; flagged files park it for you. Not armed by ▶."
+          title="Spawns a conflict-resolution agent when a review-ready ticket can't merge cleanly; up to one more run each time main moves. One at a time; flagged files park it for you."
         >
           <span className={s.toggleLabel}>
             Auto-Resolve
@@ -247,7 +220,7 @@ function TransportControls({
 // per workspace, in force even when the engine is stopped, and it governs
 // manual activation too). Framed as an explicit Parallel|Sequential mode switch
 // rather than a lone "Sequential" toggle, whose "off" state read as ambiguous.
-function ModeSwitch({
+export function ModeSwitch({
   sequential,
   onChange,
   maxActive,
@@ -300,6 +273,7 @@ function SysInfo({
 }) {
   return (
     <div className={s.sysinfo}>
+      <div className={s.sysTitle}>WORKSPACE</div>
       <div className={s.sysBranch}>{mainBranch}</div>
       <div>
         {activeCount}

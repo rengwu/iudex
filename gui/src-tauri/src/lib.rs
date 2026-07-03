@@ -261,6 +261,48 @@ fn set_sequential(root: String, value: bool) -> Result<(), String> {
     std::fs::write(&path, out).map_err(|e| format!("write {}: {e}", path.display()))
 }
 
+/// One line of events.jsonl, verbatim, for the Dashboard's activity feed.
+/// Display-only: rendering the log is not deriving state (no replay logic
+/// here — the state machine stays single-sourced in the CLI).
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct EventRow {
+    ticket: String,
+    from: String,
+    to: String,
+    trigger: String,
+    ts: String,
+}
+
+/// The newest `limit` events, newest first. Malformed lines are skipped, same
+/// stance as the CLI's ReadAll. A missing file is an empty feed, not an error
+/// (fresh workspace).
+#[tauri::command]
+fn recent_events(root: String, limit: usize) -> Vec<EventRow> {
+    let path = Path::new(&root).join(".iudex").join("events.jsonl");
+    let text = std::fs::read_to_string(&path).unwrap_or_default();
+    let field = |v: &serde_json::Value, k: &str| {
+        v.get(k)
+            .and_then(|x| x.as_str())
+            .unwrap_or_default()
+            .to_string()
+    };
+    let mut rows: Vec<EventRow> = text
+        .lines()
+        .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
+        .map(|v| EventRow {
+            ticket: field(&v, "ticket"),
+            from: field(&v, "from"),
+            to: field(&v, "to"),
+            trigger: field(&v, "trigger"),
+            ts: field(&v, "ts"),
+        })
+        .collect();
+    rows.reverse();
+    rows.truncate(limit);
+    rows
+}
+
 /// Load the persisted iudex binary path into the global override. Called once at
 /// startup, before any command runs.
 fn load_iudex_override(app: &AppHandle) {
@@ -2182,6 +2224,7 @@ pub fn run() {
             read_prd,
             iudex_status,
             run_iudex,
+            recent_events,
             compose_ticket,
             list_worktrees,
             worktree_changes,

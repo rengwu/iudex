@@ -59,26 +59,16 @@ export default function App() {
 
   // Cross-view navigation: current view + a per-view pending-focus map. Source
   // components call goTo(view, focus); targets read it via usePendingFocus.
-  // Land on Tickets: the Dashboard reskin is deferred (still the old dark style).
-  const { view, setView, value: nav } = useNavState("tickets");
+  const { view, setView, value: nav } = useNavState("dashboard");
 
   // Views stay mounted after switch-away (state intact); pruned after inactivity.
   const mounted = useViewKeepAlive(view);
   const { sessions } = useSessions(root);
-  // Opt-in auto-activate / auto-QA drains + the steady-cadence poll.
-  const {
-    autoActivate,
-    autoQA,
-    autoRetire,
-    autoResolve,
-    resolveStatus,
-    sequential,
-    toggleAutoActivate,
-    toggleAutoQA,
-    toggleAutoRetire,
-    toggleAutoResolve,
-    toggleSequential,
-  } = useAutomation(root, ws, sessions, load, setError);
+  // Opt-in auto-activate / auto-QA drains + the steady-cadence poll. One
+  // object, consumed by both the Sidebar transport and the Dashboard's
+  // automation panel — same state, two densities.
+  const automation = useAutomation(root, ws, sessions, load, setError);
+  const { sequential } = automation;
 
   // First-run agent setup, gated on the CLI being reachable (the read shells
   // `iudex config --json`).
@@ -189,24 +179,15 @@ export default function App() {
               sessions={sessions}
               view={view}
               setView={setView}
-              automation={{
-                autoActivate,
-                autoQA,
-                autoRetire,
-                autoResolve,
-                resolveStatus,
-                sequential,
-                toggleAutoActivate,
-                toggleAutoQA,
-                toggleAutoRetire,
-                toggleAutoResolve,
-                toggleSequential,
-              }}
+              automation={automation}
             />
 
             <section className={a.main}>
               {error && <div className="error">{error}</div>}
-              {renderView("dashboard", <Dashboard />)}
+              {renderView(
+                "dashboard",
+                <Dashboard ws={ws} root={root} automation={automation} />,
+              )}
               {renderView(
                 "tickets",
                 <Tickets ws={ws} root={root} sequential={sequential} />,

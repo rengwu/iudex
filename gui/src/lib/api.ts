@@ -54,6 +54,17 @@ export const discoverWorkspace = (start: string) =>
 export const initWorkspace = (path: string) => invoke<string>("init_workspace", { path });
 export const runIudex = (root: string, args: string[]) =>
   invoke<string>("run_iudex", { root, args });
+// Display-only tail of events.jsonl (newest first) — the Dashboard's activity
+// feed. Verbatim fields; no state derivation.
+export type EventRow = {
+  ticket: string;
+  from: string;
+  to: string;
+  trigger: string;
+  ts: string;
+};
+export const recentEvents = (root: string, limit: number) =>
+  invoke<EventRow[]>("recent_events", { root, limit });
 
 // ── Config / settings / prompts ─────────────────────────────────────────────
 export const readConfig = (root: string) => invoke<Config>("read_config", { root });
