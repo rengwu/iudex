@@ -20,7 +20,7 @@ import ViewHeader from "../components/ViewHeader";
 import Button from "../components/Button";
 import Badge from "../components/Badge";
 import CanvasPanel from "../components/CanvasPanel";
-import { useDashboardLayout, MIN_SIZE, type PanelId } from "../lib/dashboardLayout";
+import { useDashboardLayout, MIN_SIZE, PANEL_IDS, type PanelId } from "../lib/dashboardLayout";
 import s from "./Dashboard.module.scss";
 
 // Home. The job: open the app cold → within two seconds know the state of the
@@ -108,6 +108,7 @@ export default function Dashboard({
   };
 
   const { layout, setBox, commit, bringToFront, reset } = useDashboardLayout(root);
+  const scrollRef = useRef<HTMLDivElement>(null);
   // Canvas size derives from the panels so it grows to contain the furthest one
   // and the scroll container shows scrollbars automatically. Panels never read
   // the viewport size — this is what makes "viewport resize never reflows" hold.
@@ -123,6 +124,8 @@ export default function Dashboard({
       box={layout[id]}
       minW={MIN_SIZE[id].minW}
       minH={MIN_SIZE[id].minH}
+      others={PANEL_IDS.filter((p) => p !== id).map((p) => layout[p])}
+      scrollRef={scrollRef}
       onChange={(b) => setBox(id, b)}
       onCommit={commit}
       onFocus={() => bringToFront(id)}
@@ -138,7 +141,7 @@ export default function Dashboard({
           Reset layout
         </Button>
       </ViewHeader>
-      <div className={s.scroll}>
+      <div className={s.scroll} ref={scrollRef}>
         <div className={s.canvas} style={{ minWidth: canvasW, minHeight: canvasH }}>
           {panel("now", "NOW", <NowStrip actions={actions} onRun={runAction} />)}
           {panel(

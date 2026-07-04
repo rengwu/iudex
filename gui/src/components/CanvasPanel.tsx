@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import type { PanelBox, PanelId } from "../lib/dashboardLayout";
+import { applySnap, type ViewportEdges } from "../lib/snap";
 import s from "./CanvasPanel.module.scss";
 
 // A draggable / resizable panel on the Dashboard free-arrangement canvas. Provides
@@ -47,6 +48,8 @@ export default function CanvasPanel({
   box,
   minW,
   minH,
+  others,
+  scrollRef,
   children,
   onChange,
   onCommit,
@@ -57,25 +60,49 @@ export default function CanvasPanel({
   box: PanelBox;
   minW: number;
   minH: number;
+  others: PanelBox[]; // sibling boxes — snap targets
+  scrollRef: React.RefObject<HTMLDivElement | null>; // canvas scroll container
   children: React.ReactNode;
   onChange: (b: PanelBox) => void;
   onCommit: () => void;
   onFocus: () => void;
 }): React.JSX.Element {
   // Live interaction state kept in a ref — pointer handlers read/write it without
-  // re-rendering; the visible geometry flows through onChange → the store.
+  // re-rendering; the visible geometry flows through onChange → the store. The
+  // snap targets (siblings + viewport edges) are snapshotted at drag start.
   const drag = useRef<{
     mode: "move" | Dir;
     startX: number;
     startY: number;
     start: PanelBox;
+    others: PanelBox[];
+    vp: ViewportEdges;
   } | null>(null);
+
+  // Visible viewport edges in canvas coords, read from the scroll container.
+  const viewport = (): ViewportEdges => {
+    const el = scrollRef.current;
+    if (!el) return { left: 0, right: 0, top: 0, bottom: 0 };
+    return {
+      left: el.scrollLeft,
+      right: el.scrollLeft + el.clientWidth,
+      top: el.scrollTop,
+      bottom: el.scrollTop + el.clientHeight,
+    };
+  };
 
   const begin = (mode: "move" | Dir) => (e: React.PointerEvent) => {
     if (e.button !== 0) return; // primary button only
     e.stopPropagation();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    drag.current = { mode, startX: e.clientX, startY: e.clientY, start: box };
+    drag.current = {
+      mode,
+      startX: e.clientX,
+      startY: e.clientY,
+      start: box,
+      others,
+      vp: viewport(),
+    };
   };
 
   const move = (e: React.PointerEvent) => {
@@ -83,7 +110,8 @@ export default function CanvasPanel({
     if (!d) return;
     const dx = e.clientX - d.startX;
     const dy = e.clientY - d.startY;
-    onChange(nextBox(d.mode, d.start, dx, dy, minW, minH));
+    const raw = nextBox(d.mode, d.start, dx, dy, minW, minH);
+    onChange(applySnap(d.mode, raw, d.others, d.vp, minW, minH));
   };
 
   const end = (e: React.PointerEvent) => {
@@ -92,7 +120,7 @@ export default function CanvasPanel({
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     const dx = e.clientX - d.startX;
     const dy = e.clientY - d.startY;
-    const b = nextBox(d.mode, d.start, dx, dy, minW, minH);
+    const b = applySnap(d.mode, nextBox(d.mode, d.start, dx, dy, minW, minH), d.others, d.vp, minW, minH);
     // Clamp top/left overflow back into the safe zone; bottom/right is left to
     // grow the canvas (scrollbars).
     onChange({ ...b, x: Math.max(0, b.x), y: Math.max(0, b.y) });
