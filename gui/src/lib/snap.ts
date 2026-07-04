@@ -10,12 +10,17 @@ import type { PanelBox } from "./dashboardLayout";
 //   • adjacency always leaves a gap — a right edge sits SNAP_GAP left of a
 //     neighbour's left edge; a left edge sits SNAP_GAP right of a neighbour's
 //     right edge.
+//   • a neighbour only contributes targets when it is actually near the dragged
+//     box on the perpendicular axis — a far-apart panel snaps to nothing. (Its
+//     x-edges count only when the two overlap vertically within PROXIMITY, its
+//     y-edges only when they overlap horizontally.)
 //   • viewport edges are gapped too, so a panel never slams flush to the wall.
 // All results are rounded to whole pixels — fractional trackpad deltas otherwise
 // leave panels on sub-pixel positions that shimmer between n and n+1.
 
 export const SNAP_GAP = 8; // the gap left beside a neighbour / the wall
 export const SNAP_THRESHOLD = 8; // max px distance at which a snap engages
+export const PROXIMITY = 32; // perpendicular-axis nearness required to snap to a neighbour
 
 export type Dir = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 export type ViewportEdges = { left: number; right: number; top: number; bottom: number };
@@ -40,10 +45,19 @@ function bestDelta(edges: MovingEdge[], threshold: number): number {
   return best;
 }
 
-// Per-edge target lines, built from the other panels and the visible viewport
-// edges (all in canvas coords). Kept separate by edge so left/right (top/bottom)
-// each only see their own kind of alignment plus a gapped adjacency line.
+// Separation between two 1-D ranges: 0 if they overlap, else the gap between the
+// nearest ends. Used to gate a neighbour's targets by perpendicular nearness.
+function separation(a1: number, a2: number, b1: number, b2: number): number {
+  return Math.max(0, Math.max(a1, b1) - Math.min(a2, b2));
+}
+
+// Per-edge target lines for the box `b`, built from the near-enough panels and
+// the visible viewport edges (all in canvas coords). Kept separate by edge so
+// left/right (top/bottom) each only see their own kind of alignment plus a
+// gapped adjacency line — and a neighbour only contributes an axis's targets
+// when it sits within PROXIMITY of `b` on the perpendicular axis.
 function targetLines(
+  b: PanelBox,
   others: PanelBox[],
   vp: ViewportEdges,
 ): { left: number[]; right: number[]; top: number[]; bottom: number[] } {
@@ -52,10 +66,16 @@ function targetLines(
   const top = [vp.top + SNAP_GAP];
   const bottom = [vp.bottom - SNAP_GAP];
   for (const m of others) {
-    left.push(m.x, m.x + m.w + SNAP_GAP); // align left-to-left · sit right of m
-    right.push(m.x + m.w, m.x - SNAP_GAP); // align right-to-right · sit left of m
-    top.push(m.y, m.y + m.h + SNAP_GAP);
-    bottom.push(m.y + m.h, m.y - SNAP_GAP);
+    // x-edges (left/right) align/adjoin only to panels near vertically…
+    if (separation(b.y, b.y + b.h, m.y, m.y + m.h) <= PROXIMITY) {
+      left.push(m.x, m.x + m.w + SNAP_GAP); // align left-to-left · sit right of m
+      right.push(m.x + m.w, m.x - SNAP_GAP); // align right-to-right · sit left of m
+    }
+    // …and y-edges (top/bottom) only to panels near horizontally.
+    if (separation(b.x, b.x + b.w, m.x, m.x + m.w) <= PROXIMITY) {
+      top.push(m.y, m.y + m.h + SNAP_GAP);
+      bottom.push(m.y + m.h, m.y - SNAP_GAP);
+    }
   }
   return { left, right, top, bottom };
 }
@@ -80,7 +100,7 @@ export function applySnap(
   minH: number,
 ): PanelBox {
   const T = SNAP_THRESHOLD;
-  const tg = targetLines(others, vp);
+  const tg = targetLines(b, others, vp);
   let { x, y, w, h } = b;
 
   if (mode === "move") {
