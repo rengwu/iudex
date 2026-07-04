@@ -11,19 +11,20 @@ export type Layout = Record<string, PanelBox>; // keyed by panel id
 export const PANEL_IDS = ["now", "pipe", "start", "shells", "auto", "activity"] as const;
 export type PanelId = (typeof PANEL_IDS)[number];
 
-const LAYOUT_VERSION = 1;
+const LAYOUT_VERSION = 2;
 const keyFor = (root: string) => `iudex.dashboard.layout:${root}`;
 
-// Default arrangement — transcribes today's grid (NOW and PIPELINE full-width
-// bands; then START-over-SHELLS in column 1, AUTOMATION in column 2, ACTIVITY in
-// column 3). z ascends in render order. Sizes are not sacred; tune later.
+// Default arrangement — NOW and PIPELINE as full-width bands, then three
+// full-height columns: a tall START in column 1, AUTOMATION over SHELLS in
+// column 2, ACTIVITY in column 3. z ascends in render order. Sizes are not
+// sacred; tune later.
 export const DEFAULT_LAYOUT: Layout = {
-  now: { x: 8, y: 8, w: 1184, h: 88, z: 1 },
-  pipe: { x: 8, y: 104, w: 1184, h: 280, z: 2 },
-  start: { x: 8, y: 392, w: 388, h: 150, z: 3 },
-  shells: { x: 8, y: 550, w: 388, h: 150, z: 4 },
-  auto: { x: 404, y: 392, w: 388, h: 308, z: 5 },
-  activity: { x: 800, y: 392, w: 388, h: 308, z: 6 },
+  now: { x: 8, y: 8, w: 1036, h: 82, z: 1 },
+  pipe: { x: 8, y: 98, w: 1036, h: 202, z: 2 },
+  start: { x: 8, y: 308, w: 416, h: 350, z: 3 },
+  auto: { x: 432, y: 308, w: 320, h: 230, z: 4 },
+  shells: { x: 432, y: 546, w: 320, h: 112, z: 5 },
+  activity: { x: 760, y: 308, w: 284, h: 350, z: 6 },
 };
 
 // Per-panel minimum sizes (Part C). Passed to each CanvasPanel as minW/minH so a
