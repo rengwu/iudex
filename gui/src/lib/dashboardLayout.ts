@@ -32,12 +32,12 @@ const keyFor = (root: string) => `iudex.dashboard.layout:${root}`;
 // SHELLS in column 2, ACTIVITY in column 3 (the columns stop short of the bands'
 // right edge). z ascends in render order. Sizes are not sacred; tune later.
 export const DEFAULT_LAYOUT: Layout = {
-  now: { x: 8, y: 8, w: 980, h: 82, z: 1 },
-  pipe: { x: 8, y: 98, w: 980, h: 202, z: 2 },
-  start: { x: 8, y: 308, w: 416, h: 280, z: 3 },
-  auto: { x: 432, y: 308, w: 260, h: 160, z: 4 },
-  shells: { x: 432, y: 476, w: 260, h: 112, z: 5 },
-  activity: { x: 700, y: 308, w: 260, h: 280, z: 6 },
+  now: { x: 8, y: 8, w: 948, h: 82, z: 16 },
+  pipe: { x: 8, y: 98, w: 948, h: 202, z: 15 },
+  start: { x: 8, y: 308, w: 401, h: 329, z: 25 },
+  shells: { x: 417, y: 308, w: 271, h: 152, z: 23 },
+  auto: { x: 417, y: 468, w: 271, h: 169, z: 24 },
+  activity: { x: 696, y: 308, w: 260, h: 329, z: 21 },
 };
 
 // Per-panel minimum sizes (Part C). Passed to each CanvasPanel as minW/minH so a

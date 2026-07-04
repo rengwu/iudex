@@ -40,7 +40,7 @@ const CANVAS_PAD = 8;
 
 // Flip to true to reveal a dev-only "Copy layout" button beside "Reset layout":
 // it copies the current arrangement as a pasteable DEFAULT_LAYOUT literal.
-const DEBUG: boolean = false;
+const DEBUG: boolean = true;
 export default function Dashboard({
   ws,
   root,
@@ -66,7 +66,11 @@ export default function Dashboard({
         try {
           const st = await api.sessionStatus(sx.name);
           if (st.dead && st.exitCode !== null && st.exitCode !== 0) {
-            found.push({ ticket: sx.ticket!, session: sx.name, role: sx.role! });
+            found.push({
+              ticket: sx.ticket!,
+              session: sx.name,
+              role: sx.role!,
+            });
           }
         } catch {
           // unknown → not crashed
@@ -117,7 +121,8 @@ export default function Dashboard({
     else seedRef.current?.focus();
   };
 
-  const { layout, setBox, commit, bringToFront, reset } = useDashboardLayout(root);
+  const { layout, setBox, commit, bringToFront, reset } =
+    useDashboardLayout(root);
   const scrollRef = useRef<HTMLDivElement>(null);
   // Canvas size derives from the panels so it grows to contain the furthest one
   // and the scroll container shows scrollbars automatically. Panels never read
@@ -165,21 +170,49 @@ export default function Dashboard({
         </Button>
       </ViewHeader>
       <div className={s.scroll} ref={scrollRef}>
-        <div className={s.canvas} style={{ minWidth: canvasW, minHeight: canvasH }}>
-          {panel("now", "NOW", <NowStrip actions={actions} onRun={runAction} />)}
+        <div
+          className={s.canvas}
+          style={{ minWidth: canvasW, minHeight: canvasH }}
+        >
+          {panel(
+            "now",
+            "NOW",
+            <NowStrip actions={actions} onRun={runAction} />,
+          )}
           {panel(
             "pipe",
             "PIPELINE",
-            <Pipeline ws={ws} sessions={sessions} titles={titles} rail={rail} goTo={goTo} />,
+            <Pipeline
+              ws={ws}
+              sessions={sessions}
+              titles={titles}
+              rail={rail}
+              goTo={goTo}
+            />,
           )}
-          {panel("start", "START", <StartPanel root={root} seedRef={seedRef} goTo={goTo} />)}
-          {panel("shells", "SHELLS", <ShellsPanel root={root} sessions={sessions} goTo={goTo} />)}
+          {panel(
+            "start",
+            "START",
+            <StartPanel root={root} seedRef={seedRef} goTo={goTo} />,
+          )}
+          {panel(
+            "shells",
+            "SHELLS",
+            <ShellsPanel root={root} sessions={sessions} goTo={goTo} />,
+          )}
           {panel(
             "auto",
             "AUTOMATION",
-            <AutomationPanel automation={automation} maxActive={ws.maxActive} />,
+            <AutomationPanel
+              automation={automation}
+              maxActive={ws.maxActive}
+            />,
           )}
-          {panel("activity", "ACTIVITY", <Activity events={events} goTo={goTo} ws={ws} />)}
+          {panel(
+            "activity",
+            "ACTIVITY",
+            <Activity events={events} goTo={goTo} ws={ws} />,
+          )}
         </div>
       </div>
     </div>
@@ -367,7 +400,9 @@ function Pipeline({
       ) : null;
     } else if (t.state === "pending-human-qa") {
       const b = badgeFor(t);
-      hint = b ? <span className={`${s.mbadge} ${s[`m_${b}`]}`}>{b}</span> : null;
+      hint = b ? (
+        <span className={`${s.mbadge} ${s[`m_${b}`]}`}>{b}</span>
+      ) : null;
     } else if (t.state === "failed") {
       hint = <span className={s.blocked}>{t.qaRejects}× rejected</span>;
     }
@@ -396,7 +431,10 @@ function Pipeline({
           return (
             <div key={c.state} className={s.col}>
               <div className={s.colHead}>
-                <span className={s.colDot} style={{ background: stateDot(c.state) }} />
+                <span
+                  className={s.colDot}
+                  style={{ background: stateDot(c.state) }}
+                />
                 {c.label}
                 <span className={s.colN}>{items.length}</span>
               </div>
@@ -428,7 +466,12 @@ function AutomationPanel({
   automation: Automation;
   maxActive: number;
 }) {
-  const latches: { label: string; hint: string; on: boolean; set: (v: boolean) => void }[] = [
+  const latches: {
+    label: string;
+    hint: string;
+    on: boolean;
+    set: (v: boolean) => void;
+  }[] = [
     {
       label: "Auto-Activate",
       hint: "Activate ready tickets and keep impl staffed (respawns after rejects).",
@@ -472,11 +515,16 @@ function AutomationPanel({
       </div>
       {rs && (
         <div className={rs.phase === "resolving" ? s.rsBusy : s.rsParked}>
-          resolver: {rs.ticket} {rs.phase === "resolving" ? "working…" : rs.phase}
+          resolver: {rs.ticket}{" "}
+          {rs.phase === "resolving" ? "working…" : rs.phase}
         </div>
       )}
       <div className={s.modeTitle}>MODE</div>
-      <div className={s.modeSeg} role="radiogroup" aria-label="Concurrency mode">
+      <div
+        className={s.modeSeg}
+        role="radiogroup"
+        aria-label="Concurrency mode"
+      >
         <button
           type="button"
           role="radio"
@@ -521,7 +569,8 @@ function Activity({
   const viewFor = (id: string): { view: View; focus?: { id: string } } => {
     const t = ws.tickets.find((x) => x.id === id);
     if (!t) return { view: "tickets" };
-    if (t.state === "pending-human-qa") return { view: "review", focus: { id } };
+    if (t.state === "pending-human-qa")
+      return { view: "review", focus: { id } };
     if (t.state === "done") return { view: "archive" };
     return { view: "tickets", focus: { id } };
   };
