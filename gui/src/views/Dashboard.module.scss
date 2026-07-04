@@ -1,7 +1,9 @@
 @use "../styles/tokens" as t;
 
-// Home: one aligned CSS grid of modules on the gray canvas. Flat, square,
-// 11–13px; saturated hue only where it means state (NOW tone edges, dots,
+// Home: a free-arrangement canvas of modules on the gray canvas. Each module is
+// an absolutely-positioned, draggable, resizable panel (chrome lives in
+// CanvasPanel.module.scss); the styles here are the panels' inner bodies. Flat,
+// square, 11–13px; saturated hue only where it means state (NOW tone edges, dots,
 // badges, latched-on amber) — never decoration.
 
 .dash {
@@ -11,37 +13,16 @@
   background: t.$canvas;
 }
 
-// The module grid. NOW and PIPELINE span full width; the lower band is three
-// aligned columns with AUTOMATION and ACTIVITY spanning both rows beside the
-// START / SHELLS stack.
-.grid {
+// The scroll container fills the view below the header; the canvas inside is
+// position:relative and sized from the panels (min-width/height set inline), so
+// panels dragged past the bottom/right grow it and produce scrollbars.
+.scroll {
   min-height: 0;
   overflow: auto;
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-template-rows: auto auto auto auto;
-  grid-template-areas:
-    "now now now"
-    "pipe pipe pipe"
-    "start auto activity"
-    "shells auto activity";
-  gap: 8px;
-  padding: 8px;
 }
 
-.zone {
-  background: t.$panel-rail;
-  border: 1px solid #7f7f7f;
-  padding: 8px;
-  min-width: 0;
-}
-
-.zoneTitle {
-  font-family: t.$font-mono;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  color: t.$text-muted;
-  margin-bottom: 6px;
+.canvas {
+  position: relative;
 }
 
 .quiet {
@@ -50,10 +31,6 @@
 }
 
 // ── NOW: equal chips, tone-accented left edge ────────────────────────────────
-.now {
-  grid-area: now;
-}
-
 .nowGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -132,11 +109,11 @@
 
 // ── START ────────────────────────────────────────────────────────────────────
 .start {
-  grid-area: start;
   display: grid;
-  grid-template-rows: auto 1fr auto auto;
+  grid-template-rows: 1fr auto auto;
   gap: 6px;
   align-content: start;
+  height: 100%;
 }
 
 .seed {
@@ -176,11 +153,11 @@
 
 // ── SHELLS ───────────────────────────────────────────────────────────────────
 .shells {
-  grid-area: shells;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: 1fr auto;
   gap: 6px;
   align-content: start;
+  height: 100%;
 }
 
 .shellList {
@@ -203,10 +180,6 @@
 }
 
 // ── PIPELINE (full width) ────────────────────────────────────────────────────
-.pipe {
-  grid-area: pipe;
-}
-
 .cols {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -356,7 +329,6 @@
 
 // ── AUTOMATION: 2×2 latch grid + light MODE segmented ───────────────────────
 .auto {
-  grid-area: auto;
   display: grid;
   gap: 6px;
   align-content: start;
@@ -440,19 +412,10 @@
 }
 
 // ── ACTIVITY ─────────────────────────────────────────────────────────────────
-.activity {
-  grid-area: activity;
-  display: grid;
-  grid-template-rows: auto 1fr;
-  align-content: start;
-  overflow: hidden;
-}
-
 .evtList {
   display: grid;
   gap: 2px;
   align-content: start;
-  overflow: auto;
 }
 
 .evt {

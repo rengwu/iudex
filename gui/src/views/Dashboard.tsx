@@ -19,13 +19,18 @@ import type { Automation } from "../components/Sidebar";
 import ViewHeader from "../components/ViewHeader";
 import Button from "../components/Button";
 import Badge from "../components/Badge";
+import CanvasPanel from "../components/CanvasPanel";
+import { useDashboardLayout, MIN_SIZE, type PanelId } from "../lib/dashboardLayout";
 import s from "./Dashboard.module.scss";
 
 // Home. The job: open the app cold → within two seconds know the state of the
-// line and the next things worth doing. One aligned CSS-grid of modules — NOW
-// and PIPELINE span the full width; START / SHELLS stack beside AUTOMATION and
-// ACTIVITY. Everything is read-derived and *navigational* — the target views
-// own the actions. Design: .context/prd/dashboard.md.
+// line and the next things worth doing. A free-arrangement canvas of six
+// read-derived modules — each an absolutely-positioned, draggable, resizable
+// panel whose geometry persists to localStorage per workspace (see
+// lib/dashboardLayout.ts). Everything is read-derived and *navigational* — the
+// target views own the actions. Design: .context/prd/dashboard.md,
+// .context/prd/dashboard-canvas.md.
+const CANVAS_PAD = 8;
 export default function Dashboard({
   ws,
   root,
@@ -102,16 +107,54 @@ export default function Dashboard({
     else seedRef.current?.focus();
   };
 
+  const { layout, setBox, commit, bringToFront, reset } = useDashboardLayout(root);
+  // Canvas size derives from the panels so it grows to contain the furthest one
+  // and the scroll container shows scrollbars automatically. Panels never read
+  // the viewport size — this is what makes "viewport resize never reflows" hold.
+  const boxes = Object.values(layout);
+  const canvasW = CANVAS_PAD + Math.max(...boxes.map((b) => b.x + b.w));
+  const canvasH = CANVAS_PAD + Math.max(...boxes.map((b) => b.y + b.h));
+
+  const panel = (id: PanelId, title: string, node: React.ReactNode) => (
+    <CanvasPanel
+      key={id}
+      id={id}
+      title={title}
+      box={layout[id]}
+      minW={MIN_SIZE[id].minW}
+      minH={MIN_SIZE[id].minH}
+      onChange={(b) => setBox(id, b)}
+      onCommit={commit}
+      onFocus={() => bringToFront(id)}
+    >
+      {node}
+    </CanvasPanel>
+  );
+
   return (
     <div className={s.dash}>
-      <ViewHeader dot={VIEWS.dashboard.dot} title="Dashboard" />
-      <div className={s.grid}>
-        <NowStrip actions={actions} onRun={runAction} />
-        <Pipeline ws={ws} sessions={sessions} titles={titles} rail={rail} goTo={goTo} />
-        <StartPanel root={root} seedRef={seedRef} goTo={goTo} />
-        <AutomationPanel automation={automation} maxActive={ws.maxActive} />
-        <Activity events={events} goTo={goTo} ws={ws} />
-        <ShellsPanel root={root} sessions={sessions} goTo={goTo} />
+      <ViewHeader dot={VIEWS.dashboard.dot} title="Dashboard">
+        <Button variant="quiet" size="sm" onClick={reset}>
+          Reset layout
+        </Button>
+      </ViewHeader>
+      <div className={s.scroll}>
+        <div className={s.canvas} style={{ minWidth: canvasW, minHeight: canvasH }}>
+          {panel("now", "NOW", <NowStrip actions={actions} onRun={runAction} />)}
+          {panel(
+            "pipe",
+            "PIPELINE",
+            <Pipeline ws={ws} sessions={sessions} titles={titles} rail={rail} goTo={goTo} />,
+          )}
+          {panel("start", "START", <StartPanel root={root} seedRef={seedRef} goTo={goTo} />)}
+          {panel("shells", "SHELLS", <ShellsPanel root={root} sessions={sessions} goTo={goTo} />)}
+          {panel(
+            "auto",
+            "AUTOMATION",
+            <AutomationPanel automation={automation} maxActive={ws.maxActive} />,
+          )}
+          {panel("activity", "ACTIVITY", <Activity events={events} goTo={goTo} ws={ws} />)}
+        </div>
       </div>
     </div>
   );
@@ -128,25 +171,22 @@ function NowStrip({
   onRun: (a: HomeAction) => void;
 }) {
   return (
-    <section className={`${s.zone} ${s.now}`}>
-      <div className={s.zoneTitle}>NOW</div>
-      <div className={s.nowGrid}>
-        {actions.slice(0, NOW_CAP).map((a) => (
-          <button
-            key={a.key}
-            className={`${s.nowChip} ${s[`tone_${a.tone}`]}`}
-            onClick={() => onRun(a)}
-          >
-            <span className={s.nowDot} />
-            <span className={s.nowLabel}>{a.label}</span>
-            <span className={s.nowArrow}>→</span>
-          </button>
-        ))}
-        {actions.length > NOW_CAP && (
-          <div className={s.nowMore}>+{actions.length - NOW_CAP} more</div>
-        )}
-      </div>
-    </section>
+    <div className={s.nowGrid}>
+      {actions.slice(0, NOW_CAP).map((a) => (
+        <button
+          key={a.key}
+          className={`${s.nowChip} ${s[`tone_${a.tone}`]}`}
+          onClick={() => onRun(a)}
+        >
+          <span className={s.nowDot} />
+          <span className={s.nowLabel}>{a.label}</span>
+          <span className={s.nowArrow}>→</span>
+        </button>
+      ))}
+      {actions.length > NOW_CAP && (
+        <div className={s.nowMore}>+{actions.length - NOW_CAP} more</div>
+      )}
+    </div>
   );
 }
 
@@ -181,8 +221,7 @@ function StartPanel({
   };
 
   return (
-    <section className={`${s.zone} ${s.start}`}>
-      <div className={s.zoneTitle}>START</div>
+    <div className={s.start}>
       <textarea
         ref={seedRef}
         className={s.seed}
@@ -213,7 +252,7 @@ function StartPanel({
           Compose a ticket
         </Button>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -237,8 +276,7 @@ function ShellsPanel({
     goTo("terminal");
   };
   return (
-    <section className={`${s.zone} ${s.shells}`}>
-      <div className={s.zoneTitle}>SHELLS</div>
+    <div className={s.shells}>
       <div className={s.shellList}>
         {shells.length === 0 && <div className={s.quiet}>no open shells</div>}
         {shells.map((sh) => (
@@ -257,7 +295,7 @@ function ShellsPanel({
           Open a shell
         </Button>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -324,8 +362,7 @@ function Pipeline({
   };
 
   return (
-    <section className={`${s.zone} ${s.pipe}`}>
-      <div className={s.zoneTitle}>PIPELINE</div>
+    <>
       <div className={s.cols}>
         {COLS.map((c) => {
           let items = ws.tickets.filter((t) => t.state === c.state);
@@ -353,7 +390,7 @@ function Pipeline({
           {failed.map((t) => chip(t, "tickets"))}
         </div>
       )}
-    </section>
+    </>
   );
 }
 
@@ -394,8 +431,7 @@ function AutomationPanel({
   const rs = automation.resolveStatus;
   const seq = automation.sequential;
   return (
-    <section className={`${s.zone} ${s.auto}`}>
-      <div className={s.zoneTitle}>AUTOMATION</div>
+    <div className={s.auto}>
       <div className={s.latchGrid}>
         {latches.map((l) => (
           <button
@@ -441,7 +477,7 @@ function AutomationPanel({
             ? `Up to ${maxActive} tickets in flight at once.`
             : "Multiple tickets in flight at once."}
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -464,28 +500,25 @@ function Activity({
     return { view: "tickets", focus: { id } };
   };
   return (
-    <section className={`${s.zone} ${s.activity}`}>
-      <div className={s.zoneTitle}>ACTIVITY</div>
-      <div className={s.evtList}>
-        {events.length === 0 && <div className={s.quiet}>no events yet</div>}
-        {events.map((e, i) => {
-          const dest = viewFor(e.ticket);
-          return (
-            <button
-              key={`${e.ts}-${i}`}
-              className={s.evt}
-              onClick={() => goTo(dest.view, dest.focus)}
-            >
-              <span className={s.evtTicket}>{e.ticket}</span>
-              <span className={s.evtWhat}>{e.trigger || "→"}</span>
-              <Badge kind="state" value={e.to}>
-                {ticketState(e.to).short}
-              </Badge>
-              <span className={s.evtAge}>{timeAgo(e.ts)}</span>
-            </button>
-          );
-        })}
-      </div>
-    </section>
+    <div className={s.evtList}>
+      {events.length === 0 && <div className={s.quiet}>no events yet</div>}
+      {events.map((e, i) => {
+        const dest = viewFor(e.ticket);
+        return (
+          <button
+            key={`${e.ts}-${i}`}
+            className={s.evt}
+            onClick={() => goTo(dest.view, dest.focus)}
+          >
+            <span className={s.evtTicket}>{e.ticket}</span>
+            <span className={s.evtWhat}>{e.trigger || "→"}</span>
+            <Badge kind="state" value={e.to}>
+              {ticketState(e.to).short}
+            </Badge>
+            <span className={s.evtAge}>{timeAgo(e.ts)}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
