@@ -8,7 +8,7 @@ import {
   type Workspace,
   type Worktree,
 } from "../types";
-import { useWorktrees } from "../lib/worktrees";
+import { useWorktrees, orphanReason } from "../lib/worktrees";
 import { useNav } from "../lib/nav";
 import Badge from "../components/Badge";
 import ViewHeader from "../components/ViewHeader";
@@ -39,7 +39,45 @@ export default function Worktrees({
   root: string;
 }) {
   const { goTo } = useNav();
-  const { worktrees, error } = useWorktrees(root, ws);
+  const { worktrees, error, reload } = useWorktrees(root, ws);
+
+  // Uncommitted-file counts per rail entry (incl. the main root), polled on a
+  // ~4s cadence — file edits ring no events.jsonl doorbell. Reuses the same
+  // count as the finish-guard, so the numbers agree by construction.
+  const [dirty, setDirty] = useState<Record<string, number>>({});
+  const wtPaths = worktrees.map((w) => w.path).join("\n");
+  useEffect(() => {
+    const paths = wtPaths ? wtPaths.split("\n") : [];
+    if (paths.length === 0) {
+      setDirty({});
+      return;
+    }
+    let alive = true;
+    const fetchAll = async () => {
+      const entries = await Promise.all(
+        paths.map(async (p) => {
+          try {
+            return [p, await api.worktreeDirtyCount(p)] as const;
+          } catch {
+            return null; // a worktree removed mid-poll is normal — skip it
+          }
+        }),
+      );
+      if (!alive) return;
+      const next: Record<string, number> = {};
+      for (const e of entries) if (e) next[e[0]] = e[1];
+      setDirty(next);
+    };
+    fetchAll();
+    const h = setInterval(() => {
+      if (document.visibilityState === "hidden") return;
+      fetchAll();
+    }, 4000);
+    return () => {
+      alive = false;
+      clearInterval(h);
+    };
+  }, [wtPaths]);
 
   const [selPath, setSelPath] = useState<string | null>(null);
   const [mode, setMode] = useState<"changed" | "all">("changed");
@@ -166,6 +204,48 @@ export default function Worktrees({
     }
   };
 
+  const orphanMsg = selected ? orphanReason(selected, ws) : null;
+
+  // Remove an orphaned worktree. Try a clean removal first; if it fails because
+  // the worktree is dirty, confirm the loss (same lightweight gate as the finish
+  // guard) and force. A clean-but-failing remove surfaces its real error. No
+  // doorbell fires, so reload() re-enumerates on success.
+  const removeOrphan = async () => {
+    if (!selected) return;
+    const path = selected.path;
+    setPaneErr(null);
+    try {
+      await api.removeWorktree(root, path, false);
+      reload();
+      return;
+    } catch (e) {
+      let n = 0;
+      try {
+        n = await api.worktreeDirtyCount(path);
+      } catch {
+        setPaneErr(String(e));
+        return;
+      }
+      if (n === 0) {
+        setPaneErr(String(e));
+        return;
+      }
+      if (
+        !window.confirm(
+          `${n} uncommitted files will be permanently lost. Remove anyway?`,
+        )
+      ) {
+        return;
+      }
+      try {
+        await api.removeWorktree(root, path, true);
+        reload();
+      } catch (e2) {
+        setPaneErr(String(e2));
+      }
+    }
+  };
+
   const totals = changes.reduce(
     (acc, c) => {
       acc.add += c.additions ?? 0;
@@ -211,6 +291,16 @@ export default function Worktrees({
                     </Fragment>
                   ))
                 )}
+                {orphanReason(w, ws) && (
+                  <Badge bg="#e0584c" fg="#ffffff">
+                    orphaned
+                  </Badge>
+                )}
+                {dirty[w.path] > 0 && (
+                  <Badge bg="#e3cf9b" fg="#5a4a1f">
+                    {dirty[w.path]} uncommitted
+                  </Badge>
+                )}
               </span>
             </button>
           ))}
@@ -225,7 +315,13 @@ export default function Worktrees({
                     ? `${wtLabel(selected)}${isMain ? " · read-only" : " · all files"}`
                     : `${wtLabel(selected)} · ${selected.head.slice(0, 7)} · vs ${ws.mainBranch}`}
                 </span>
+                {orphanMsg && <span className={s.orphanNote}>{orphanMsg}</span>}
                 <div className={s.headTools}>
+                  {orphanMsg && (
+                    <Button variant="danger" size="sm" onClick={removeOrphan}>
+                      Remove worktree
+                    </Button>
+                  )}
                   {!isMain && (
                     <div className={s.seg}>
                       <button

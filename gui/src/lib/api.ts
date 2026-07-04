@@ -142,6 +142,10 @@ export const worktreeTaskDocs = (worktree: string) =>
 // finish, whose auto-WIP-commit would otherwise ship unready edits to QA.
 export const worktreeDirtyCount = (worktree: string) =>
   invoke<number>("worktree_dirty_count", { worktree });
+// Remove an orphaned worktree (guarded to .iudex/worktrees/ in the backend).
+// `force` discards uncommitted changes; the branch is left alone.
+export const removeWorktree = (root: string, path: string, force: boolean) =>
+  invoke<void>("remove_worktree", { root, path, force });
 
 // ── Review / merge preflight / conflict resolution ──────────────────────────
 export const railStatus = (root: string, mainBranch: string, worktrees: string[]) =>

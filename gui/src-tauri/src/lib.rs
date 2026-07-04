@@ -1430,6 +1430,37 @@ fn worktree_dirty_count(worktree: String) -> Result<usize, String> {
     Ok(n)
 }
 
+/// Remove an orphaned worktree — the residue of best-effort cleanup that didn't
+/// finish (a physical worktree whose ticket is terminal or unknown). Guarded: the
+/// path must canonicalize to under `<root>/.iudex/worktrees/`, so a stray call can
+/// never remove an arbitrary directory. Runs from the main repo root, like
+/// `list_worktrees` (git refuses `worktree remove` from inside the target). The
+/// branch is left alone — the archive holds diff.patch, and branch cleanup is out
+/// of scope.
+#[tauri::command]
+fn remove_worktree(root: String, path: String, force: bool) -> Result<(), String> {
+    let base = std::fs::canonicalize(Path::new(&root).join(".iudex").join("worktrees"))
+        .map_err(|e| format!("canonicalize worktrees dir: {e}"))?;
+    let target = std::fs::canonicalize(&path).map_err(|e| format!("canonicalize {path}: {e}"))?;
+    if !target.starts_with(&base) {
+        return Err("refusing to remove a worktree outside .iudex/worktrees".to_string());
+    }
+    let mut args = vec!["-C", &root, "worktree", "remove"];
+    if force {
+        args.push("--force");
+    }
+    let target_str = target.to_string_lossy();
+    args.push(&target_str);
+    let out = Command::new("git")
+        .args(&args)
+        .output()
+        .map_err(|e| format!("git worktree remove: {e}"))?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
+    Ok(())
+}
+
 /// One archived ticket (.iudex/archive/<id>/) — the list entry for the Archive
 /// view. `outcome` is "done" (merged) or "removed" (abandoned); the GUI filters.
 #[derive(serde::Serialize)]
@@ -2295,6 +2326,7 @@ pub fn run() {
             write_queue_brief,
             worktree_task_docs,
             worktree_dirty_count,
+            remove_worktree,
             list_archives,
             read_archive,
             merge_preflight,

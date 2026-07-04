@@ -200,6 +200,11 @@
   gap: 8px;
   flex-shrink: 0;
 }
+.orphanNote {
+  font-size: 11px;
+  color: #c46a5e;
+  margin-right: auto;
+}
 // Mode toggle (changed files | all files) — mirrors DiffViewer's inline/split seg.
 .seg {
   display: flex;
