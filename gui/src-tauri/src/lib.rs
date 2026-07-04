@@ -233,6 +233,35 @@ fn set_kill_pool_on_exit(app: AppHandle, value: bool) -> Result<(), String> {
     std::fs::write(&cfg, out).map_err(|e| format!("write {}: {e}", cfg.display()))
 }
 
+/// GUI behavior pref: how long a superseded agent's session lingers before
+/// Auto-Retire kills it (minutes). Stored in ~/.iudex/config.yml as a GUI-owned
+/// key the CLI ignores. Absent or unparseable → 10 (the default grace); 0 = kill
+/// immediately (the old instant-retire behavior).
+fn read_retire_grace_minutes(app: &AppHandle) -> u32 {
+    global_config_path(app)
+        .ok()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|t| yaml_scalar(&t, "gui_retire_grace_minutes"))
+        .and_then(|v| v.parse::<u32>().ok())
+        .unwrap_or(10)
+}
+
+#[tauri::command]
+fn get_retire_grace_minutes(app: AppHandle) -> u32 {
+    read_retire_grace_minutes(&app)
+}
+
+#[tauri::command]
+fn set_retire_grace_minutes(app: AppHandle, value: u32) -> Result<(), String> {
+    let cfg = global_config_path(&app)?;
+    let text = std::fs::read_to_string(&cfg).unwrap_or_default();
+    let out = yaml_upsert_scalar(&text, "gui_retire_grace_minutes", Some(&value.to_string()));
+    if let Some(dir) = cfg.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
+    }
+    std::fs::write(&cfg, out).map_err(|e| format!("write {}: {e}", cfg.display()))
+}
+
 /// Sequential mode: the workspace policy "at most one ticket in flight"
 /// (active | pending-qa | pending-human-qa). Stored per workspace in
 /// .iudex/config.yml as a GUI-owned key the CLI ignores (its YAML parsing
@@ -2238,6 +2267,8 @@ pub fn run() {
             install_cli,
             get_kill_pool_on_exit,
             set_kill_pool_on_exit,
+            get_retire_grace_minutes,
+            set_retire_grace_minutes,
             confirm_quit,
             get_sequential,
             set_sequential,
@@ -2290,6 +2321,8 @@ pub fn run() {
             tmux::list_sessions,
             tmux::create_shell,
             tmux::kill_session,
+            tmux::set_retire_at,
+            tmux::clear_retire,
             tmux::capture_pane,
             tmux::open_terminal,
             tmux::write_terminal,

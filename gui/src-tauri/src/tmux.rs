@@ -33,6 +33,12 @@ pub struct Session {
     pub role: Option<String>,    // agent's role at spawn ("impl" | "qa")
     pub started: Option<String>, // agent spawn time (unix millis, sortable)
     pub root: Option<String>,    // workspace this session belongs to (@iudex_root)
+    // Auto-Retire mark: kill deadline (unix millis, like `started`) stamped on a
+    // superseded agent, and a pardon flag that opts a session out of re-marking.
+    #[serde(rename = "retireAt")]
+    pub retire_at: Option<String>, // @iudex_retire_at (empty ⇒ None)
+    #[serde(rename = "retirePardon")]
+    pub retire_pardon: bool, // @iudex_retire_pardon == "1"
     pub title: String,           // display label (frontend may override)
 }
 
@@ -93,7 +99,7 @@ fn list_all() -> Result<Vec<Session>, String> {
         .args([
             "list-sessions",
             "-F",
-            "#{session_name}\t#{@iudex_ticket}\t#{@iudex_role}\t#{@iudex_started}\t#{@iudex_root}",
+            "#{session_name}\t#{@iudex_ticket}\t#{@iudex_role}\t#{@iudex_started}\t#{@iudex_root}\t#{@iudex_retire_at}\t#{@iudex_retire_pardon}",
         ])
         .output()
         .map_err(|e| format!("tmux: {e}"))?;
@@ -133,6 +139,8 @@ fn parse_line(line: &str) -> Option<Session> {
     let role = nonempty(cols.next().unwrap_or(""));
     let started = nonempty(cols.next().unwrap_or(""));
     let root = nonempty(cols.next().unwrap_or(""));
+    let retire_at = nonempty(cols.next().unwrap_or(""));
+    let retire_pardon = cols.next().unwrap_or("").trim() == "1";
 
     if name.starts_with(&format!("{PREFIX}agent-")) {
         let title = match (&ticket, &role) {
@@ -147,6 +155,8 @@ fn parse_line(line: &str) -> Option<Session> {
             role,
             started,
             root,
+            retire_at,
+            retire_pardon,
             title,
         })
     } else if name.starts_with(&format!("{PREFIX}idea-")) {
@@ -162,6 +172,8 @@ fn parse_line(line: &str) -> Option<Session> {
             role,
             started,
             root,
+            retire_at,
+            retire_pardon,
             title,
         })
     } else if let Some(tail) = name.strip_prefix(&format!("{PREFIX}shell-")) {
@@ -172,6 +184,8 @@ fn parse_line(line: &str) -> Option<Session> {
             role: None,
             started: None,
             root,
+            retire_at: None,
+            retire_pardon: false,
             title: format!("shell {tail}"),
         })
     } else {
@@ -256,6 +270,8 @@ pub fn create_shell(root: String, cwd: Option<String>) -> Result<Session, String
         role: None,
         started: None,
         root: Some(root),
+        retire_at: None,
+        retire_pardon: false,
         title: format!("shell {n}"),
     })
 }
@@ -320,6 +336,8 @@ pub fn spawn_agent(root: String, ticket: String, role: String) -> Result<Session
         role: nonempty(&role),
         started: Some(started),
         root: Some(root),
+        retire_at: None,
+        retire_pardon: false,
         title: String::new(),
     })
 }
@@ -378,6 +396,8 @@ pub fn spawn_idea(root: String, skill: String, seed: String) -> Result<Session, 
         role: nonempty(&skill),
         started: Some(started),
         root: Some(root),
+        retire_at: None,
+        retire_pardon: false,
         title: format!("idea: {skill}"),
     })
 }
@@ -446,6 +466,8 @@ pub fn spawn_resolver(root: String, ticket: String, worktree: String) -> Result<
         role: Some("resolve".to_string()),
         started: Some(started),
         root: Some(root),
+        retire_at: None,
+        retire_pardon: false,
         title: String::new(),
     })
 }
@@ -534,6 +556,41 @@ pub fn kill_session(name: String) -> Result<(), String> {
         .args(["kill-session", "-t", &name])
         .status()
         .map_err(|e| format!("tmux kill-session: {e}"))?;
+    Ok(())
+}
+
+/// Stamp a superseded agent's kill deadline (unix millis, as a string) on its
+/// session. The Auto-Retire engine sets this instead of killing immediately; the
+/// mark lives in tmux, so it survives GUI restarts.
+#[tauri::command]
+pub fn set_retire_at(name: String, epoch_ms: String) -> Result<(), String> {
+    if !name.starts_with(PREFIX) {
+        return Err(format!("refusing to mark non-iudex session {name}"));
+    }
+    Command::new("tmux")
+        .args(["set-option", "-t", &name, "@iudex_retire_at", &epoch_ms])
+        .status()
+        .map_err(|e| format!("tmux set-option: {e}"))?;
+    Ok(())
+}
+
+/// Clear a session's retire mark. With `pardon`, also set `@iudex_retire_pardon`
+/// so the engine never auto-marks it again (the Agents "Keep" action).
+#[tauri::command]
+pub fn clear_retire(name: String, pardon: bool) -> Result<(), String> {
+    if !name.starts_with(PREFIX) {
+        return Err(format!("refusing to unmark non-iudex session {name}"));
+    }
+    Command::new("tmux")
+        .args(["set-option", "-u", "-t", &name, "@iudex_retire_at"])
+        .status()
+        .map_err(|e| format!("tmux set-option: {e}"))?;
+    if pardon {
+        Command::new("tmux")
+            .args(["set-option", "-t", &name, "@iudex_retire_pardon", "1"])
+            .status()
+            .map_err(|e| format!("tmux set-option: {e}"))?;
+    }
     Ok(())
 }
 

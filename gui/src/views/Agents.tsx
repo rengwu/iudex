@@ -46,6 +46,43 @@ function RoleChip({ role }: { role: string }) {
   return <Badge kind="role">{role}</Badge>;
 }
 
+// Auto-Retire countdown: an amber chip counting down to the sweep, plus a "Keep"
+// button that pardons the session (never auto-marked again). Renders only while
+// the deadline is in the future; `now` is a ticker so it recomputes ~every 30s.
+function RetireChip({
+  agent,
+  now,
+  onKeep,
+}: {
+  agent: Session;
+  now: number;
+  onKeep: () => void;
+}) {
+  if (!agent.retireAt) return null;
+  const at = Number(agent.retireAt);
+  if (!Number.isFinite(at) || at <= now) return null;
+  const remaining = at - now;
+  const label = remaining < 60_000 ? "<1m" : `${Math.ceil(remaining / 60_000)}m`;
+  return (
+    <>
+      <Badge bg="#e3cf9b" fg="#5a4a1f">
+        retiring in {label}
+      </Badge>
+      {/* Stop the click from bubbling to the rail card's select handler. */}
+      <span onClick={(e) => e.stopPropagation()}>
+        <Button
+          variant="quiet"
+          size="sm"
+          onClick={onKeep}
+          title="keep this agent — cancel auto-retire"
+        >
+          Keep
+        </Button>
+      </span>
+    </>
+  );
+}
+
 // Master-detail over the agent sessions in the tmux pool. The left rail lists
 // agents (no peeks); the right panel is the selected agent's cockpit — an
 // interactive console plus its worktree diff and a ticket summary. Agents
@@ -95,6 +132,26 @@ export default function Agents({
     }),
     ws,
   );
+
+  // Retire countdown ticker: refresh the chip labels ~every 30s, but only while
+  // at least one agent is actually retiring — the deadlines are static in the
+  // poll snapshot, so this just advances "now".
+  const anyRetiring = agents.some((a) => {
+    if (!a.retireAt) return false;
+    const at = Number(a.retireAt);
+    return Number.isFinite(at) && at > Date.now();
+  });
+  const [nowTick, setNowTick] = useState(Date.now());
+  useEffect(() => {
+    if (!anyRetiring) return;
+    setNowTick(Date.now());
+    const h = setInterval(() => setNowTick(Date.now()), 30_000);
+    return () => clearInterval(h);
+  }, [anyRetiring]);
+  // Keep = pardon: clear the mark and opt the session out of future auto-marks.
+  const keep = (name: string) => {
+    api.clearRetire(name, true).catch(() => {});
+  };
 
   const [selName, setSelName] = useState<string | null>(null);
   // The active detail tab, held here (not in AgentDetail) so it persists across
@@ -202,6 +259,7 @@ export default function Agents({
                   </span>
                   <span className={s.cardBot}>
                     <RoleChip role={isIdea ? "idea" : (a.role ?? "agent")} />
+                    <RetireChip agent={a} now={nowTick} onKeep={() => keep(a.name)} />
                     <span className={s.cardStatus}>
                       <StatusDot status={status} />
                     </span>
@@ -226,6 +284,8 @@ export default function Agents({
                 (worktreeOf(selected) && titles[worktreeOf(selected)!]) || ""
               }
               worktree={worktreeOf(selected)}
+              now={nowTick}
+              onKeep={() => keep(selected.name)}
               onDismiss={() => setSelName(null)}
               onKill={async () => {
                 await kill(selected.name);
@@ -252,6 +312,8 @@ function AgentDetail({
   status,
   title,
   worktree,
+  now,
+  onKeep,
   tab,
   onTab,
   onDismiss,
@@ -263,6 +325,8 @@ function AgentDetail({
   status: AgentStatus;
   title: string;
   worktree: string | null;
+  now: number;
+  onKeep: () => void;
   tab: Tab;
   onTab: (t: Tab) => void;
   onDismiss: () => void;
@@ -296,6 +360,7 @@ function AgentDetail({
         <span className={s.headStatus}>
           <StatusDot status={status} />
         </span>
+        <RetireChip agent={agent} now={now} onKeep={onKeep} />
         <Button
           variant="danger"
           size="sm"

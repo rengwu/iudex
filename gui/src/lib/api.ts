@@ -97,6 +97,12 @@ export const installCli = () => invoke<string>("install_cli");
 export const getKillPoolOnExit = () => invoke<boolean>("get_kill_pool_on_exit");
 export const setKillPoolOnExit = (value: boolean) =>
   invoke<void>("set_kill_pool_on_exit", { value });
+// Auto-Retire grace period (machine-level, ~/.iudex/config.yml): minutes a
+// superseded agent's session lingers before it is killed. Default 10; 0 =
+// immediately.
+export const getRetireGraceMinutes = () => invoke<number>("get_retire_grace_minutes");
+export const setRetireGraceMinutes = (value: number) =>
+  invoke<void>("set_retire_grace_minutes", { value });
 // Quit guard: the backend vetoes a close/quit that would tear down live
 // sessions and emits `quit-requested`; this confirms and exits for real.
 export const confirmQuit = () => invoke<void>("confirm_quit");
@@ -174,6 +180,13 @@ export const sessionStatus = (name: string) => invoke<SessionStatus>("session_st
 export const capturePane = (name: string, lines: number) =>
   invoke<string>("capture_pane", { name, lines });
 export const killSession = (name: string) => invoke<void>("kill_session", { name });
+// Auto-Retire marks (stored as tmux session user-options): stamp a kill
+// deadline (unix millis string), or clear it — with `pardon` opting the session
+// out of ever being auto-marked again (the "Keep" action).
+export const setRetireAt = (name: string, epochMs: string) =>
+  invoke<void>("set_retire_at", { name, epochMs });
+export const clearRetire = (name: string, pardon: boolean) =>
+  invoke<void>("clear_retire", { name, pardon });
 export const createShell = (root: string, cwd?: string) =>
   invoke<Session>("create_shell", { root, cwd });
 export const spawnAgent = (root: string, ticket: string, role: string) =>

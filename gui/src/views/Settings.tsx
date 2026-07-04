@@ -383,6 +383,7 @@ function SavedNote({ saved }: { saved: Saved }) {
 // until Save (mirrors the other settings tabs).
 function BehaviorTab() {
   const [killOnExit, setKillOnExit] = useState<boolean | null>(null);
+  const [graceMinutes, setGraceMinutes] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState<Saved>(null);
 
@@ -391,14 +392,19 @@ function BehaviorTab() {
       .getKillPoolOnExit()
       .then(setKillOnExit)
       .catch((e) => setSaved({ ok: false, msg: String(e) }));
+    api
+      .getRetireGraceMinutes()
+      .then(setGraceMinutes)
+      .catch((e) => setSaved({ ok: false, msg: String(e) }));
   }, []);
 
   const save = async () => {
-    if (killOnExit === null) return;
+    if (killOnExit === null || graceMinutes === null) return;
     setBusy(true);
     setSaved(null);
     try {
       await api.setKillPoolOnExit(killOnExit);
+      await api.setRetireGraceMinutes(graceMinutes);
       setSaved({ ok: true, msg: "saved" });
     } catch (e) {
       setSaved({ ok: false, msg: String(e) });
@@ -435,6 +441,25 @@ function BehaviorTab() {
             workspaces never stops them either way.
           </small>
         </div>
+
+        <label className={`field ${s.narrow}`}>
+          <span>Retire grace period (minutes)</span>
+          <input
+            type="number"
+            min={0}
+            step={1}
+            value={graceMinutes ?? 10}
+            disabled={graceMinutes === null}
+            onChange={(e) => {
+              setGraceMinutes(Math.max(0, Math.floor(Number(e.target.value)) || 0));
+              setSaved(null);
+            }}
+          />
+          <small className={s.note}>
+            How long a superseded agent's session lingers before it is killed. 0 =
+            immediately.
+          </small>
+        </label>
       </div>
 
       <div className={s.actions}>
@@ -442,7 +467,7 @@ function BehaviorTab() {
         <Button
           variant="primary"
           size="md"
-          disabled={busy || killOnExit === null}
+          disabled={busy || killOnExit === null || graceMinutes === null}
           onClick={save}
         >
           {busy ? "Saving…" : "Save"}

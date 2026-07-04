@@ -76,6 +76,8 @@ function sessionsEqual(a: Session[], b: Session[]): boolean {
       x.ticket !== y.ticket ||
       x.role !== y.role ||
       x.started !== y.started ||
+      x.retireAt !== y.retireAt ||
+      x.retirePardon !== y.retirePardon ||
       x.title !== y.title
     ) {
       return false;

@@ -180,6 +180,8 @@ export interface Session {
   role?: string | null; // agent's role at spawn ("impl" | "qa")
   started?: string | null; // agent spawn time (unix millis string, sortable)
   root?: string | null; // workspace this session belongs to (@iudex_root)
+  retireAt?: string; // Auto-Retire kill deadline (unix millis string)
+  retirePardon?: boolean; // opted out of auto-marking (the "Keep" action)
   title: string;
 }
 

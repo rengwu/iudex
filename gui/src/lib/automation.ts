@@ -36,8 +36,13 @@ export function useAutomation(
   const autoQARef = useRef(false);
   const qaDrainingRef = useRef(false);
   const qaHandledRef = useRef<Set<string>>(new Set()); // pending-qa ids already spawned this episode
-  const [autoRetire, setAutoRetire] = useState(false);
-  const retiredRef = useRef<Set<string>>(new Set()); // agent names already kill-requested
+  // Auto-Retire defaults ON (the only engine that does): its job is cleanup, not
+  // token-spending — a superseded agent is finished work, and killing it after a
+  // grace window frees the pool without touching the pipeline.
+  const [autoRetire, setAutoRetire] = useState(true);
+  const retiredRef = useRef<Set<string>>(new Set()); // agent names already stamped-or-killed
+  const sweptRef = useRef<Set<string>>(new Set()); // names whose past-due kill was issued
+  const retireDrainingRef = useRef(false); // one stamp pass at a time (it awaits grace)
   const [sequential, setSequentialState] = useState(false);
   const sequentialRef = useRef(false);
   const implDrainingRef = useRef(false);
@@ -49,6 +54,10 @@ export function useAutomation(
   const autoBegunRef = useRef<Set<string>>(new Set()); // merges *we* began (vs the human's — hands off those)
   const doneCountRef = useRef(-1); // detects merges: done-count change ⇒ main moved ⇒ new episode
   const [resolveStatus, setResolveStatus] = useState<ResolveStatus | null>(null);
+  // Latest sessions snapshot, readable from the timer-driven sweep and the
+  // toggle without re-subscribing them on every 2s poll.
+  const sessionsRef = useRef<Session[]>(sessions);
+  sessionsRef.current = sessions;
 
   // Sequential is persisted per workspace — load it whenever the root changes
   // (unlike the engine toggles below, which deliberately reset to off).
@@ -92,6 +101,7 @@ export function useAutomation(
     qaHandledRef.current.clear();
     implHandledRef.current.clear();
     retiredRef.current.clear();
+    sweptRef.current.clear();
     resolveHandledRef.current.clear();
     autoBegunRef.current.clear();
     doneCountRef.current = -1;
@@ -100,7 +110,7 @@ export function useAutomation(
     autoResolveRef.current = false;
     setAutoActivate(false);
     setAutoQA(false);
-    setAutoRetire(false);
+    setAutoRetire(true); // default ON, unlike the other engines
     setAutoResolve(false);
     setResolveStatus(null);
   }, [root]);
@@ -119,7 +129,15 @@ export function useAutomation(
   }, []);
 
   const toggleAutoRetire = useCallback((v: boolean) => {
+    // Disarm means nothing dies: clear every pending mark first, so a session
+    // mid-countdown is pardoned rather than swept once the deadline passes.
+    if (!v) {
+      for (const sx of sessionsRef.current) {
+        if (sx.retireAt) api.clearRetire(sx.name, false).catch(() => {});
+      }
+    }
     retiredRef.current.clear();
+    sweptRef.current.clear();
     setAutoRetire(v);
   }, []);
 
@@ -389,41 +407,89 @@ export function useAutomation(
     })();
   }, [autoResolve, root, ws, sessions, onError]);
 
-  // Auto-retire: kill agents whose ticket has moved past their role's phase — a
-  // clean transition supersedes them (the work is committed, the phase advanced).
-  // Derived from ws+sessions alone (no tmux liveness poll), so it fires on the
-  // doorbell and, by construction, leaves crashed agents (ticket never moved) and
-  // flagged/working resolvers (ticket still pending-human-qa) untouched. The
-  // sessions poll lags the kill by up to its interval, so a name-keyed guard
-  // avoids re-issuing kills while the dead session lingers in the list.
+  // Sweep: kill any session whose retire deadline has passed. The tmux stamp is
+  // the sole authority (role/phase no longer matter), so this also fires for a
+  // mark that outlived a GUI restart. Guarded by sweptRef so the up-to-2s poll
+  // lag between kill and the session leaving the list doesn't re-issue the kill.
+  // Reads sessionsRef so the timer trigger below sees the latest snapshot.
+  const sweep = useCallback(() => {
+    const now = Date.now();
+    for (const sx of sessionsRef.current) {
+      if (!sx.retireAt || sweptRef.current.has(sx.name)) continue;
+      const at = Number(sx.retireAt);
+      if (Number.isFinite(at) && at <= now) {
+        sweptRef.current.add(sx.name);
+        api.killSession(sx.name).catch(() => {});
+      }
+    }
+  }, []);
+
+  // Auto-retire (marked-for-death): a clean transition past a role's phase
+  // supersedes its agent (work committed, phase advanced). Instead of killing it
+  // outright, stamp a retire deadline on its tmux session — a grace window in
+  // which the user can inspect the console or Keep it — and let the sweep kill it
+  // when the deadline passes. grace=0 preserves the old immediate kill. Marks
+  // live in tmux, so they survive a GUI restart. Derived from ws+sessions alone,
+  // so crashed agents (ticket never moved) and flagged/working resolvers (ticket
+  // still in-phase) are never superseded, hence never marked. retiredRef
+  // ("stamped or killed") dedupes against the poll lag.
   useEffect(() => {
     if (!autoRetire || !root || !ws) return;
     const live = new Set(sessions.map((s) => s.name));
     for (const name of retiredRef.current) {
       if (!live.has(name)) retiredRef.current.delete(name); // reaped — forget it
     }
+    for (const name of sweptRef.current) {
+      if (!live.has(name)) sweptRef.current.delete(name);
+    }
+    sweep(); // trigger (a): re-check deadlines whenever sessions/ws change
     const superseded = sessions.filter((sx) => {
       if (sx.kind !== "agent" || !sx.ticket || !sx.role) return false;
+      if (sx.retireAt || sx.retirePardon || retiredRef.current.has(sx.name)) return false;
       const phase = AGENT_PHASE[sx.role];
       if (!phase) return false; // unknown role → leave it alone
       const t = ws.tickets.find((t) => t.id === sx.ticket);
-      return !!t && t.state !== phase && !retiredRef.current.has(sx.name);
+      return !!t && t.state !== phase;
     });
-    for (const sx of superseded) {
-      retiredRef.current.add(sx.name);
-      api.killSession(sx.name).catch(() => {});
-    }
-  }, [autoRetire, root, ws, sessions]);
+    if (superseded.length === 0 || retireDrainingRef.current) return;
+    retireDrainingRef.current = true;
+    (async () => {
+      try {
+        const grace = await api.getRetireGraceMinutes().catch(() => 10);
+        for (const sx of superseded) {
+          retiredRef.current.add(sx.name);
+          if (grace === 0) {
+            api.killSession(sx.name).catch(() => {});
+          } else {
+            api.setRetireAt(sx.name, String(Date.now() + grace * 60_000)).catch(() => {});
+          }
+        }
+      } finally {
+        retireDrainingRef.current = false;
+      }
+    })();
+  }, [autoRetire, root, ws, sessions, sweep]);
 
-  // While any automation is on, poll the workspace every 5s so the drains
-  // re-evaluate on a steady cadence (not only on the events doorbell) — freeing
-  // slots / newly-queued / newly-pending-qa tickets get picked up.
+  // Trigger (b): a dedicated ticker, because a deadline expiring changes no
+  // polled data — nothing else would re-fire the sweep once every session is
+  // already stamped.
   useEffect(() => {
-    if (!root || (!autoActivate && !autoQA && !autoRetire && !autoResolve))
-      return;
+    if (!autoRetire) return;
+    const h = setInterval(sweep, 30_000);
+    return () => clearInterval(h);
+  }, [autoRetire, sweep]);
+
+  // While a token-spending automation is on, poll the workspace every 5s so the
+  // drains re-evaluate on a steady cadence (not only on the events doorbell) —
+  // freeing slots / newly-queued / newly-pending-qa tickets get picked up.
+  // Auto-Retire is deliberately excluded: it's default-on and gets fresh ws from
+  // the doorbell + fresh sessions from the 2s poll, so arming this for it would
+  // shell `iudex status --json` every 5s forever for nothing.
+  useEffect(() => {
+    if (!root || (!autoActivate && !autoQA && !autoResolve)) return;
     const h = setInterval(() => load(root), 5000);
     return () => clearInterval(h);
-  }, [autoActivate, autoQA, autoRetire, autoResolve, root, load]);
+  }, [autoActivate, autoQA, autoResolve, root, load]);
 
   return {
     autoActivate,
