@@ -20,11 +20,11 @@ export interface Workspace {
   tickets: Ticket[];
 }
 
-// Mirrors the `iudex spec --json` contract — PRDs parsed from .context/prd, the
-// read path for the Specifications view. Parsing is single-sourced in the CLI
-// (internal/spec), so these shapes track that command's output, not a re-parse.
-// `status` is "active" | "parked" | "out-of-scope" (default active). v1 is
-// structure only — no requirement→ticket coverage yet.
+// PRDs parsed from .context/prd, the read path for the Specifications view.
+// Parsing lives in the GUI (lib/spec.ts — a display concern, not state-machine
+// logic), reading each PRD's raw markdown. `status` is "active" | "parked" |
+// "out-of-scope" (default active). v1 is structure only — no requirement→ticket
+// coverage yet.
 export interface Requirement {
   id: string;
   title: string;

@@ -1,3 +1,10 @@
+> **Status note (2026-07-04):** the `iudex spec` CLI command (parser, lint, --fix) has
+> been removed. The `REQ-N` heading convention and the GUI Specifications view remain.
+> Parsing and lint moved into the GUI (`gui/src/lib/spec.ts` — a display concern, not
+> state-machine logic); id minting moved into the to-prd skill as an explicit
+> grep-derived numbering pass (file-scoped max+1, append-only). Rationale: the CLI
+> stays minimal and pipeline-only; ids are derived, never stored.
+
 # Specifications & the REQ-N requirement format
 
 Make the PRD a first-class, browsable, machine-readable artifact in iudex — the

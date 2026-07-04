@@ -888,10 +888,11 @@ fn write_prompt(root: String, name: String, content: String) -> Result<(), Strin
 }
 
 /// Read a PRD's raw markdown from `.context/prd/<file>`. The Specifications view
-/// gets its requirement *structure* from `iudex spec --json` (parsing is
-/// single-sourced in the CLI); this returns the verbatim source for the raw pane,
-/// the same kind of plain file read as `read_prompt`. Only the basename is
-/// honored, so a crafted `file` cannot escape the PRD directory.
+/// parses requirement *structure* from this raw source in the GUI
+/// (`gui/src/lib/spec.ts` — a display concern, not state-machine logic); this
+/// returns the verbatim source, the same kind of plain file read as
+/// `read_prompt`. Only the basename is honored, so a crafted `file` cannot
+/// escape the PRD directory.
 #[tauri::command]
 fn read_prd(root: String, file: String) -> Result<String, String> {
     let name = Path::new(&file)
@@ -900,6 +901,33 @@ fn read_prd(root: String, file: String) -> Result<String, String> {
         .ok_or_else(|| format!("invalid prd file {file:?}"))?;
     let path = Path::new(&root).join(".context").join("prd").join(name);
     std::fs::read_to_string(&path).map_err(|e| format!("read {}: {e}", path.display()))
+}
+
+/// List the PRD basenames under `.context/prd` (files ending in `.md`, sorted
+/// ascending). A missing directory is not an error — it yields an empty list.
+/// The Specifications view parses each file's structure in the GUI, so this is
+/// just the directory listing the old `iudex spec --json` used to fold in.
+#[tauri::command]
+fn list_prds(root: String) -> Result<Vec<String>, String> {
+    let dir = Path::new(&root).join(".context").join("prd");
+    let entries = match std::fs::read_dir(&dir) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(vec![]),
+        Err(e) => return Err(e.to_string()),
+    };
+    let mut names = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(|e| e.to_string())?;
+        if entry.file_type().map_err(|e| e.to_string())?.is_dir() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name.ends_with(".md") {
+            names.push(name);
+        }
+    }
+    names.sort();
+    Ok(names)
 }
 
 /// Run `iudex status --json` in `root` and return the parsed JSON. This is the
@@ -2222,6 +2250,7 @@ pub fn run() {
             read_prompt,
             write_prompt,
             read_prd,
+            list_prds,
             iudex_status,
             run_iudex,
             recent_events,

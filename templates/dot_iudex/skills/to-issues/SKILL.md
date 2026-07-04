@@ -13,7 +13,12 @@ Break a plan into independently-grabbable iudex tickets using vertical slices (t
 
 Work from whatever is already in the conversation context. If the user points at a PRD (e.g. `.context/prd/<slug>.md`), read it in full. Read the domain glossary — every top-level `*.md` in `.context/` — so ticket titles and descriptions use the project's vocabulary, and respect ADRs in `.context/adr/` for the area you're touching.
 
-If the source is a PRD, normalize its requirement ids first: run `iudex spec lint --fix .context/prd/<slug>.md` so every requirement has a stable, assigned `REQ-N` id (it's idempotent and append-only — safe to run on an already-clean PRD), then `iudex spec` to see the parsed requirement list. Reference those `REQ-N` ids when you slice, so each ticket traces back to the requirements it satisfies.
+If the source is a PRD, make sure every requirement has a stable id first: list them
+with `grep -nE '^#{1,6} +REQ-' .context/prd/<slug>.md`. If any heading still reads
+`REQ-?`, assign ids using the to-prd skill's numbering rule (file-scoped: highest
+existing `REQ-<n>` in this file + 1, in order of appearance, never renumbering existing
+ids), then re-run the grep to confirm no `REQ-?` remains. Reference those `REQ-N` ids
+when you slice, so each ticket traces back to the requirements it satisfies.
 
 ### 2. Explore the codebase (optional)
 

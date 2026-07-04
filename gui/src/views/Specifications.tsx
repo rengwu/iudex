@@ -1,5 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import * as api from "../lib/api";
+import { loadSpec, lintPrd, type LintWarning } from "../lib/spec";
 import { VIEWS, type PRD, type Requirement, type SpecDoc } from "../types";
 import Badge from "../components/Badge";
 import Button from "../components/Button";
@@ -23,9 +24,9 @@ function statusStyle(status: string) {
 }
 
 // Read-only browser for the PRD spec: pick a PRD (left), read its raw markdown in
-// Monaco (center), and see the requirements the CLI synthesized from it (right).
-// Structure comes from `iudex spec --json` (parsing single-sourced in the CLI);
-// the raw pane is a plain file read. v1 is structure only — no coverage yet.
+// Monaco (center), and see the requirements parsed from it (right). Structure is
+// parsed in the GUI from the raw markdown (lib/spec.ts — a display concern); the
+// raw pane is a plain file read. v1 is structure only — no coverage yet.
 export default function Specifications({ root }: { root: string }) {
   const [spec, setSpec] = useState<SpecDoc | null>(null);
   const [selFile, setSelFile] = useState<string | null>(null);
@@ -35,8 +36,7 @@ export default function Specifications({ root }: { root: string }) {
 
   const load = useCallback(() => {
     setLoading(true);
-    api
-      .specJson(root)
+    loadSpec(root)
       .then((doc) => {
         setSpec(doc);
         setErr(null);
@@ -83,6 +83,9 @@ export default function Specifications({ root }: { root: string }) {
 
   const selected = prds.find((p) => p.file === selFile) ?? null;
   const total = prds.reduce((n, p) => n + p.requirements.length, 0);
+  // Lint the ground-truth raw markdown (the same source the parser reads), so
+  // format problems surface next to the requirements they'd otherwise mangle.
+  const warnings = useMemo(() => (raw ? lintPrd(raw) : []), [raw]);
 
   return (
     <div className={s.wrap}>
@@ -99,8 +102,8 @@ export default function Specifications({ root }: { root: string }) {
       {err && <div className="error">{err}</div>}
 
       {prds.length === 0 ? (
-        // No empty-state hint when errored — the banner above already explains it
-        // (e.g. an iudex without `spec`); don't also imply the dir is just empty.
+        // No empty-state hint when errored — the banner above already explains
+        // it; don't also imply the dir is just empty.
         !err && (
           <div className={s.empty}>
             No PRDs in <code>.context/prd</code>. Author one with the{" "}
@@ -129,7 +132,7 @@ export default function Specifications({ root }: { root: string }) {
             </div>
           </div>
 
-          <RequirementList prd={selected} />
+          <RequirementList prd={selected} warnings={warnings} />
         </div>
       )}
     </div>
@@ -180,15 +183,32 @@ function PrdRail({
   );
 }
 
-// Right pane: the requirements the CLI synthesized from the selected PRD. A PRD
-// with no REQ-N headings (e.g. a legacy doc) degrades to a note — the raw pane
-// stays the ground truth, never blank.
-function RequirementList({ prd }: { prd: PRD | null }) {
+// Right pane: the requirements parsed from the selected PRD, with any lint
+// warnings for its raw source pinned above them. A PRD with no REQ-N headings
+// (e.g. a legacy doc) degrades to a note — the raw pane stays the ground truth,
+// never blank.
+function RequirementList({
+  prd,
+  warnings,
+}: {
+  prd: PRD | null;
+  warnings: LintWarning[];
+}) {
   if (!prd) return <div className={s.reqs} />;
+  const lint = warnings.length > 0 && (
+    <div className={s.lint}>
+      {warnings.map((w, i) => (
+        <div key={i} className={s.lintWarn}>
+          <b>line {w.line}</b>: {w.message}
+        </div>
+      ))}
+    </div>
+  );
   if (prd.requirements.length === 0) {
     return (
       <div className={s.reqs}>
         <div className={s.reqsHead}>REQUIREMENTS</div>
+        {lint}
         <div className={s.reqsEmpty}>
           No <code>REQ-N</code> requirements found — raw markdown only.
         </div>
@@ -198,6 +218,7 @@ function RequirementList({ prd }: { prd: PRD | null }) {
   return (
     <div className={s.reqs}>
       <div className={s.reqsHead}>REQUIREMENTS</div>
+      {lint}
       <div className={s.reqsList}>
         {prd.requirements.map((r) => (
           <RequirementCard key={r.id} req={r} />

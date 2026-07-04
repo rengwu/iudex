@@ -13,11 +13,11 @@ PRDs are tracked project documentation, written to `.context/prd/<slug>.md` (keb
 
 ## Requirement format
 
-Capture the hard requirements as **requirement headings** the iudex CLI can parse. This is what makes a PRD a browsable, trackable spec — surfaced by `iudex spec` and the GUI's Specifications view — instead of just prose. The rule is tiny:
+Capture the hard requirements as **requirement headings** the iudex CLI can parse. This is what makes a PRD a browsable, trackable spec — surfaced by the GUI's Specifications view — instead of just prose. The rule is tiny:
 
-- A requirement is a heading whose text is `REQ-<n>: <title>` (any heading level). Write the number as a placeholder — `### REQ-?: <title>` — and let the CLI mint the real, file-scoped id in the self-check step. **Never hand-number**, and never reuse or renumber an existing id.
+- A requirement is a heading whose text is `REQ-<n>: <title>` (any heading level). Write the number as a placeholder — `### REQ-?: <title>` — and assign real, file-scoped ids in the numbering pass (step 4). **Never hand-number**, and never reuse or renumber an existing id.
 - Optionally mark status with a `> status:` line directly under the heading: `active` (the default — omit it), `parked` (deferred but intended), or `out-of-scope` (deliberately won't build).
-- Everything else is free prose. `iudex spec lint` is the canonical definition of the format — when in doubt, run it rather than guessing.
+- Everything else is free prose. This section and the numbering pass (step 4) are the canonical definition of the format.
 
 ```markdown
 ### REQ-?: Card payment via Stripe
@@ -38,7 +38,20 @@ Hide prices on a printable receipt.
 
 3. Write the PRD using the template below to `.context/prd/<slug>.md`.
 
-4. **Normalize & self-check the requirement ids.** Run `iudex spec lint --fix .context/prd/<slug>.md` to assign real ids to every `REQ-?` placeholder (append-only — it never renumbers existing ids), then run `iudex spec lint .context/prd/<slug>.md` and resolve any remaining warnings (malformed headings, duplicate ids, unknown status values). The PRD isn't done until lint is clean.
+4. **Number the requirement ids.** Ids are scoped to this one file — other PRDs'
+   numbers are irrelevant. Do this as a final pass, never while drafting:
+   a. Find the highest id already in the file:
+      `grep -oE 'REQ-[0-9]+' .context/prd/<slug>.md | grep -oE '[0-9]+' | sort -n | tail -1`
+      If there is no match, the highest is 0.
+   b. Replace each `REQ-?` placeholder with the next integer, in the order the
+      placeholders appear in the file: the first gets highest+1, the next
+      highest+2, and so on.
+   c. Hard rules: NEVER renumber or reuse an id that already has a number, even
+      if its requirement is out-of-scope or struck through. NEVER restart at 1
+      when editing an existing PRD. NEVER leave a `REQ-?` in the finished file.
+   d. Verify: `grep -c 'REQ-?' .context/prd/<slug>.md` must print 0, and
+      `grep -oE 'REQ-[0-9]+:' .context/prd/<slug>.md | sort | uniq -d` must print
+      nothing (no duplicate ids). Fix and re-verify if either check fails.
 
 5. Tell the user the PRD path and that the next step is **to-issues** — it slices this PRD into independently-grabbable iudex tickets and registers them in the queue.
 
