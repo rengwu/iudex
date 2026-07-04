@@ -140,7 +140,15 @@ export default function CanvasPanel({
         onPointerMove={move}
         onPointerUp={end}
       >
-        {title}
+        <svg className={s.grip} width="6" height="14" viewBox="0 0 6 14" aria-hidden="true">
+          <circle cx="1.5" cy="3" r="1" />
+          <circle cx="4.5" cy="3" r="1" />
+          <circle cx="1.5" cy="7" r="1" />
+          <circle cx="4.5" cy="7" r="1" />
+          <circle cx="1.5" cy="11" r="1" />
+          <circle cx="4.5" cy="11" r="1" />
+        </svg>
+        <span className={s.title}>{title}</span>
       </div>
       <div className={s.body}>{children}</div>
       {HANDLES.map((dir) => (
