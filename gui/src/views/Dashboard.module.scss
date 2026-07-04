@@ -116,10 +116,13 @@
   height: 100%;
 }
 
+// In the canvas the panel itself is resizable, so the textarea fills the panel's
+// flex row (min-height 0 so it can shrink to the panel's min) rather than forcing
+// a fixed height or carrying its own resize grip.
 .seed {
   width: 100%;
-  min-height: 150px;
-  resize: vertical;
+  min-height: 48px;
+  resize: none;
   background: t.$field-edit;
   border: 1px solid #8a8a8a;
   padding: 6px;
@@ -164,6 +167,8 @@
   display: grid;
   gap: 3px;
   align-content: start;
+  min-height: 0;
+  overflow: auto; // list scrolls within the panel; the "Open a shell" foot stays put
 }
 
 .shellDot {
@@ -182,7 +187,9 @@
 // ── PIPELINE (full width) ────────────────────────────────────────────────────
 .cols {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  // Columns hold a floor so a narrow panel scrolls horizontally (body overflow)
+  // rather than squashing all five; they still stretch to fill a wide panel.
+  grid-template-columns: repeat(5, minmax(112px, 1fr));
   gap: 6px;
 }
 
