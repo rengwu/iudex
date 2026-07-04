@@ -5,26 +5,39 @@ import { useCallback, useEffect, useState } from "react";
 // keyed by workspace root. Pure UI preference — no config, no CLI, no .iudex/
 // files. Mirrors the project's hook idioms (see lib/worktrees.ts).
 
-export type PanelBox = { x: number; y: number; w: number; h: number; z: number };
+export type PanelBox = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  z: number;
+};
 export type Layout = Record<string, PanelBox>; // keyed by panel id
 
-export const PANEL_IDS = ["now", "pipe", "start", "shells", "auto", "activity"] as const;
+export const PANEL_IDS = [
+  "now",
+  "pipe",
+  "start",
+  "shells",
+  "auto",
+  "activity",
+] as const;
 export type PanelId = (typeof PANEL_IDS)[number];
 
-const LAYOUT_VERSION = 2;
+const LAYOUT_VERSION = 3;
 const keyFor = (root: string) => `iudex.dashboard.layout:${root}`;
 
 // Default arrangement — NOW and PIPELINE as full-width bands, then three
-// full-height columns: a tall START in column 1, AUTOMATION over SHELLS in
-// column 2, ACTIVITY in column 3. z ascends in render order. Sizes are not
-// sacred; tune later.
+// bottom-aligned columns: a tall START in column 1, a compact AUTOMATION over
+// SHELLS in column 2, ACTIVITY in column 3 (the columns stop short of the bands'
+// right edge). z ascends in render order. Sizes are not sacred; tune later.
 export const DEFAULT_LAYOUT: Layout = {
-  now: { x: 8, y: 8, w: 1036, h: 82, z: 1 },
-  pipe: { x: 8, y: 98, w: 1036, h: 202, z: 2 },
-  start: { x: 8, y: 308, w: 416, h: 350, z: 3 },
-  auto: { x: 432, y: 308, w: 320, h: 230, z: 4 },
-  shells: { x: 432, y: 546, w: 320, h: 112, z: 5 },
-  activity: { x: 760, y: 308, w: 284, h: 350, z: 6 },
+  now: { x: 8, y: 8, w: 980, h: 82, z: 1 },
+  pipe: { x: 8, y: 98, w: 980, h: 202, z: 2 },
+  start: { x: 8, y: 308, w: 416, h: 280, z: 3 },
+  auto: { x: 432, y: 308, w: 260, h: 160, z: 4 },
+  shells: { x: 432, y: 476, w: 260, h: 112, z: 5 },
+  activity: { x: 700, y: 308, w: 260, h: 280, z: 6 },
 };
 
 // Per-panel minimum sizes (Part C). Passed to each CanvasPanel as minW/minH so a
@@ -34,7 +47,7 @@ export const MIN_SIZE: Record<PanelId, { minW: number; minH: number }> = {
   pipe: { minW: 480, minH: 160 },
   start: { minW: 260, minH: 150 },
   shells: { minW: 220, minH: 110 },
-  auto: { minW: 260, minH: 230 },
+  auto: { minW: 220, minH: 160 },
   activity: { minW: 260, minH: 150 },
 };
 
@@ -59,7 +72,8 @@ function loadLayout(root: string): Layout {
   }
   const out: Layout = {};
   for (const id of PANEL_IDS) {
-    out[id] = stored && stored[id] ? { ...stored[id] } : { ...DEFAULT_LAYOUT[id] };
+    out[id] =
+      stored && stored[id] ? { ...stored[id] } : { ...DEFAULT_LAYOUT[id] };
   }
   return out;
 }
@@ -81,7 +95,10 @@ export function useDashboardLayout(root: string): {
   const persist = useCallback(
     (l: Layout) => {
       try {
-        localStorage.setItem(keyFor(root), JSON.stringify({ v: LAYOUT_VERSION, panels: l }));
+        localStorage.setItem(
+          keyFor(root),
+          JSON.stringify({ v: LAYOUT_VERSION, panels: l }),
+        );
       } catch {
         // private-mode quotas etc. — a failed write must never break the view.
       }
