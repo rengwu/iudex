@@ -20,7 +20,13 @@ import ViewHeader from "../components/ViewHeader";
 import Button from "../components/Button";
 import Badge from "../components/Badge";
 import CanvasPanel from "../components/CanvasPanel";
-import { useDashboardLayout, MIN_SIZE, PANEL_IDS, type PanelId } from "../lib/dashboardLayout";
+import {
+  useDashboardLayout,
+  formatLayout,
+  MIN_SIZE,
+  PANEL_IDS,
+  type PanelId,
+} from "../lib/dashboardLayout";
 import s from "./Dashboard.module.scss";
 
 // Home. The job: open the app cold → within two seconds know the state of the
@@ -31,6 +37,10 @@ import s from "./Dashboard.module.scss";
 // target views own the actions. Design: .context/prd/dashboard.md,
 // .context/prd/dashboard-canvas.md.
 const CANVAS_PAD = 8;
+
+// Flip to true to reveal a dev-only "Copy layout" button beside "Reset layout":
+// it copies the current arrangement as a pasteable DEFAULT_LAYOUT literal.
+const DEBUG: boolean = false;
 export default function Dashboard({
   ws,
   root,
@@ -116,6 +126,14 @@ export default function Dashboard({
   const canvasW = CANVAS_PAD + Math.max(...boxes.map((b) => b.x + b.w));
   const canvasH = CANVAS_PAD + Math.max(...boxes.map((b) => b.y + b.h));
 
+  // Dev-only: copy the live layout as a pasteable DEFAULT_LAYOUT literal (also
+  // logged, as a fallback if the clipboard write is denied).
+  const copyLayout = () => {
+    const text = formatLayout(layout);
+    console.log(text);
+    void navigator.clipboard?.writeText(text).catch(() => {});
+  };
+
   const panel = (id: PanelId, title: string, node: React.ReactNode) => (
     <CanvasPanel
       key={id}
@@ -137,6 +155,11 @@ export default function Dashboard({
   return (
     <div className={s.dash}>
       <ViewHeader dot={VIEWS.dashboard.dot} title="Dashboard">
+        {DEBUG && (
+          <Button variant="quiet" size="sm" onClick={copyLayout}>
+            Copy layout
+          </Button>
+        )}
         <Button variant="quiet" size="sm" onClick={reset}>
           Reset layout
         </Button>

@@ -54,6 +54,17 @@ export const MIN_SIZE: Record<PanelId, { minW: number; minH: number }> = {
 const clone = (l: Layout): Layout =>
   Object.fromEntries(Object.entries(l).map(([id, b]) => [id, { ...b }]));
 
+// Serialize a layout as a pasteable `Layout` object literal (PANEL_IDS order),
+// formatted to match DEFAULT_LAYOUT above — used by the dev-only "Copy layout"
+// button so a hand-arranged canvas can be dropped straight in as the new default.
+export function formatLayout(l: Layout): string {
+  const lines = PANEL_IDS.map((id) => {
+    const b = l[id];
+    return `  ${id}: { x: ${b.x}, y: ${b.y}, w: ${b.w}, h: ${b.h}, z: ${b.z} },`;
+  });
+  return `{\n${lines.join("\n")}\n}`;
+}
+
 // Load the stored layout, version-gated and merged with defaults so a newly
 // added panel gets a sane default without discarding the user's other positions.
 // Any unknown stored id is ignored.
