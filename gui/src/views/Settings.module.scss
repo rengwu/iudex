@@ -108,6 +108,41 @@
   background: t.$panel-mid;
 }
 
+// Vertical column for a tab with more than one card (the CLI tab): .body is a
+// flex row, so sibling cards would otherwise sit side by side.
+.stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  align-self: flex-start;
+  gap: 14px;
+  width: 520px;
+  max-width: 100%;
+}
+
+// The "Advanced" disclosure toggle — a quiet twisty row, like FileTree's.
+.advToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: t.$text-muted;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  font-family: t.$font-ui;
+  font-size: 11px;
+
+  &:hover {
+    color: t.$text;
+  }
+}
+.twisty {
+  font-size: 9px;
+}
+
 .head {
   display: flex;
   align-items: baseline;

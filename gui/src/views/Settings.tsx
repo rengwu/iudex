@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import * as api from "../lib/api";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { VIEWS, type AgentCmd, type Config } from "../types";
@@ -170,9 +170,12 @@ export default function Settings({
   );
 }
 
-// GLOBAL tab: the iudex binary the GUI shells every command through, stored in
-// ~/.iudex/config.yml. Saving validates the path first (the backend refuses a
-// broken one and keeps the old value), so a typo can't strand the app.
+// GLOBAL tab: the iudex CLI. Leads with the bundled-CLI card (the zero-setup
+// default story); the custom-binary override — stored in ~/.iudex/config.yml —
+// is demoted behind an "Advanced" disclosure, auto-opened only when it is in
+// play (override set, resolution failing, or running unbundled). Saving
+// validates the path first (the backend refuses a broken one and keeps the old
+// value), so a typo can't strand the app.
 export function CliTab({
   extraActions,
   onSaveSuccess,
@@ -184,11 +187,22 @@ export function CliTab({
   const [path, setPath] = useState("");
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState<Saved>(null);
+  const [advOpen, setAdvOpen] = useState(false);
+  const advDecided = useRef(false);
 
   const loadSettings = async () => {
     const d = await api.getIudexSettings();
     setData(d);
     setPath(d.savedPath);
+    // Open the override section on first load only when it is actually in
+    // play: an override is set, resolution is failing, or there is no bundled
+    // CLI to fall back on (unbundled dev runs). Once only, so the user's own
+    // open/close wins afterwards.
+    if (!advDecided.current) {
+      advDecided.current = true;
+      if (d.savedPath || d.envBin || !d.bundled || "Err" in d.resolved)
+        setAdvOpen(true);
+    }
   };
   useEffect(() => {
     loadSettings().catch((e) => setSaved({ ok: false, msg: String(e) }));
@@ -220,69 +234,84 @@ export function CliTab({
   const source = !data
     ? ""
     : data.savedPath
-      ? "Using the saved path."
+      ? "A custom path is set — the GUI uses it for everything."
       : data.envBin
-        ? "No saved path — using $IUDEX_BIN."
+        ? "No custom path — using $IUDEX_BIN from the environment."
         : data.bundled
-          ? "No saved path — using the CLI bundled with the app."
-          : "No saved path — using ‘iudex’ from your PATH.";
+          ? "No custom path — using the CLI that ships with the app."
+          : "No custom path — using ‘iudex’ from your PATH.";
 
   return (
-    <>
-    <section className={s.card}>
-      <div className={s.head}>
-        <span className={s.title}>CLI</span>
-        <code className={s.path}>~/.iudex/config.yml</code>
-      </div>
+    <div className={s.stack}>
+      <BundledCliCard />
 
-      <div className={s.fields}>
-        <label className="field">
-          <span>Binary path</span>
-          <div className={s.pathRow}>
-            <input
-              value={path}
-              placeholder="/usr/local/bin/iudex"
-              spellCheck={false}
-              onChange={(e) => {
-                setPath(e.target.value);
-                setSaved(null);
-              }}
-            />
-            <button type="button" className={s.browse} onClick={browse}>
-              Browse…
-            </button>
+      <button
+        type="button"
+        className={s.advToggle}
+        onClick={() => setAdvOpen((o) => !o)}
+      >
+        <span className={s.twisty}>{advOpen ? "▾" : "▸"}</span>
+        Advanced — use a different iudex binary
+      </button>
+
+      {advOpen && (
+        <section className={s.card}>
+          <div className={s.head}>
+            <span className={s.title}>Custom binary</span>
+            <code className={s.path}>~/.iudex/config.yml</code>
           </div>
-          <small className={s.note}>
-            The binary the GUI runs every command through. Leave empty to fall
-            back to <code>$IUDEX_BIN</code>, then the CLI bundled with the app,
-            then <code>iudex</code> on your PATH.
-          </small>
-        </label>
 
-        {data && (
-          <small className={s.note}>
-            {source}{" "}
-            {"Ok" in data.resolved ? (
-              <>
-                Currently resolves to <code>{data.resolved.Ok}</code>.
-              </>
-            ) : (
-              <span className={s.savedErr}>✗ {data.resolved.Err}</span>
+          <div className={s.fields}>
+            <label className="field">
+              <span>Binary path</span>
+              <div className={s.pathRow}>
+                <input
+                  value={path}
+                  placeholder="/usr/local/bin/iudex"
+                  spellCheck={false}
+                  onChange={(e) => {
+                    setPath(e.target.value);
+                    setSaved(null);
+                  }}
+                />
+                <button type="button" className={s.browse} onClick={browse}>
+                  Browse…
+                </button>
+              </div>
+              <small className={s.note}>
+                Most people never need this: the GUI already uses its built-in
+                CLI. Set a path here only to run a different{" "}
+                <code>iudex</code> build — e.g. one you compiled yourself, or a
+                system install you want the GUI and your terminal to share.
+                Leave empty for the default (<code>$IUDEX_BIN</code> if set,
+                then the built-in CLI, then <code>iudex</code> on your PATH).
+              </small>
+            </label>
+
+            {data && (
+              <small className={s.note}>
+                {source}{" "}
+                {"Ok" in data.resolved ? (
+                  <>
+                    Currently running <code>{data.resolved.Ok}</code>.
+                  </>
+                ) : (
+                  <span className={s.savedErr}>✗ {data.resolved.Err}</span>
+                )}
+              </small>
             )}
-          </small>
-        )}
-      </div>
+          </div>
 
-      <div className={s.actions}>
-        <SavedNote saved={saved} />
-        {extraActions}
-        <Button variant="primary" size="md" disabled={busy} onClick={save}>
-          {busy ? "Saving…" : "Save"}
-        </Button>
-      </div>
-    </section>
-    <BundledCliCard />
-    </>
+          <div className={s.actions}>
+            <SavedNote saved={saved} />
+            {extraActions}
+            <Button variant="primary" size="md" disabled={busy} onClick={save}>
+              {busy ? "Saving…" : "Save"}
+            </Button>
+          </div>
+        </section>
+      )}
+    </div>
   );
 }
 
@@ -335,9 +364,10 @@ function BundledCliCard() {
 
       <div className={s.fields}>
         <small className={s.note}>
-          This app ships with <code>{status.bundledVersion}</code> and uses it
-          automatically — agents launched from here already have it. To run{" "}
-          <code>iudex</code> from your own terminal too, link it into{" "}
+          The <code>iudex</code> CLI comes built into this app (
+          <code>{status.bundledVersion}</code>). The GUI and every agent it
+          launches use it automatically — nothing to install. To type{" "}
+          <code>iudex</code> in your own terminal too, link it into{" "}
           <code>~/.local/bin</code>.
         </small>
         {status.installedPath && (
