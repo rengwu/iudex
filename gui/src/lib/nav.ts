@@ -14,8 +14,10 @@ import type { View } from "../types";
 // focus)`; the target view reads its focus via `usePendingFocus(view)`.
 //
 // A Focus is what the target should select/open: `id` is view-specific (a tmux
-// session name for terminal/agents; a ticket id for tickets/review) and `tab`
-// is an optional sub-target (the Agents console tab).
+// session name for terminal/agents; a ticket id for tickets/review), `tab` is
+// an optional sub-target (the Agents console tab), and `action` is a
+// view-specific verb to perform on arrival instead of selecting something
+// (Tickets: "compose" opens the compose-ticket modal).
 //
 // Post-action navigation rule (keep new call sites consistent — see #13 in
 // .context/prd/gui-ux-fixes.md):
@@ -27,7 +29,7 @@ import type { View } from "../types";
 // The one deliberate exception is the merge resolver: spawning it stays in
 // Review, because the Conflicts tab IS its human cockpit (a "Watch" button
 // reaches the raw console on demand).
-export type Focus = { id: string; tab?: string };
+export type Focus = { id?: string; tab?: string; action?: string };
 
 export type NavValue = {
   view: View;

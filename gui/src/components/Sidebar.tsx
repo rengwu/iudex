@@ -1,11 +1,13 @@
 import {
   RAIL_VIEWS,
   RAIL_SECONDARY,
+  RAIL_CONFIG,
   type View,
   type Workspace,
   type Session,
 } from "../types";
 import type { ResolveStatus } from "../lib/automation";
+import Dot from "./Dot";
 import SectionHeader from "./SectionHeader";
 import Toggle from "./Toggle";
 import s from "./Sidebar.module.scss";
@@ -24,7 +26,7 @@ export type Automation = {
   toggleSequential: (v: boolean) => void;
 };
 
-// The left navigation rail: the view buttons (BUILD / OTHERS) over a bottom panel
+// The left navigation rail: the view buttons (BUILD / INSPECT / CONFIGURE) over a bottom panel
 // of pipeline counts, the automation transport, and workspace sysinfo. Everything
 // is read-derived from ws + sessions; the rail owns its own count/pipeline math.
 export default function Sidebar({
@@ -80,7 +82,7 @@ export default function Sidebar({
             : undefined
         }
       >
-        <span className={s.navDot} style={{ background: v.dot }} />
+        <Dot color={v.dot} />
         <span className={s.navLabel}>{v.label}</span>
         {count !== undefined && count > 0 && (
           <span
@@ -102,9 +104,14 @@ export default function Sidebar({
       {RAIL_VIEWS.map(navButton)}
 
       <SectionHeader tone="dark" noBorder>
-        OTHERS
+        INSPECT
       </SectionHeader>
       {RAIL_SECONDARY.map(navButton)}
+
+      <SectionHeader tone="dark" noBorder>
+        CONFIGURE
+      </SectionHeader>
+      {RAIL_CONFIG.map(navButton)}
 
       <div className={s.railSpacer} />
 

@@ -228,7 +228,11 @@ export const VIEWS: Record<View, ViewConfig> = {
   dashboard: { id: "dashboard", label: "Dashboard", dot: "#f4bc41" },
   terminal: { id: "terminal", label: "Terminal", dot: "#343fd5" },
   tickets: { id: "tickets", label: "Tickets", dot: "#5bc7d8" },
-  specifications: { id: "specifications", label: "Specs", dot: "#caa46a" },
+  specifications: {
+    id: "specifications",
+    label: "Specifications",
+    dot: "#caa46a",
+  },
   agents: { id: "agents", label: "Agents", dot: "#5ccf5c" },
   worktrees: { id: "worktrees", label: "Worktrees", dot: "#9ea0e0" },
   review: { id: "review", label: "Review", dot: "#836ddd" },
@@ -238,10 +242,19 @@ export const VIEWS: Record<View, ViewConfig> = {
 
 // Side-channel views, pinned to the bottom of the rail (above the pipeline) —
 // useful but not part of the core queue→implement→QA→review→merge workflow.
-// Settings sits last in this group.
-const SECONDARY_IDS: View[] = ["specifications", "worktrees", "archive", "settings"];
+const SECONDARY_IDS: View[] = ["specifications", "worktrees", "archive"];
 
-// The left-nav rail, split into a top (core workflow) and bottom (secondary)
-// group.
-export const RAIL_VIEWS = Object.values(VIEWS).filter((v) => !SECONDARY_IDS.includes(v.id));
-export const RAIL_SECONDARY = Object.values(VIEWS).filter((v) => SECONDARY_IDS.includes(v.id));
+// Configuration views — their own rail group, below the secondary one.
+const CONFIG_IDS: View[] = ["settings"];
+
+// The left-nav rail, split into a top (core workflow), middle (secondary), and
+// bottom (configure) group.
+export const RAIL_VIEWS = Object.values(VIEWS).filter(
+  (v) => !SECONDARY_IDS.includes(v.id) && !CONFIG_IDS.includes(v.id),
+);
+export const RAIL_SECONDARY = Object.values(VIEWS).filter((v) =>
+  SECONDARY_IDS.includes(v.id),
+);
+export const RAIL_CONFIG = Object.values(VIEWS).filter((v) =>
+  CONFIG_IDS.includes(v.id),
+);
