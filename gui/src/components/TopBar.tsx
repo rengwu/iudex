@@ -32,7 +32,7 @@ export default function TopBar({
         onClick={onPick}
         title={`${root ?? ""}${lastSync ? ` · synced ${lastSync}` : ""}`}
       >
-        <span className={s.wsTag}>WS</span>
+        <span className={s.wsTag}>WORKSPACE</span>
         <span className={s.wsPath}>{root ? basename(root) : ""}</span>
         <span className={s.wsChev}>▾</span>
       </div>

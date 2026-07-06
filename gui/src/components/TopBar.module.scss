@@ -28,6 +28,8 @@
   line-height: 1;
   color: t.$text-bright;
   letter-spacing: 0.01em;
+  user-select: none;
+  cursor: default;
 }
 
 // The WS picker sits flush inside the title-bar band: it fills the bar height
