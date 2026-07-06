@@ -19,12 +19,6 @@
   border-bottom: 1px solid t.$divider-mid;
   white-space: nowrap;
 }
-.headerDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: t.$cyan;
-}
 .headerTitle {
   font-size: 14px;
   font-weight: 600;
@@ -88,11 +82,6 @@ $cols: 28px 72px 1fr 140px 90px 54px 120px 128px;
   display: flex;
   justify-content: center;
 }
-.dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-}
 .cellId {
   font-family: t.$font-mono;
   color: t.$text;
@@ -144,23 +133,76 @@ $cols: 28px 72px 1fr 140px 90px 54px 120px 128px;
 }
 
 // ── Compose/idea modal bits ───────────────────────────────────────────────────
-.depGrid {
+// Depends-on picker: selected tags over a filter input over a scrollable
+// checkbox list (a flat chip grid stopped scaling past a handful of tickets).
+.depSelected {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
+  margin-bottom: 6px;
 }
-.depChip {
+.depTag {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   padding: 2px 7px;
   border: 1px solid t.$divider-mid;
   background: t.$panel-rail;
   font-family: t.$font-mono;
   font-size: 11px;
+  color: t.$text;
   cursor: pointer;
   -webkit-user-select: none;
   user-select: none;
+
+  &:hover {
+    border-color: t.$danger;
+    color: t.$danger;
+  }
+}
+.depList {
+  margin-top: 6px;
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid t.$field-border;
+  background: t.$surface-c8;
+}
+.depRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-family: t.$font-mono;
+  font-size: 11px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+
+  &:hover {
+    background: t.$panel-light;
+  }
+
+  input {
+    margin: 0;
+  }
+}
+.depTitle {
+  font-family: t.$font-ui;
+  color: t.$text-muted;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.depState {
+  margin-left: auto; // right edge even on rows with no title
+  white-space: nowrap;
+}
+.depEmpty {
+  padding: 8px;
+  font-size: 11px;
+  color: t.$text-muted;
 }
 .hint {
   color: t.$text-muted;

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import * as api from "../lib/api";
 import type { Ticket, Workspace } from "../types";
+import { VIEWS } from "../types";
 import { IDEA_SKILLS } from "../lib/skills";
 import { useNav, usePendingFocus } from "../lib/nav";
 import { useTicketTitles } from "../lib/agents";
@@ -14,6 +15,7 @@ import {
 } from "../lib/ticketActions";
 import { stateDot } from "../lib/badges";
 import Badge from "../components/Badge";
+import Dot from "../components/Dot";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
 import TabSwitcher from "../components/TabSwitcher";
@@ -44,10 +46,14 @@ export default function Tickets({
   const [selId, setSelId] = useState<string | null>(null);
   const [mode, setMode] = useState<"board" | "table" | "graph">("board");
 
-  // Honor a ticket handed in from another view (e.g. the Agents panel's
-  // "Go to Ticket"): select it so its detail panel opens.
+  // Honor a focus handed in from another view: a ticket id (e.g. the Agents
+  // panel's "Go to Ticket") selects it so its detail panel opens; the
+  // "compose" action (Dashboard's "Compose a single ticket") opens the
+  // compose modal directly.
   useEffect(() => {
-    if (focus) setSelId(focus.id);
+    if (!focus) return;
+    if (focus.action === "compose") setComposing(true);
+    else if (focus.id) setSelId(focus.id);
   }, [focus]);
 
   // Human titles keyed by ticket id — covers queued tickets (no worktree yet),
@@ -140,7 +146,7 @@ export default function Tickets({
   return (
     <div className={s.root}>
       <header className={s.header}>
-        <span className={s.headerDot} />
+        <Dot color={VIEWS.tickets.dot} size={8} />
         <span className={s.headerTitle}>Tickets</span>
         <TabSwitcher
           tabs={[
@@ -216,10 +222,7 @@ export default function Tickets({
                     }}
                   >
                     <div className={s.rowDot}>
-                      <span
-                        className={s.dot}
-                        style={{ background: stateDot(t.state) }}
-                      />
+                      <Dot color={stateDot(t.state)} />
                     </div>
                     <div
                       className={s.cellId}
@@ -299,6 +302,7 @@ export default function Tickets({
         <ComposeTicketModal
           ws={ws}
           root={root}
+          titles={titles}
           onClose={() => setComposing(false)}
         />
       )}
@@ -319,16 +323,19 @@ export default function Tickets({
 function ComposeTicketModal({
   ws,
   root,
+  titles,
   onClose,
 }: {
   ws: Workspace;
   root: string;
+  titles: Record<string, string>;
   onClose: () => void;
 }) {
   const [nextId, setNextId] = useState<string>("");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [deps, setDeps] = useState<string[]>([]);
+  const [depQuery, setDepQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -348,6 +355,17 @@ function ComposeTicketModal({
   );
   const toggleDep = (id: string) =>
     setDeps((d) => (d.includes(id) ? d.filter((x) => x !== id) : [...d, id]));
+
+  // The filtered slice of the picker list — matches id or title. Selections
+  // live in `deps` regardless, so filtering never drops one.
+  const q = depQuery.trim().toLowerCase();
+  const shown = q
+    ? eligible.filter(
+        (t) =>
+          t.id.toLowerCase().includes(q) ||
+          (titles[t.id] ?? "").toLowerCase().includes(q),
+      )
+    : eligible;
 
   const create = async () => {
     setBusy(true);
@@ -398,17 +416,45 @@ function ComposeTicketModal({
       {eligible.length > 0 && (
         <div className="field">
           <span>Depends on</span>
-          <div className={s.depGrid}>
-            {eligible.map((t) => (
-              <label key={t.id} className={s.depChip}>
+          {deps.length > 0 && (
+            <div className={s.depSelected}>
+              {deps.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={s.depTag}
+                  title="remove dependency"
+                  onClick={() => toggleDep(id)}
+                >
+                  {id} ×
+                </button>
+              ))}
+            </div>
+          )}
+          <input
+            value={depQuery}
+            onChange={(e) => setDepQuery(e.target.value)}
+            placeholder="filter by id or title…"
+            spellCheck={false}
+          />
+          <div className={s.depList}>
+            {shown.map((t) => (
+              <label key={t.id} className={s.depRow}>
                 <input
                   type="checkbox"
                   checked={deps.includes(t.id)}
                   onChange={() => toggleDep(t.id)}
                 />
-                {t.id} <span className="muted">{t.state}</span>
+                {t.id}
+                {titles[t.id] && (
+                  <span className={s.depTitle}>{titles[t.id]}</span>
+                )}
+                <span className={`muted ${s.depState}`}>{t.state}</span>
               </label>
             ))}
+            {shown.length === 0 && (
+              <div className={s.depEmpty}>no tickets match “{depQuery}”</div>
+            )}
           </div>
         </div>
       )}
