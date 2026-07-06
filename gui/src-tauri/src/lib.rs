@@ -267,14 +267,17 @@ fn set_retire_grace_minutes(app: AppHandle, value: u32) -> Result<(), String> {
 /// .iudex/config.yml as a GUI-owned key the CLI ignores (its YAML parsing
 /// skips unknown fields), matching the gui_* precedent in the global config.
 /// The policy persists; the automation-engine toggles deliberately don't.
-/// Absent → false (parallel is the historical behavior).
+/// Absent → true (sequential is the safer out-of-the-box default).
 #[tauri::command]
 fn get_sequential(root: String) -> bool {
+    // Default (key absent — a workspace that's never touched the toggle) is
+    // sequential-on: one ticket in flight is the safer out-of-the-box policy;
+    // parallel is the opt-in.
     std::fs::read_to_string(config_path(&root))
         .ok()
         .and_then(|t| yaml_scalar(&t, "gui_sequential"))
         .map(|v| v == "true")
-        .unwrap_or(false)
+        .unwrap_or(true)
 }
 
 #[tauri::command]

@@ -43,8 +43,11 @@ export function useAutomation(
   const retiredRef = useRef<Set<string>>(new Set()); // agent names already stamped-or-killed
   const sweptRef = useRef<Set<string>>(new Set()); // names whose past-due kill was issued
   const retireDrainingRef = useRef(false); // one stamp pass at a time (it awaits grace)
-  const [sequential, setSequentialState] = useState(false);
-  const sequentialRef = useRef(false);
+  // Default true (sequential) — mirrors the backend's default for a workspace
+  // that's never touched the toggle (get_sequential in lib.rs), so there's no
+  // flash of "parallel" before the persisted value loads.
+  const [sequential, setSequentialState] = useState(true);
+  const sequentialRef = useRef(true);
   const implDrainingRef = useRef(false);
   const implHandledRef = useRef<Set<string>>(new Set()); // active ids whose impl spawn was issued this episode
   const [autoResolve, setAutoResolve] = useState(false);
@@ -70,8 +73,8 @@ export function useAutomation(
         setSequentialState(v);
       })
       .catch(() => {
-        sequentialRef.current = false;
-        setSequentialState(false);
+        sequentialRef.current = true;
+        setSequentialState(true);
       });
   }, [root]);
 
