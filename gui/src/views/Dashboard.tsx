@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import * as api from "../lib/api";
 import type { RailCard, Ticket, Workspace, View } from "../types";
 import { VIEWS } from "../types";
-import { useNav } from "../lib/nav";
+import { useNav, type Focus } from "../lib/nav";
 import { useSessions, addSession } from "../lib/sessions";
 import { useTicketTitles } from "../lib/agents";
 import { IDEA_SKILLS } from "../lib/skills";
@@ -19,6 +19,7 @@ import type { Automation } from "../components/Sidebar";
 import ViewHeader from "../components/ViewHeader";
 import Button from "../components/Button";
 import Badge from "../components/Badge";
+import Dot from "../components/Dot";
 import CanvasPanel from "../components/CanvasPanel";
 import {
   useDashboardLayout,
@@ -61,19 +62,25 @@ export default function Dashboard({
   useEffect(() => {
     let stale = false;
     (async () => {
+      const candidates = crashCandidates(ws, sessions);
+      if (candidates.length === 0) {
+        if (!stale) setCrashed([]);
+        return;
+      }
+      // One tmux call for all liveness, not one per session (missing/unknown
+      // ⇒ not crashed).
+      const stats = new Map(
+        (await api.sessionStatuses().catch(() => [])).map((s) => [s.name, s]),
+      );
       const found: CrashedAgent[] = [];
-      for (const sx of crashCandidates(ws, sessions)) {
-        try {
-          const st = await api.sessionStatus(sx.name);
-          if (st.dead && st.exitCode !== null && st.exitCode !== 0) {
-            found.push({
-              ticket: sx.ticket!,
-              session: sx.name,
-              role: sx.role!,
-            });
-          }
-        } catch {
-          // unknown → not crashed
+      for (const sx of candidates) {
+        const st = stats.get(sx.name);
+        if (st && st.dead && st.exitCode !== null && st.exitCode !== 0) {
+          found.push({
+            ticket: sx.ticket!,
+            session: sx.name,
+            role: sx.role!,
+          });
         }
       }
       if (!stale) setCrashed(found);
@@ -176,12 +183,12 @@ export default function Dashboard({
         >
           {panel(
             "now",
-            "NOW",
+            "WHAT'S NEXT",
             <NowStrip actions={actions} onRun={runAction} />,
           )}
           {panel(
             "pipe",
-            "PIPELINE",
+            "TICKET PIPELINE",
             <Pipeline
               ws={ws}
               sessions={sessions}
@@ -192,7 +199,7 @@ export default function Dashboard({
           )}
           {panel(
             "start",
-            "START",
+            "CREATE WORK",
             <StartPanel root={root} seedRef={seedRef} goTo={goTo} />,
           )}
           {panel(
@@ -237,7 +244,7 @@ function NowStrip({
           className={`${s.nowChip} ${s[`tone_${a.tone}`]}`}
           onClick={() => onRun(a)}
         >
-          <span className={s.nowDot} />
+          <Dot size={8} className={s.nowDot} />
           <span className={s.nowLabel}>{a.label}</span>
           <span className={s.nowArrow}>→</span>
         </button>
@@ -257,7 +264,7 @@ function StartPanel({
 }: {
   root: string;
   seedRef: React.RefObject<HTMLTextAreaElement | null>;
-  goTo: (v: View, f?: { id: string }) => void;
+  goTo: (v: View, f?: Focus) => void;
 }) {
   const [skill, setSkill] = useState(IDEA_SKILLS[0].slug);
   const [seed, setSeed] = useState("");
@@ -302,13 +309,17 @@ function StartPanel({
           ))}
         </select>
         <Button variant="primary" size="sm" disabled={busy} onClick={launch}>
-          {busy ? "Launching…" : "Shape idea"}
+          {busy ? "Launching…" : "Start chat"}
         </Button>
       </div>
       {err && <div className={s.err}>{err}</div>}
       <div className={s.startFoot}>
-        <Button variant="secondary" size="sm" onClick={() => goTo("tickets")}>
-          Compose a ticket
+        <Button
+          variant="quiet"
+          size="sm"
+          onClick={() => goTo("tickets", { action: "compose" })}
+        >
+          Compose a single ticket
         </Button>
       </div>
     </div>
@@ -323,16 +334,18 @@ function ShellsPanel({
 }: {
   root: string;
   sessions: ReturnType<typeof useSessions>["sessions"];
-  goTo: (v: View, f?: { id: string }) => void;
+  goTo: (v: View, f?: Focus) => void;
 }) {
   const shells = sessions.filter((x) => x.kind === "shell");
   const openShell = async () => {
     try {
-      await api.createShell(root);
+      const sess = await api.createShell(root);
+      addSession(sess);
+      goTo("terminal", { id: sess.name });
     } catch {
       // Terminal's own view surfaces tmux problems; still navigate.
+      goTo("terminal");
     }
-    goTo("terminal");
   };
   return (
     <div className={s.shells}>
@@ -344,13 +357,13 @@ function ShellsPanel({
             className={s.chip}
             onClick={() => goTo("terminal", { id: sh.name })}
           >
-            <span className={s.shellDot} />
+            <Dot className={s.shellDot} />
             <span className={s.chipId}>{sh.title || sh.name}</span>
           </button>
         ))}
       </div>
       <div className={s.shellFoot}>
-        <Button variant="secondary" size="sm" onClick={openShell}>
+        <Button variant="quiet" size="sm" onClick={openShell}>
           Open a shell
         </Button>
       </div>
@@ -379,7 +392,7 @@ function Pipeline({
   sessions: ReturnType<typeof useSessions>["sessions"];
   titles: Record<string, string>;
   rail: RailCard[];
-  goTo: (v: View, f?: { id: string }) => void;
+  goTo: (v: View, f?: Focus) => void;
 }) {
   const badgeFor = (t: Ticket) =>
     rail.find((r) => r.worktree === t.worktree)?.badge;
@@ -414,7 +427,7 @@ function Pipeline({
           goTo(view, view === "archive" ? undefined : { id: t.id })
         }
       >
-        <span className={s.chipDot} style={{ background: stateDot(t.state) }} />
+        <Dot color={stateDot(t.state)} />
         <span className={s.chipId}>{t.id}</span>
         {title && <span className={s.chipTitle}>{title}</span>}
         {hint}
@@ -431,10 +444,7 @@ function Pipeline({
           return (
             <div key={c.state} className={s.col}>
               <div className={s.colHead}>
-                <span
-                  className={s.colDot}
-                  style={{ background: stateDot(c.state) }}
-                />
+                <Dot color={stateDot(c.state)} />
                 {c.label}
                 <span className={s.colN}>{items.length}</span>
               </div>
@@ -563,7 +573,7 @@ function Activity({
 }: {
   events: api.EventRow[];
   ws: Workspace;
-  goTo: (v: View, f?: { id: string }) => void;
+  goTo: (v: View, f?: Focus) => void;
 }) {
   // Route a ticket to where its *current* state lives, not where the event was.
   const viewFor = (id: string): { view: View; focus?: { id: string } } => {

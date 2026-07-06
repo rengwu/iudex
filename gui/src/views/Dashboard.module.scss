@@ -41,34 +41,33 @@
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 7px;
-  border: 1px solid #9a9a9a;
-  border-left: 4px solid; // tone color set per-tone below
-  background: t.$panel-light;
-  padding: 7px 9px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #2a2a2a;
+  gap: 6px;
+  border: 1px solid #b0b0b0;
+  border-left: 2px solid; // tone color set per-tone below
+  background: #cbcbcb;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: t.$text-muted;
   cursor: pointer;
   text-align: left;
   min-width: 0;
 }
 .nowChip:hover {
-  background: #e6e6e6;
+  background: #d4d4d4;
 }
 
+// Fill only — shape comes from <Dot>; tone classes set color on the chip's
+// accents.
 .nowDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor; // tone classes set color on the chip's accents
+  background: currentColor;
 }
 
 .nowLabel {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #2a2a2a;
+  color: t.$text-muted;
 }
 
 .nowArrow {
@@ -171,11 +170,8 @@
   overflow: auto; // list scrolls within the panel; the "Open a shell" foot stays put
 }
 
+// Fill only — shape comes from <Dot>.
 .shellDot {
-  flex: none;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
   background: #1e6f1e; // live, same green as the pipeline agent dot
 }
 
@@ -212,13 +208,6 @@
   border-bottom: 1px solid #9a9a9a;
   padding-bottom: 3px;
   margin-bottom: 2px;
-}
-
-.colDot,
-.chipDot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
 }
 
 .colN {
