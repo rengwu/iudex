@@ -179,8 +179,26 @@ export const openFolderWith = (path: string) => invoke<void>("open_folder_with",
 
 // ── tmux pool / sessions / agents ───────────────────────────────────────────
 export const tmuxAvailable = () => invoke<boolean>("tmux_available");
+// The tmux prerequisite for onboarding: present/version, whether a one-click
+// Homebrew install is possible, and the copy-paste command for the manual path.
+export type TmuxSetup = {
+  installed: boolean;
+  version: string | null;
+  canInstall: boolean;
+  installHint: string;
+};
+export const tmuxSetup = () => invoke<TmuxSetup>("tmux_setup_status");
+// Runs `brew install tmux`; resolves to the installed version. Slow (a real
+// brew install) — callers show a busy state.
+export const installTmux = () => invoke<string>("install_tmux");
 export const listSessions = (root: string) => invoke<Session[]>("list_sessions", { root });
 export const sessionStatus = (name: string) => invoke<SessionStatus>("session_status", { name });
+// Batch liveness for every pool session in one tmux call — the poll paths
+// (agent statuses, automation drains, crash probes) use this instead of one
+// session_status per session. A name absent from the result has no session.
+export type NamedSessionStatus = SessionStatus & { name: string };
+export const sessionStatuses = () =>
+  invoke<NamedSessionStatus[]>("session_statuses");
 export const capturePane = (name: string, lines: number) =>
   invoke<string>("capture_pane", { name, lines });
 export const killSession = (name: string) => invoke<void>("kill_session", { name });

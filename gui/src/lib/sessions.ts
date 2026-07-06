@@ -156,14 +156,21 @@ function onVisibility() {
   }
 }
 
+// Re-probe tmux availability and update the shared snapshot. Runs once when
+// the first subscriber arrives; exported so onboarding can flip `available`
+// the moment its tmux install succeeds (no app restart needed).
+export function recheckTmux() {
+  api
+    .tmuxAvailable()
+    .then((a) => setSnapshot({ available: a }))
+    .catch(() => setSnapshot({ available: false }));
+}
+
 function subscribe(cb: () => void): () => void {
   listeners.add(cb);
   if (listeners.size === 1) {
     // First subscriber: one-time availability probe, watch visibility, start.
-    api
-      .tmuxAvailable()
-      .then((a) => setSnapshot({ available: a }))
-      .catch(() => setSnapshot({ available: false }));
+    recheckTmux();
     document.addEventListener("visibilitychange", onVisibility);
     startPolling();
   }

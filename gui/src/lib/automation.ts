@@ -223,6 +223,10 @@ export function useAutomation(
     (async () => {
       try {
         const fresh = await api.listSessions(root).catch(() => sessions);
+        // One tmux call for all liveness, not one per session (missing ⇒ gone).
+        const stats = new Map(
+          (await api.sessionStatuses().catch(() => [])).map((s) => [s.name, s]),
+        );
         for (const id of candidates) {
           if (!autoActivateRef.current) break;
           const implSessions = fresh.filter(
@@ -231,16 +235,13 @@ export function useAutomation(
           let live = false;
           let crashed = false;
           for (const s of implSessions) {
-            try {
-              const st = await api.sessionStatus(s.name);
-              if (!st.dead) {
-                live = true;
-                break;
-              }
-              if (st.exitCode !== null && st.exitCode !== 0) crashed = true;
-            } catch {
-              // unknown → treat as not-live
+            const st = stats.get(s.name);
+            if (!st) continue; // unknown → treat as not-live
+            if (!st.dead) {
+              live = true;
+              break;
             }
+            if (st.exitCode !== null && st.exitCode !== 0) crashed = true;
           }
           implHandledRef.current.add(id);
           if (live || crashed) continue;
@@ -275,23 +276,18 @@ export function useAutomation(
     qaDrainingRef.current = true;
     (async () => {
       try {
+        const stats = new Map(
+          (await api.sessionStatuses().catch(() => [])).map((s) => [s.name, s]),
+        );
         for (const id of candidates) {
           if (!autoQARef.current) break;
           const qaSessions = sessions.filter(
             (s) => s.kind === "agent" && s.role === "qa" && s.ticket === id,
           );
-          let live = false;
-          for (const s of qaSessions) {
-            try {
-              const st = await api.sessionStatus(s.name);
-              if (!st.dead) {
-                live = true;
-                break;
-              }
-            } catch {
-              // unknown → treat as not-live
-            }
-          }
+          const live = qaSessions.some((s) => {
+            const st = stats.get(s.name);
+            return !!st && !st.dead; // unknown → treat as not-live
+          });
           qaHandledRef.current.add(id);
           if (live) continue;
           try {
@@ -335,6 +331,9 @@ export function useAutomation(
     (async () => {
       let status: ResolveStatus | null = null;
       try {
+        const stats = new Map(
+          (await api.sessionStatuses().catch(() => [])).map((s) => [s.name, s]),
+        );
         for (const t of candidates) {
           if (!autoResolveRef.current) break;
           const wt = t.worktree!;
@@ -346,16 +345,13 @@ export function useAutomation(
           let live = false;
           let crashed = false;
           for (const sx of resolveSessions) {
-            try {
-              const st = await api.sessionStatus(sx.name);
-              if (!st.dead) {
-                live = true;
-                break;
-              }
-              if (st.exitCode !== null && st.exitCode !== 0) crashed = true;
-            } catch {
-              // unknown → treat as not-live
+            const st = stats.get(sx.name);
+            if (!st) continue; // unknown → treat as not-live
+            if (!st.dead) {
+              live = true;
+              break;
             }
+            if (st.exitCode !== null && st.exitCode !== 0) crashed = true;
           }
 
           const res = await api.readResolution(wt);

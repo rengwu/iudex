@@ -306,7 +306,7 @@ struct EventRow {
 /// The newest `limit` events, newest first. Malformed lines are skipped, same
 /// stance as the CLI's ReadAll. A missing file is an empty feed, not an error
 /// (fresh workspace).
-#[tauri::command]
+#[tauri::command(async)]
 fn recent_events(root: String, limit: usize) -> Vec<EventRow> {
     let path = Path::new(&root).join(".iudex").join("events.jsonl");
     let text = std::fs::read_to_string(&path).unwrap_or_default();
@@ -375,7 +375,7 @@ fn iudex_version(bin: &str) -> Result<String, String> {
 /// drives iudex the way a git client drives git, so without it nothing works —
 /// checked at startup to fail with a clear message instead of opaque errors from
 /// every command.
-#[tauri::command]
+#[tauri::command(async)]
 fn check_iudex() -> Result<String, String> {
     let bin = iudex_bin();
     let version = iudex_version(&bin)?;
@@ -414,7 +414,7 @@ struct IudexSettings {
     resolved: Result<String, String>,
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn get_iudex_settings(app: AppHandle) -> IudexSettings {
     let saved_path = read_iudex_bin(&app);
     let env_bin = std::env::var("IUDEX_BIN").ok();
@@ -450,7 +450,7 @@ fn local_bin_iudex() -> Option<PathBuf> {
 /// The user's PATH as their login shell sees it. The GUI's own env is often
 /// narrower (Finder launches don't source shell rc files), which would make
 /// the "is ~/.local/bin on your PATH" hint cry wolf.
-fn login_shell_path() -> String {
+pub(crate) fn login_shell_path() -> String {
     if let Ok(shell) = std::env::var("SHELL") {
         if let Ok(out) = Command::new(&shell)
             .args(["-lc", "printf %s \"$PATH\""])
@@ -540,7 +540,7 @@ fn set_iudex_bin(app: AppHandle, path: String) -> Result<String, String> {
 /// human-qa, retry, remove) shells out to the CLI so the state machine stays
 /// single-sourced there. The events.jsonl doorbell then refreshes the read
 /// path on its own — callers don't re-read explicitly.
-#[tauri::command]
+#[tauri::command(async)]
 fn run_iudex(root: String, args: Vec<String>) -> Result<String, String> {
     let out = Command::new(iudex_bin())
         .args(&args)
@@ -586,7 +586,7 @@ fn discover_workspace(app: AppHandle, start: String) -> Result<String, String> {
 /// (git init + initial commit if it has no history, records the current branch
 /// as main_branch, creates `.iudex/`). Offered by the GUI when `discover_workspace`
 /// finds no workspace. Returns the canonical root on success.
-#[tauri::command]
+#[tauri::command(async)]
 fn init_workspace(path: String) -> Result<String, String> {
     let canon =
         std::fs::canonicalize(&path).map_err(|e| format!("cannot resolve {path}: {e}"))?;
@@ -961,7 +961,7 @@ fn list_prds(root: String) -> Result<Vec<String>, String> {
 
 /// Run `iudex status --json` in `root` and return the parsed JSON. This is the
 /// GUI's sole read path; the state machine stays single-sourced in the CLI.
-#[tauri::command]
+#[tauri::command(async)]
 fn iudex_status(root: String) -> Result<serde_json::Value, String> {
     let out = Command::new(iudex_bin())
         .args(["status", "--json"])
@@ -982,7 +982,7 @@ fn iudex_status(root: String) -> Result<serde_json::Value, String> {
 /// with `iudex queue [--deps …]`. This is the thin native front-of-funnel for
 /// trivial manual tickets; the heavier shaping path spawns a skill agent
 /// instead. Returns the new ticket id. The doorbell then refreshes the table.
-#[tauri::command]
+#[tauri::command(async)]
 fn compose_ticket(
     root: String,
     title: String,
@@ -1056,7 +1056,7 @@ struct Worktree {
 /// Enumerate the repo's worktrees via `git worktree list --porcelain`, dropping
 /// the main worktree (path == root). Read-only git plumbing — not state-machine
 /// logic — so it lives in the GUI backend rather than the CLI.
-#[tauri::command]
+#[tauri::command(async)]
 fn list_worktrees(root: String) -> Result<Vec<Worktree>, String> {
     let out = Command::new("git")
         .args(["-C", &root, "worktree", "list", "--porcelain"])
@@ -1116,7 +1116,7 @@ struct FileChange {
 /// uncommitted) and `main_branch`, plus untracked files. `git diff <main>`
 /// (two-dot) captures tracked changes including uncommitted ones — agents commit
 /// late, so the worktree is usually dirty; `ls-files --others` folds in the rest.
-#[tauri::command]
+#[tauri::command(async)]
 fn worktree_changes(
     worktree: String,
     main_branch: String,
@@ -1246,7 +1246,7 @@ struct FileDiff {
     language: String,
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn worktree_file_diff(
     worktree: String,
     path: String,
@@ -1318,7 +1318,7 @@ fn language_for(path: &str) -> String {
 /// never appear). Powers the read-only "all files" codebase browser — the
 /// frontend builds the tree from these paths. Read-only git plumbing, like the
 /// diff commands.
-#[tauri::command]
+#[tauri::command(async)]
 fn list_tree(worktree: String) -> Result<Vec<String>, String> {
     let out = Command::new("git")
         .args([
@@ -1408,7 +1408,7 @@ fn worktree_task_docs(worktree: String) -> Result<TaskDocs, String> {
 /// the ignored `.task/`). The GUI uses this to warn before a manual `iudex
 /// finish`, whose auto-WIP-commit would otherwise ship unready edits to QA. A
 /// clean worktree returns 0.
-#[tauri::command]
+#[tauri::command(async)]
 fn worktree_dirty_count(worktree: String) -> Result<usize, String> {
     let out = Command::new("git")
         .args(["-C", &worktree, "status", "--porcelain"])
@@ -1437,7 +1437,7 @@ fn worktree_dirty_count(worktree: String) -> Result<usize, String> {
 /// `list_worktrees` (git refuses `worktree remove` from inside the target). The
 /// branch is left alone — the archive holds diff.patch, and branch cleanup is out
 /// of scope.
-#[tauri::command]
+#[tauri::command(async)]
 fn remove_worktree(root: String, path: String, force: bool) -> Result<(), String> {
     let base = std::fs::canonicalize(Path::new(&root).join(".iudex").join("worktrees"))
         .map_err(|e| format!("canonicalize worktrees dir: {e}"))?;
@@ -1602,7 +1602,7 @@ struct Preflight {
     ready: bool,
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn merge_preflight(
     root: String,
     worktree: String,
@@ -1697,7 +1697,7 @@ fn merge_preflight(
 /// a conflicted tree, so this is the GUI's opt-in convenience. Guarded: refuses
 /// if the worktree is dirty or a merge is already underway. Returns whether the
 /// merge produced conflicts (false ⇒ it merged cleanly, nothing to resolve).
-#[tauri::command]
+#[tauri::command(async)]
 fn begin_resolution(worktree: String, main_branch: String) -> Result<bool, String> {
     let dirty = Command::new("git")
         .args(["-C", &worktree, "status", "--porcelain"])
@@ -1736,7 +1736,7 @@ fn begin_resolution(worktree: String, main_branch: String) -> Result<bool, Strin
 }
 
 /// Abort an in-progress resolution merge in a worktree, restoring it.
-#[tauri::command]
+#[tauri::command(async)]
 fn abort_resolution(worktree: String) -> Result<(), String> {
     Command::new("git")
         .args(["-C", &worktree, "merge", "--abort"])
@@ -1783,7 +1783,7 @@ struct Resolution {
     has_report: bool,
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn read_resolution(worktree: String) -> Result<Resolution, String> {
     let merge_in_progress = Command::new("git")
         .args(["-C", &worktree, "rev-parse", "-q", "--verify", "MERGE_HEAD"])
@@ -1846,7 +1846,7 @@ struct ResolutionSummary {
     patch: String,
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn resolution_summary(worktree: String, main_branch: String) -> Result<ResolutionSummary, String> {
     // Is HEAD a merge commit (>1 parent) that merged main in? That's the shape of
     // a conflict-resolution merge done in the worktree before approve.
@@ -1898,7 +1898,7 @@ struct ConflictFile {
     language: String,
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn read_conflict_file(worktree: String, path: String) -> Result<ConflictFile, String> {
     let stage = |n: u8| -> String {
         Command::new("git")
@@ -1935,7 +1935,7 @@ fn write_resolved_file(worktree: String, path: String, content: String) -> Resul
 
 /// Complete an in-worktree resolution merge by committing it. Guarded: refuses
 /// while any file is still unmerged, or when no merge is underway.
-#[tauri::command]
+#[tauri::command(async)]
 fn commit_resolution(worktree: String) -> Result<(), String> {
     let unmerged = Command::new("git")
         .args(["-C", &worktree, "diff", "--name-only", "--diff-filter=U"])
@@ -1965,7 +1965,7 @@ fn commit_resolution(worktree: String) -> Result<(), String> {
 
 /// Open a file in the user's GUI editor — an escape hatch out of the read-only
 /// viewer. Tries VS Code, then the platform opener. Fire-and-forget.
-#[tauri::command]
+#[tauri::command(async)]
 fn open_in_editor(path: String) -> Result<(), String> {
     // Prefer VS Code (opens source files sensibly); fall back to the OS opener.
     if Command::new("code").arg(&path).spawn().is_ok() {
@@ -1982,7 +1982,7 @@ fn open_in_editor(path: String) -> Result<(), String> {
 /// Reveal a path in the platform file manager — the Review header escape hatch.
 /// On macOS `open -R` selects it in Finder; elsewhere we open the path (a
 /// directory opens in the file manager). Fire-and-forget.
-#[tauri::command]
+#[tauri::command(async)]
 fn reveal_in_finder(path: String) -> Result<(), String> {
     let mut cmd = if cfg!(target_os = "macos") {
         let mut c = Command::new("open");
@@ -2003,7 +2003,7 @@ fn reveal_in_finder(path: String) -> Result<(), String> {
 /// dialog, then `open -a <chosen>`; on Linux it falls back to `mimeopen --ask`
 /// if present, else the default opener. The picker is interactive, so we spawn
 /// and return immediately (the script does the open once the user picks).
-#[tauri::command]
+#[tauri::command(async)]
 fn open_folder_with(path: String) -> Result<(), String> {
     if cfg!(target_os = "macos") {
         let esc = path.replace('\\', "\\\\").replace('"', "\\\"");
@@ -2053,7 +2053,7 @@ struct WorktreeTitle {
 
 /// Batch ticket titles for a set of worktrees — the Agents list needs a title per
 /// agent without the merge-badge work that `rail_status` does.
-#[tauri::command]
+#[tauri::command(async)]
 fn brief_titles(worktrees: Vec<String>) -> Vec<WorktreeTitle> {
     worktrees
         .into_iter()
@@ -2096,7 +2096,7 @@ struct TicketTitle {
 /// (and later) tickets read their worktree `.task/brief.md`; queued tickets have
 /// no worktree yet, so they read `.iudex/queue/tN.md`. The worktree brief wins
 /// when both exist. Lets the GUI label queued tickets, which have no worktree.
-#[tauri::command]
+#[tauri::command(async)]
 fn ticket_titles(root: String) -> Vec<TicketTitle> {
     let iudex = Path::new(&root).join(".iudex");
     let mut out: Vec<TicketTitle> = Vec::new();
@@ -2133,7 +2133,7 @@ fn ticket_titles(root: String) -> Vec<TicketTitle> {
     out
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn rail_status(
     root: String,
     main_branch: String,
@@ -2345,11 +2345,14 @@ pub fn run() {
             ticket_titles,
             watch_workspace,
             tmux::tmux_available,
+            tmux::tmux_setup_status,
+            tmux::install_tmux,
             tmux::spawn_agent,
             tmux::spawn_idea,
             tmux::spawn_resolver,
             tmux::clear_finished,
             tmux::session_status,
+            tmux::session_statuses,
             tmux::list_sessions,
             tmux::create_shell,
             tmux::kill_session,

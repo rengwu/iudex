@@ -141,26 +141,42 @@ export function useAgentStatuses(
   useEffect(() => {
     let alive = true;
     const tick = async () => {
+      // Nothing is watching while the window is hidden — don't spawn tmux
+      // probes for it (same policy as the shared sessions poll).
+      if (document.visibilityState === "hidden") return;
+      // One tmux call for every session's liveness, instead of one per agent.
+      let stats: Map<string, api.NamedSessionStatus>;
+      try {
+        stats = new Map(
+          (await api.sessionStatuses()).map((s) => [s.name, s]),
+        );
+      } catch {
+        return; // transient tmux failure — keep the previous map
+      }
       const entries = await Promise.all(
         agents.map(async (a) => {
           try {
-            const [out, live] = await Promise.all([
-              api.capturePane(a.name, 200),
-              api.sessionStatus(a.name),
-            ]);
-            const act = activity.current[a.name] ?? {
-              prev: "",
-              last: Date.now(),
-            };
-            if (out !== act.prev) {
-              act.prev = out;
-              act.last = Date.now();
+            const live = stats.get(a.name);
+            if (!live) return [a.name, "gone" as AgentStatus] as const;
+            // Output-activity capture only matters for a *live* pane (every
+            // dead-pane status is decided by exit code / ticket state alone).
+            let quietMs = 0;
+            if (!live.dead) {
+              const out = await api.capturePane(a.name, 200);
+              const act = activity.current[a.name] ?? {
+                prev: "",
+                last: Date.now(),
+              };
+              if (out !== act.prev) {
+                act.prev = out;
+                act.last = Date.now();
+              }
+              activity.current[a.name] = act;
+              quietMs = Date.now() - act.last;
             }
-            activity.current[a.name] = act;
             const ticket = a.ticket
               ? ws.tickets.find((t) => t.id === a.ticket)
               : undefined;
-            const quietMs = Date.now() - act.last;
 
             // Idea agents are ticket-less; status is pure liveness.
             if (a.kind === "idea") {

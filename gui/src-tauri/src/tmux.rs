@@ -12,7 +12,7 @@ use std::io::{Read, Write};
 use std::path::Path;
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use base64::Engine;
@@ -76,15 +76,168 @@ pub struct PtyState(Mutex<HashMap<String, Pty>>);
 
 static SEQ: AtomicU64 = AtomicU64::new(1);
 
-/// True when a usable `tmux` is on PATH. The Terminal/Agents views degrade to a
-/// hint when it isn't.
-#[tauri::command]
-pub fn tmux_available() -> bool {
-    Command::new("tmux")
+/// The resolved tmux binary, cached after the first successful probe. A GUI
+/// launched from Finder/the desktop gets a minimal PATH that misses Homebrew's
+/// bin, so invoking a bare `"tmux"` can fail even when tmux is installed;
+/// resolution falls back to the login shell's PATH, then well-known install
+/// dirs. Every tmux invocation goes through `tmux_bin()`.
+fn tmux_cache() -> &'static Mutex<Option<String>> {
+    static CACHE: OnceLock<Mutex<Option<String>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(None))
+}
+
+fn tmux_works(bin: &str) -> bool {
+    Command::new(bin)
         .arg("-V")
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false)
+}
+
+pub(crate) fn tmux_bin() -> String {
+    if let Some(p) = tmux_cache().lock().unwrap().clone() {
+        return p;
+    }
+    // Unresolved → still say "tmux", so error messages stay natural.
+    refresh_tmux_bin().unwrap_or_else(|| "tmux".to_string())
+}
+
+/// Re-probe for a usable tmux and update the cache (also un-caches one that
+/// stopped answering). Called by the availability check and after an install.
+fn refresh_tmux_bin() -> Option<String> {
+    let mut found = None;
+    if tmux_works("tmux") {
+        found = Some("tmux".to_string());
+    } else {
+        let login = crate::login_shell_path();
+        let known = [
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            "/home/linuxbrew/.linuxbrew/bin",
+            "/usr/bin",
+        ];
+        for dir in login.split(':').chain(known) {
+            if dir.is_empty() {
+                continue;
+            }
+            let p = Path::new(dir).join("tmux");
+            if p.is_file() && tmux_works(&p.to_string_lossy()) {
+                found = Some(p.to_string_lossy().into_owned());
+                break;
+            }
+        }
+    }
+    *tmux_cache().lock().unwrap() = found.clone();
+    found
+}
+
+/// True when a usable `tmux` can be resolved. The Terminal/Agents views degrade
+/// to a hint when it can't.
+#[tauri::command(async)]
+pub fn tmux_available() -> bool {
+    refresh_tmux_bin().is_some()
+}
+
+/// Homebrew, resolved the same way as tmux (it lives in the same PATH blind
+/// spot). Powers the onboarding one-click install.
+fn brew_bin() -> Option<String> {
+    let works = |bin: &str| {
+        Command::new(bin)
+            .arg("--version")
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    };
+    if works("brew") {
+        return Some("brew".to_string());
+    }
+    let login = crate::login_shell_path();
+    let known = [
+        "/opt/homebrew/bin",
+        "/usr/local/bin",
+        "/home/linuxbrew/.linuxbrew/bin",
+    ];
+    for dir in known.into_iter().chain(login.split(':')) {
+        if dir.is_empty() {
+            continue;
+        }
+        let p = Path::new(dir).join("brew");
+        if p.is_file() {
+            return Some(p.to_string_lossy().into_owned());
+        }
+    }
+    None
+}
+
+/// The tmux prerequisite as onboarding sees it: present (and which version),
+/// one-click installable (Homebrew found), and the right copy-paste command
+/// for the manual path.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TmuxSetup {
+    pub installed: bool,
+    pub version: Option<String>,
+    pub can_install: bool,
+    pub install_hint: String,
+}
+
+#[tauri::command(async)]
+pub fn tmux_setup_status() -> TmuxSetup {
+    let bin = refresh_tmux_bin();
+    let version = bin.as_deref().and_then(|b| {
+        Command::new(b)
+            .arg("-V")
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+    });
+    let brew = brew_bin().is_some();
+    let install_hint = if brew || cfg!(target_os = "macos") {
+        "brew install tmux".to_string()
+    } else if Path::new("/usr/bin/apt").is_file() || Path::new("/usr/bin/apt-get").is_file() {
+        "sudo apt install tmux".to_string()
+    } else if Path::new("/usr/bin/dnf").is_file() {
+        "sudo dnf install tmux".to_string()
+    } else if Path::new("/usr/bin/pacman").is_file() {
+        "sudo pacman -S tmux".to_string()
+    } else {
+        "install tmux with your system's package manager".to_string()
+    };
+    TmuxSetup {
+        installed: bin.is_some(),
+        version,
+        can_install: brew,
+        install_hint,
+    }
+}
+
+/// One-click install: `brew install tmux` (no sudo needed, unlike the Linux
+/// package managers, which stay copy-paste). Async + spawn_blocking so the
+/// minutes-long install never blocks the UI thread. Refreshes the tmux cache on
+/// success and returns the installed version.
+#[tauri::command]
+pub async fn install_tmux() -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(|| -> Result<String, String> {
+        let brew = brew_bin().ok_or("Homebrew not found — install tmux manually")?;
+        let out = Command::new(&brew)
+            .args(["install", "tmux"])
+            .output()
+            .map_err(|e| format!("{brew}: {e}"))?;
+        if !out.status.success() {
+            let err = String::from_utf8_lossy(&out.stderr);
+            return Err(format!("brew install tmux failed: {}", err.trim()));
+        }
+        let bin = refresh_tmux_bin()
+            .ok_or("brew finished but tmux still isn't runnable — check `tmux -V` in a terminal")?;
+        let v = Command::new(&bin)
+            .arg("-V")
+            .output()
+            .map_err(|e| e.to_string())?;
+        Ok(String::from_utf8_lossy(&v.stdout).trim().to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// List the *entire* pool — every `iudex-…` tmux session on the machine,
@@ -95,7 +248,7 @@ pub fn tmux_available() -> bool {
 fn list_all() -> Result<Vec<Session>, String> {
     // One call returns every session's name plus its metadata (empty for shells /
     // non-pool sessions). Tab-delimited; tmux names/option values never hold tabs.
-    let out = Command::new("tmux")
+    let out = Command::new(tmux_bin())
         .args([
             "list-sessions",
             "-F",
@@ -121,7 +274,7 @@ fn list_all() -> Result<Vec<Session>, String> {
 /// stamp) so a live agent is never hidden. This is what stops one project's
 /// sessions from showing up in another — the GUI polls it with the open
 /// workspace's root.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_sessions(root: String) -> Result<Vec<Session>, String> {
     Ok(list_all()?
         .into_iter()
@@ -198,7 +351,7 @@ fn parse_line(line: &str) -> Option<Session> {
 /// pane can't be scrolled at all. Set per-session so we never touch the user's
 /// global/default tmux configuration.
 fn enable_mouse(name: &str) {
-    let _ = Command::new("tmux")
+    let _ = Command::new(tmux_bin())
         .args(["set-option", "-t", name, "mouse", "on"])
         .status();
 }
@@ -235,7 +388,7 @@ fn new_session(name: &str, cwd: Option<&str>, cmd: Option<&str>) -> Result<(), S
     if let Some(c) = cmd {
         args.push(c);
     }
-    let st = Command::new("tmux")
+    let st = Command::new(tmux_bin())
         .args(&args)
         .status()
         .map_err(|e| format!("tmux new-session: {e}"))?;
@@ -248,7 +401,7 @@ fn new_session(name: &str, cwd: Option<&str>, cmd: Option<&str>) -> Result<(), S
 /// Create a fresh detached shell session with the lowest free index. An optional
 /// `cwd` starts the shell in that directory (used by Worktrees' "Open shell" to
 /// drop into a worktree); omitted, it starts wherever tmux defaults.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn create_shell(root: String, cwd: Option<String>) -> Result<Session, String> {
     // Shell names are machine-global, so allocate the index against the full pool.
     let existing = list_all()?;
@@ -260,7 +413,7 @@ pub fn create_shell(root: String, cwd: Option<String>) -> Result<Session, String
     new_session(&name, cwd.as_deref(), None)?;
     enable_mouse(&name);
     // Scope the shell to the workspace it was opened from (read back by list_sessions).
-    let _ = Command::new("tmux")
+    let _ = Command::new(tmux_bin())
         .args(["set-option", "-t", &name, "@iudex_root", &root])
         .status();
     Ok(Session {
@@ -287,7 +440,7 @@ pub fn create_shell(root: String, cwd: Option<String>) -> Result<Session, String
 /// (it does not change the command — iudex derives the prompt from ticket state);
 /// it and the ticket/start-time are stored as tmux user-options for the Agents
 /// view to label and order by.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn spawn_agent(root: String, ticket: String, role: String) -> Result<Session, String> {
     let out = Command::new(crate::iudex_bin())
         .args(["spawn", &ticket])
@@ -313,7 +466,7 @@ pub fn spawn_agent(root: String, ticket: String, role: String) -> Result<Session
     // Keep the pane after the agent process exits, so its exit status survives
     // for the status heuristic (alive→working/idle, exited 0→awaiting-finish,
     // exited non-zero→crashed). Without this the session would just vanish.
-    let _ = Command::new("tmux")
+    let _ = Command::new(tmux_bin())
         .args(["set-option", "-w", "-t", &name, "remain-on-exit", "on"])
         .status();
     enable_mouse(&name);
@@ -324,7 +477,7 @@ pub fn spawn_agent(root: String, ticket: String, role: String) -> Result<Session
         ("@iudex_started", started.as_str()),
         ("@iudex_root", root.as_str()),
     ] {
-        let _ = Command::new("tmux")
+        let _ = Command::new(tmux_bin())
             .args(["set-option", "-t", &name, opt, val])
             .status();
     }
@@ -354,7 +507,7 @@ fn sh_quote(s: &str) -> String {
 /// itself (→ to-prd → to-issues → `iudex queue`), so any tickets it creates show
 /// up through the events.jsonl doorbell. Ticket-less: `@iudex_role` holds the
 /// skill name. The frontend opens this session in the Terminal to converse.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn spawn_idea(root: String, skill: String, seed: String) -> Result<Session, String> {
     let mut prompt = format!(
         "Use the \"{skill}\" skill (.iudex/skills/{skill}/SKILL.md) to shape work \
@@ -375,7 +528,7 @@ pub fn spawn_idea(root: String, skill: String, seed: String) -> Result<Session, 
         SEQ.fetch_add(1, Ordering::Relaxed)
     );
     new_session(&name, None, Some(&cmd))?;
-    let _ = Command::new("tmux")
+    let _ = Command::new(tmux_bin())
         .args(["set-option", "-w", "-t", &name, "remain-on-exit", "on"])
         .status();
     enable_mouse(&name);
@@ -384,7 +537,7 @@ pub fn spawn_idea(root: String, skill: String, seed: String) -> Result<Session, 
         ("@iudex_started", started.as_str()),
         ("@iudex_root", root.as_str()),
     ] {
-        let _ = Command::new("tmux")
+        let _ = Command::new(tmux_bin())
             .args(["set-option", "-t", &name, opt, val])
             .status();
     }
@@ -432,7 +585,7 @@ fn resolve_prompt(root: &str) -> String {
 /// Agents grid and can be watched/attached like any other; the human directs or
 /// takes over via its terminal. iudex's lifecycle is untouched — conflict
 /// resolution is GUI territory, so the prompt is built here, not by the CLI.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn spawn_resolver(root: String, ticket: String, worktree: String) -> Result<Session, String> {
     let agent = crate::resolve_agent_command(&root, "resolve")?;
     let prompt = resolve_prompt(&root);
@@ -444,7 +597,7 @@ pub fn spawn_resolver(root: String, ticket: String, worktree: String) -> Result<
         SEQ.fetch_add(1, Ordering::Relaxed)
     );
     new_session(&name, None, Some(&cmd))?;
-    let _ = Command::new("tmux")
+    let _ = Command::new(tmux_bin())
         .args(["set-option", "-w", "-t", &name, "remain-on-exit", "on"])
         .status();
     enable_mouse(&name);
@@ -454,7 +607,7 @@ pub fn spawn_resolver(root: String, ticket: String, worktree: String) -> Result<
         ("@iudex_started", started.as_str()),
         ("@iudex_root", root.as_str()),
     ] {
-        let _ = Command::new("tmux")
+        let _ = Command::new(tmux_bin())
             .args(["set-option", "-t", &name, opt, val])
             .status();
     }
@@ -475,9 +628,9 @@ pub fn spawn_resolver(root: String, ticket: String, worktree: String) -> Result<
 /// Bulk-dismiss finished agents: kill every agent session whose pane has exited
 /// (dead), leaving live ones untouched. Backs the Agents view "clear finished"
 /// action. Returns how many were removed.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn clear_finished() -> Result<u32, String> {
-    let out = Command::new("tmux")
+    let out = Command::new(tmux_bin())
         .args([
             "list-sessions",
             "-F",
@@ -497,7 +650,7 @@ pub fn clear_finished() -> Result<u32, String> {
     for line in String::from_utf8_lossy(&out.stdout).lines() {
         let (name, dead) = line.split_once('\t').unwrap_or((line, ""));
         if name.starts_with(&agent_prefix) && dead.trim() == "1" {
-            let _ = Command::new("tmux")
+            let _ = Command::new(tmux_bin())
                 .args(["kill-session", "-t", name])
                 .status();
             killed += 1;
@@ -517,9 +670,9 @@ pub struct PaneStatus {
     pub exit_code: Option<i32>,
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn session_status(name: String) -> Result<PaneStatus, String> {
-    let out = Command::new("tmux")
+    let out = Command::new(tmux_bin())
         .args([
             "display-message",
             "-p",
@@ -545,14 +698,67 @@ pub fn session_status(name: String) -> Result<PaneStatus, String> {
     Ok(PaneStatus { dead, exit_code })
 }
 
+/// A pool session's liveness, keyed by name — the batch counterpart of
+/// `session_status` for the poll paths (agent statuses, automation drains),
+/// which ask about every session at once: one tmux spawn instead of N.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NamedPaneStatus {
+    pub name: String,
+    pub dead: bool,
+    pub exit_code: Option<i32>,
+}
+
+#[tauri::command(async)]
+pub fn session_statuses() -> Result<Vec<NamedPaneStatus>, String> {
+    // Session formats expand pane variables against the session's active pane;
+    // pool sessions are single-pane, so this is exactly their command's status.
+    let out = Command::new(tmux_bin())
+        .args([
+            "list-sessions",
+            "-F",
+            "#{session_name}\t#{pane_dead}\t#{pane_dead_status}",
+        ])
+        .output()
+        .map_err(|e| format!("tmux: {e}"))?;
+    if !out.status.success() {
+        let err = String::from_utf8_lossy(&out.stderr);
+        if err.contains("no server running") || err.contains("error connecting") {
+            return Ok(vec![]);
+        }
+        return Err(err.trim().to_string());
+    }
+    Ok(String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .filter_map(|line| {
+            let mut cols = line.split('\t');
+            let name = cols.next()?;
+            if !name.starts_with(PREFIX) {
+                return None;
+            }
+            let dead = cols.next().unwrap_or("").trim() == "1";
+            let exit_code = if dead {
+                cols.next().unwrap_or("").trim().parse::<i32>().ok()
+            } else {
+                None
+            };
+            Some(NamedPaneStatus {
+                name: name.to_string(),
+                dead,
+                exit_code,
+            })
+        })
+        .collect())
+}
+
 /// Kill a pool session (refusing anything outside our prefix). This ends the
 /// session for real — used by the explicit "kill" action, not by tab close.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn kill_session(name: String) -> Result<(), String> {
     if !name.starts_with(PREFIX) {
         return Err(format!("refusing to kill non-iudex session {name}"));
     }
-    Command::new("tmux")
+    Command::new(tmux_bin())
         .args(["kill-session", "-t", &name])
         .status()
         .map_err(|e| format!("tmux kill-session: {e}"))?;
@@ -562,12 +768,12 @@ pub fn kill_session(name: String) -> Result<(), String> {
 /// Stamp a superseded agent's kill deadline (unix millis, as a string) on its
 /// session. The Auto-Retire engine sets this instead of killing immediately; the
 /// mark lives in tmux, so it survives GUI restarts.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_retire_at(name: String, epoch_ms: String) -> Result<(), String> {
     if !name.starts_with(PREFIX) {
         return Err(format!("refusing to mark non-iudex session {name}"));
     }
-    Command::new("tmux")
+    Command::new(tmux_bin())
         .args(["set-option", "-t", &name, "@iudex_retire_at", &epoch_ms])
         .status()
         .map_err(|e| format!("tmux set-option: {e}"))?;
@@ -576,17 +782,17 @@ pub fn set_retire_at(name: String, epoch_ms: String) -> Result<(), String> {
 
 /// Clear a session's retire mark. With `pardon`, also set `@iudex_retire_pardon`
 /// so the engine never auto-marks it again (the Agents "Keep" action).
-#[tauri::command]
+#[tauri::command(async)]
 pub fn clear_retire(name: String, pardon: bool) -> Result<(), String> {
     if !name.starts_with(PREFIX) {
         return Err(format!("refusing to unmark non-iudex session {name}"));
     }
-    Command::new("tmux")
+    Command::new(tmux_bin())
         .args(["set-option", "-u", "-t", &name, "@iudex_retire_at"])
         .status()
         .map_err(|e| format!("tmux set-option: {e}"))?;
     if pardon {
-        Command::new("tmux")
+        Command::new(tmux_bin())
             .args(["set-option", "-t", &name, "@iudex_retire_pardon", "1"])
             .status()
             .map_err(|e| format!("tmux set-option: {e}"))?;
@@ -617,7 +823,7 @@ pub fn pool_summary() -> (u32, u32) {
 }
 
 pub fn kill_pool() {
-    let out = match Command::new("tmux")
+    let out = match Command::new(tmux_bin())
         .args(["list-sessions", "-F", "#{session_name}"])
         .output()
     {
@@ -626,7 +832,7 @@ pub fn kill_pool() {
     };
     for name in String::from_utf8_lossy(&out.stdout).lines() {
         if name.starts_with(PREFIX) {
-            let _ = Command::new("tmux")
+            let _ = Command::new(tmux_bin())
                 .args(["kill-session", "-t", name])
                 .status();
         }
@@ -635,11 +841,11 @@ pub fn kill_pool() {
 
 /// Capture the last `lines` rows of a session's visible pane as plain text — the
 /// data source for a read-only peek. Cheap enough to poll for a grid.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn capture_pane(name: String, lines: Option<i32>) -> Result<String, String> {
     let n = lines.unwrap_or(40);
     let start = format!("-{n}");
-    let out = Command::new("tmux")
+    let out = Command::new(tmux_bin())
         .args(["capture-pane", "-p", "-t", &name, "-S", &start])
         .output()
         .map_err(|e| format!("tmux capture-pane: {e}"))?;
@@ -676,7 +882,7 @@ pub fn open_terminal(
     // was set at spawn time (applies on the next attach, no recreation needed).
     enable_mouse(&name);
 
-    let mut cmd = CommandBuilder::new("tmux");
+    let mut cmd = CommandBuilder::new(tmux_bin());
     if readonly {
         cmd.args(["attach-session", "-r", "-t", &name]);
     } else {
