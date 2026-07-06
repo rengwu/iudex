@@ -203,24 +203,6 @@
   color: t.$text;
 }
 
-.browse {
-  flex: none;
-  height: 24px;
-  padding: 0 12px;
-  border: 1px solid t.$field-border;
-  background: t.$panel-rail;
-  color: t.$text;
-  cursor: pointer;
-  -webkit-user-select: none;
-  user-select: none;
-  font-family: t.$font-ui;
-  font-size: 12px;
-
-  &:hover {
-    background: t.$sel-bg;
-  }
-}
-
 .note {
   color: t.$text-muted;
   font-size: 10px;
@@ -288,26 +270,6 @@
     border-color: t.$danger;
   }
 }
-.agentAdd {
-  align-self: flex-start;
-  margin-top: 7px;
-  height: 22px;
-  padding: 0 10px;
-  border: 1px solid t.$field-border;
-  background: t.$panel-rail;
-  color: t.$text;
-  cursor: pointer;
-  -webkit-user-select: none;
-  user-select: none;
-  font-family: t.$font-ui;
-  font-size: 12px;
-
-  &:hover {
-    background: t.$sel-bg;
-    color: t.$text-bright;
-  }
-}
-
 .roleGrid {
   display: flex;
   flex-direction: column;

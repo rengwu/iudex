@@ -1,0 +1,167 @@
+@use "../styles/tokens" as t;
+
+// Flat, square-cornered action button. Color = state. See design-system §5 and
+// design-system/button-interaction-states.md for the resolved state spec.
+//
+// hover  → fill +7% lightness (uniform)          quiet gains a faint film
+// active → fill −8% lightness, flat (no shadow)
+// focus  → :focus-visible only; 2px offset ring, surface-contextual via --btn-ring.
+//          The app is uniformly mid-gray ($canvas..$panel-light), so the default
+//          is ink ($text) — ~4-5:1 on every panel. Genuinely dark surfaces (e.g.
+//          the terminal) override with --btn-ring: #{t.$amber}.
+//
+// Size is decoupled from variant here (sm 20px / md 22px) — the old inline
+// port silently shrank quiet/danger/success/info; that entanglement is gone.
+
+.btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  font-family: t.$font-ui;
+  border: 1px solid transparent;
+  border-radius: 0;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  transition:
+    background 0.09s ease,
+    border-color 0.09s ease;
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  // focus ring — keyboard only; mouse :focus draws nothing
+  &:focus {
+    outline: none;
+  }
+  &:focus-visible {
+    outline: 2px solid var(--btn-ring, #{t.$text});
+    outline-offset: 2px;
+  }
+}
+
+// ── sizes ────────────────────────────────────────────────────────────────────
+.sm {
+  height: 20px;
+  padding: 0 9px;
+  font-size: 11px;
+}
+.md {
+  height: 22px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+.lg {
+  height: 30px;
+  padding: 0 16px;
+  font-size: 12px;
+}
+
+// ── variants: base / :hover (+7% L) / :active (−8% L) ─────────────────────────
+.primary {
+  background: t.$amber;
+  color: t.$text;
+  border-color: t.$amber-border;
+  font-weight: 500;
+  &:hover:not(:disabled) {
+    background: #f7c860;
+    border-color: #d3a02a;
+  }
+  &:active:not(:disabled) {
+    background: #e0a92e;
+    border-color: #b5871b;
+  }
+}
+
+.secondary {
+  background: #9c9c9c;
+  color: t.$text;
+  border-color: t.$divider-mid;
+  font-weight: 400;
+  &:hover:not(:disabled) {
+    background: #adadad;
+    border-color: #7d7d7d;
+  }
+  &:active:not(:disabled) {
+    background: #888;
+    border-color: #666;
+  }
+}
+
+.review {
+  background: #836ddd;
+  color: #fff;
+  font-weight: 500;
+  &:hover:not(:disabled) {
+    background: #9784e4;
+  }
+  &:active:not(:disabled) {
+    background: #6d57c9;
+  }
+}
+
+.danger {
+  background: t.$danger;
+  color: #fff;
+  border-color: t.$danger-border;
+  font-weight: 500;
+  &:hover:not(:disabled) {
+    background: #e66d62;
+    border-color: #c14a3f;
+  }
+  &:active:not(:disabled) {
+    background: #cc4a3f;
+    border-color: #a83a30;
+  }
+}
+
+.success {
+  background: t.$success-fill;
+  color: #fff;
+  border-color: t.$success-fill-border;
+  font-weight: 500;
+  &:hover:not(:disabled) {
+    background: #47994a;
+    border-color: #357a37;
+  }
+  &:active:not(:disabled) {
+    background: #2f6f31;
+    border-color: #255826;
+  }
+}
+
+.info {
+  background: t.$info-fill;
+  color: #fff;
+  border-color: t.$info-fill-border;
+  font-weight: 500;
+  &:hover:not(:disabled) {
+    background: #4581bd;
+    border-color: #356295;
+  }
+  &:active:not(:disabled) {
+    background: #305d8c;
+    border-color: #274d73;
+  }
+}
+
+.quiet {
+  background: transparent;
+  color: t.$text-muted;
+  border-color: t.$divider-mid;
+  font-weight: 400;
+  &:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: #8a8a8a;
+    color: t.$text;
+  }
+  &:active:not(:disabled) {
+    background: rgba(0, 0, 0, 0.1);
+    border-color: #777;
+    color: t.$text;
+  }
+}

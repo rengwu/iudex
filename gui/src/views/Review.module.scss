@@ -305,37 +305,7 @@
   background: t.$dialog;
   border-top: 1px solid t.$divider-mid;
 }
-.reject,
-.approve {
-  height: 26px;
-  padding: 0 16px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  -webkit-user-select: none;
-  user-select: none;
-  font-size: 12px;
-  font-weight: 500;
-  font-family: t.$font-ui;
-
-  &:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
-}
-.reject {
-  background: t.$danger;
-  border-color: t.$danger-border;
-  color: #fff;
-}
-.approve {
-  background: t.$success-fill;
-  border-color: t.$success-fill-border;
-  color: #fff;
-
-  &:hover:not(:disabled) {
-    background: #336f35;
-  }
-}
+// Reject… / Approve & merge are the shared <Button> (danger / success, size lg).
 
 // ── Conflict-resolution panels (light warning surfaces) ───────────────────────
 .ready {

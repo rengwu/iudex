@@ -432,8 +432,9 @@ export default function Review({ ws, root }: { ws: Workspace; root: string }) {
 
           <div className={s.actions}>
             <RejectButton disabled={busy} onReject={reject} />
-            <button
-              className={s.approve}
+            <Button
+              variant="success"
+              size="lg"
               disabled={busy || !preflight?.ready}
               title={
                 preflight?.ready
@@ -443,7 +444,7 @@ export default function Review({ ws, root }: { ws: Workspace; root: string }) {
               onClick={approve}
             >
               {busy ? "…" : "Approve & merge"}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -830,13 +831,14 @@ function RejectButton({
 
   return (
     <>
-      <button
-        className={s.reject}
+      <Button
+        variant="danger"
+        size="lg"
         disabled={disabled}
         onClick={() => setOpen(true)}
       >
         Reject…
-      </button>
+      </Button>
       {open && (
         <Modal
           title="Reject — back to active"

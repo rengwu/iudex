@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>iudex Button — interaction states grill</title>
+<style>
+  :root{
+    --ui:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#141414;color:#e6e6e6;font-family:var(--ui);font-size:14px}
+  .wrap{max-width:1100px;margin:0 auto;padding:26px 26px 90px}
+  h1{font-size:22px;font-weight:600;margin:0 0 4px}
+  .lede{color:#9a9a9a;font-size:13px;margin:0 0 22px;max-width:760px}
+  .qbar{background:#2a230f;border:1px solid #5a4620;border-left:3px solid #f4bc41;border-radius:5px;padding:12px 15px;margin:0 0 26px;font-size:13px}
+  .qbar b{color:#f4bc41}
+  h2{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#8a8a8a;font-weight:600;margin:30px 0 12px}
+
+  /* two app surfaces */
+  .surface{border-radius:7px;padding:20px 22px 24px;margin-bottom:20px}
+  .surface .sf-label{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:16px;opacity:.6}
+  .dark{background:#2a2a2a;border:1px solid #3a3a3a}          /* toolbar / panel chrome */
+  .light{background:#e7e7e7;border:1px solid #cfcfcf;color:#2a2a2a}  /* Review/Settings light panels */
+  .light .sf-label{color:#555}
+
+  /* the matrix */
+  .grid{display:grid;grid-template-columns:96px repeat(5,1fr);gap:11px 14px;align-items:center}
+  .colhead{font-family:var(--mono);font-size:10.5px;color:#8a8a8a;text-align:center;padding-bottom:2px}
+  .light .colhead{color:#666}
+  .rowhead{font-family:var(--mono);font-size:11.5px;color:#b8b8b8}
+  .light .rowhead{color:#444}
+  .cell{display:flex;justify-content:center}
+  .cell.tbd{opacity:.32}
+  .cell.tbd::after{content:"·";color:#777}
+
+  /* ---- the button primitive (shared) ---- */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;
+    font-family:var(--ui);border-radius:0;cursor:pointer;user-select:none;
+    height:22px;padding:0 12px;font-size:12px;font-weight:500;
+    border:1px solid transparent;transition:background .09s ease,border-color .09s ease;
+  }
+  .btn.sm{height:20px;font-size:11px;padding:0 8px}
+
+  /* base variant colors (from Button.tsx) */
+  .v-primary  {background:#f4bc41;color:#2a2a2a;border-color:#c79320}
+  .v-secondary{background:#9c9c9c;color:#2a2a2a;border-color:#6f6f6f;font-weight:400}
+  .v-review   {background:#836ddd;color:#fff;border-color:transparent}
+  .v-danger   {background:#e0584c;color:#fff;border-color:#b03d33}
+  .v-success  {background:#3b853d;color:#fff;border-color:#2e6b30}
+  .v-info     {background:#3a6ea5;color:#fff;border-color:#2d5680}
+  .v-quiet    {background:transparent;color:#9a9a9a;border-color:#6f6f6f;font-weight:400}
+  .light .v-quiet{color:#565656}
+
+  /* ===== HOVER (recommendation: uniform LIGHTEN ~7%) ===== */
+  /* forced-hover class to render the column statically, plus real :hover on the live row */
+  .h .v-primary,  .v-primary:hover  {background:#f7c860;border-color:#d3a02a}
+  .h .v-secondary,.v-secondary:hover{background:#adadad;border-color:#7d7d7d}
+  .h .v-review,   .v-review:hover   {background:#9784e4}
+  .h .v-danger,   .v-danger:hover   {background:#e66d62;border-color:#c14a3f}
+  .h .v-success,  .v-success:hover  {background:#47994a;border-color:#357a37}
+  .h .v-info,     .v-info:hover     {background:#4581bd;border-color:#356295}
+  .h .v-quiet,    .v-quiet:hover    {background:rgba(255,255,255,.08);border-color:#8a8a8a;color:#d6d6d6}
+  .light .h .v-quiet,.light .v-quiet:hover{background:rgba(0,0,0,.05);border-color:#8a8a8a;color:#2a2a2a}
+
+  /* ===== ACTIVE / PRESSED (resolved: DARKEN ~8%, flat — no shadow) ===== */
+  .a .v-primary,  .v-primary:active  {background:#e0a92e;border-color:#b5871b}
+  .a .v-secondary,.v-secondary:active{background:#888;border-color:#666}
+  .a .v-review,   .v-review:active   {background:#6d57c9}
+  .a .v-danger,   .v-danger:active   {background:#cc4a3f;border-color:#a83a30}
+  .a .v-success,  .v-success:active  {background:#2f6f31;border-color:#255826}
+  .a .v-info,     .v-info:active      {background:#305d8c;border-color:#274d73}
+  .a .v-quiet,    .v-quiet:active    {background:rgba(255,255,255,.14);border-color:#9a9a9a;color:#eee}
+  .light .a .v-quiet,.light .v-quiet:active{background:rgba(0,0,0,.10);border-color:#777;color:#2a2a2a}
+
+  /* ===== FOCUS-VISIBLE (proposal: offset ring, surface-contextual color) ===== */
+  .btn:focus{outline:none}
+  .dark  .f .btn, .dark  .btn:focus-visible{outline:2px solid #f4bc41;outline-offset:2px}  /* amber on dark */
+  .light .f .btn, .light .btn:focus-visible{outline:2px solid #2a2a2a;outline-offset:2px}  /* ink on light */
+  .liverow .btn:focus-visible{outline:2px solid #f4bc41;outline-offset:2px}
+
+  /* ===== Round-3 option comparison ===== */
+  .ringA-d{outline:2px solid #f4bc41;outline-offset:2px}
+  .ringA-l{outline:2px solid #2a2a2a;outline-offset:2px}
+  .ringB{outline:2px solid #f4bc41;outline-offset:2px}
+  .ringC{outline:none;box-shadow:0 0 0 2px #f4bc41,0 0 0 3.5px #1c1c1c}
+  .ringcompare{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .optcard{background:#202020;border:1px solid #3a3a3a;border-radius:7px;padding:14px 15px 13px;display:flex;flex-direction:column;gap:11px}
+  .opthd{font-size:13.5px;font-weight:600}
+  .optkey{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;background:#161616;border:1px solid #c79320;color:#f4bc41;border-radius:50%;font-family:var(--mono);font-size:11px;margin-right:7px}
+  .rec{font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:#f4bc41;border:1px solid #5a4620;border-radius:3px;padding:1px 6px;margin-left:6px}
+  .optnote{font-size:11.5px;color:#8f8f8f;line-height:1.45;min-height:48px}
+  .mini{border-radius:5px;padding:16px 14px;display:flex;gap:11px;align-items:center;flex-wrap:wrap;position:relative}
+  .mini.dark{background:#2a2a2a;border:1px solid #3a3a3a}
+  .mini.light{background:#e7e7e7;border:1px solid #cfcfcf}
+  .mtag{position:absolute;top:5px;right:8px;font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;opacity:.5}
+  .mini.light .mtag{color:#555}
+  .verdict{font-size:11px;font-family:var(--mono);margin-top:auto}
+  .verdict.ok{color:#6fbf72}
+  .verdict.warn{color:#e79b91}
+
+  /* live row = real interaction (hover me!) */
+  .liverow{margin-top:6px;padding:14px 16px;background:#232323;border:1px dashed #444;border-radius:6px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .liverow .tag{font-family:var(--mono);font-size:10px;color:#f4bc41;margin-right:6px}
+  .spec{background:#202020;border:1px solid #3a3a3a;border-radius:7px;padding:6px 4px}
+  .specrow{padding:9px 15px;border-bottom:1px solid #2e2e2e;font-size:12.5px;color:#cfcfcf;line-height:1.5}
+  .specrow:last-child{border-bottom:none}
+  .specrow.open{color:#8f8f8f}
+  .sk{display:inline-block;width:64px;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#f4bc41;vertical-align:top}
+  .specrow.open .sk{color:#7a7a7a}
+  footer{margin-top:40px;color:#666;font-family:var(--mono);font-size:11px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Button — interaction-state system</h1>
+  <p class="lede">Recommendation #1 from the audit. The primitive currently has <b style="color:#e79b91">no</b> hover / active / focus. We resolve one state at a time, on both surfaces the app actually uses. Columns marked “·” are the next rounds.</p>
+
+  <div class="qbar"><b>✓ RESOLVED —</b> R1 hover=lighten ~7% &nbsp;·&nbsp; R2 press=darken ~8% (flat) &nbsp;·&nbsp; R3 focus=2px offset ring, surface-contextual (amber/ink) &nbsp;·&nbsp; R4 build=CSS module, API unchanged, decouples size↔variant. &nbsp;Full spec at the bottom.</div>
+
+  <!-- DARK SURFACE -->
+  <div class="surface dark">
+    <div class="sf-label">surface · dark chrome (toolbars, side panels)</div>
+    <div class="grid">
+      <div></div>
+      <div class="colhead">default</div>
+      <div class="colhead">hover ✱</div>
+      <div class="colhead">active</div>
+      <div class="colhead">focus</div>
+      <div class="colhead">disabled</div>
+      <!-- rows -->
+      <!-- macro repeated per variant -->
+      <div class="rowhead">primary</div>
+      <div class="cell"><button class="btn v-primary">Approve</button></div>
+      <div class="cell h"><button class="btn v-primary">Approve</button></div>
+      <div class="cell a"><button class="btn v-primary">Approve</button></div><div class="cell f"><button class="btn v-primary">Approve</button></div>
+      <div class="cell"><button class="btn v-primary" style="opacity:.4">Approve</button></div>
+
+      <div class="rowhead">secondary</div>
+      <div class="cell"><button class="btn v-secondary">Cancel</button></div>
+      <div class="cell h"><button class="btn v-secondary">Cancel</button></div>
+      <div class="cell a"><button class="btn v-secondary">Cancel</button></div><div class="cell f"><button class="btn v-secondary">Cancel</button></div>
+      <div class="cell"><button class="btn v-secondary" style="opacity:.4">Cancel</button></div>
+
+      <div class="rowhead">review</div>
+      <div class="cell"><button class="btn v-review">Open review</button></div>
+      <div class="cell h"><button class="btn v-review">Open review</button></div>
+      <div class="cell a"><button class="btn v-review">Open review</button></div><div class="cell f"><button class="btn v-review">Open review</button></div>
+      <div class="cell"><button class="btn v-review" style="opacity:.4">Open review</button></div>
+
+      <div class="rowhead">danger</div>
+      <div class="cell"><button class="btn sm v-danger">Remove</button></div>
+      <div class="cell h"><button class="btn sm v-danger">Remove</button></div>
+      <div class="cell a"><button class="btn sm v-danger">Remove</button></div><div class="cell f"><button class="btn sm v-danger">Remove</button></div>
+      <div class="cell"><button class="btn sm v-danger" style="opacity:.4">Remove</button></div>
+
+      <div class="rowhead">success</div>
+      <div class="cell"><button class="btn sm v-success">Merge</button></div>
+      <div class="cell h"><button class="btn sm v-success">Merge</button></div>
+      <div class="cell a"><button class="btn sm v-success">Merge</button></div><div class="cell f"><button class="btn sm v-success">Merge</button></div>
+      <div class="cell"><button class="btn sm v-success" style="opacity:.4">Merge</button></div>
+
+      <div class="rowhead">info</div>
+      <div class="cell"><button class="btn sm v-info">Details</button></div>
+      <div class="cell h"><button class="btn sm v-info">Details</button></div>
+      <div class="cell a"><button class="btn sm v-info">Details</button></div><div class="cell f"><button class="btn sm v-info">Details</button></div>
+      <div class="cell"><button class="btn sm v-info" style="opacity:.4">Details</button></div>
+
+      <div class="rowhead">quiet</div>
+      <div class="cell"><button class="btn sm v-quiet">Skip</button></div>
+      <div class="cell h"><button class="btn sm v-quiet">Skip</button></div>
+      <div class="cell a"><button class="btn sm v-quiet">Skip</button></div><div class="cell f"><button class="btn sm v-quiet">Skip</button></div>
+      <div class="cell"><button class="btn sm v-quiet" style="opacity:.4">Skip</button></div>
+    </div>
+  </div>
+
+  <!-- LIGHT SURFACE -->
+  <div class="surface light">
+    <div class="sf-label">surface · light panel (Review, Settings)</div>
+    <div class="grid">
+      <div></div>
+      <div class="colhead">default</div>
+      <div class="colhead">hover ✱</div>
+      <div class="colhead">active</div>
+      <div class="colhead">focus</div>
+      <div class="colhead">disabled</div>
+
+      <div class="rowhead">primary</div>
+      <div class="cell"><button class="btn v-primary">Approve</button></div>
+      <div class="cell h"><button class="btn v-primary">Approve</button></div>
+      <div class="cell a"><button class="btn v-primary">Approve</button></div><div class="cell f"><button class="btn v-primary">Approve</button></div>
+      <div class="cell"><button class="btn v-primary" style="opacity:.4">Approve</button></div>
+
+      <div class="rowhead">success</div>
+      <div class="cell"><button class="btn v-success" style="height:26px">Approve &amp; merge</button></div>
+      <div class="cell h"><button class="btn v-success" style="height:26px">Approve &amp; merge</button></div>
+      <div class="cell a"><button class="btn v-success" style="height:26px">Approve &amp; merge</button></div><div class="cell f"><button class="btn v-success" style="height:26px">Approve &amp; merge</button></div>
+      <div class="cell"><button class="btn v-success" style="height:26px;opacity:.4">Approve &amp; merge</button></div>
+
+      <div class="rowhead">danger</div>
+      <div class="cell"><button class="btn v-danger" style="height:26px">Reject…</button></div>
+      <div class="cell h"><button class="btn v-danger" style="height:26px">Reject…</button></div>
+      <div class="cell a"><button class="btn v-danger" style="height:26px">Reject…</button></div><div class="cell f"><button class="btn v-danger" style="height:26px">Reject…</button></div>
+      <div class="cell"><button class="btn v-danger" style="height:26px;opacity:.4">Reject…</button></div>
+
+      <div class="rowhead">quiet</div>
+      <div class="cell"><button class="btn sm v-quiet">Skip</button></div>
+      <div class="cell h"><button class="btn sm v-quiet">Skip</button></div>
+      <div class="cell a"><button class="btn sm v-quiet">Skip</button></div><div class="cell f"><button class="btn sm v-quiet">Skip</button></div>
+      <div class="cell"><button class="btn sm v-quiet" style="opacity:.4">Skip</button></div>
+    </div>
+  </div>
+
+  <!-- ===== ROUND 3 — focus-ring option comparison ===== -->
+  <h2>Round 3 · focus ring — the three options, side by side</h2>
+  <div class="ringcompare">
+    <!-- OPTION A -->
+    <div class="optcard">
+      <div class="opthd"><span class="optkey">A</span> Offset ring · surface-contextual <span class="rec">recommended</span></div>
+      <div class="optnote">amber on dark · ink on light · 2px gap. Ring sits on the surface, so amber primary keeps a ring.</div>
+      <div class="mini dark">
+        <span class="mtag">dark</span>
+        <button class="btn v-primary ringA-d">Approve</button>
+        <button class="btn sm v-success ringA-d">Merge</button>
+        <button class="btn sm v-quiet ringA-d">Skip</button>
+      </div>
+      <div class="mini light">
+        <span class="mtag">light</span>
+        <button class="btn v-primary ringA-l">Approve</button>
+        <button class="btn sm v-success ringA-l">Merge</button>
+        <button class="btn sm v-quiet ringA-l">Skip</button>
+      </div>
+      <div class="verdict ok">✓ passes contrast on both surfaces</div>
+    </div>
+
+    <!-- OPTION B -->
+    <div class="optcard">
+      <div class="opthd"><span class="optkey">B</span> Amber ring everywhere</div>
+      <div class="optnote">one token, brand-pure. Same amber offset ring on every surface.</div>
+      <div class="mini dark">
+        <span class="mtag">dark</span>
+        <button class="btn v-primary ringB">Approve</button>
+        <button class="btn sm v-success ringB">Merge</button>
+        <button class="btn sm v-quiet ringB">Skip</button>
+      </div>
+      <div class="mini light">
+        <span class="mtag">light</span>
+        <button class="btn v-primary ringB">Approve</button>
+        <button class="btn sm v-success ringB">Merge</button>
+        <button class="btn sm v-quiet ringB">Skip</button>
+      </div>
+      <div class="verdict warn">✗ amber on light ≈1.6:1 — fails WCAG focus contrast</div>
+    </div>
+
+    <!-- OPTION C -->
+    <div class="optcard">
+      <div class="opthd"><span class="optkey">C</span> Two-tone halo</div>
+      <div class="optnote">amber inner + near-black outer (box-shadow). One ring always contrasts, whatever the surface.</div>
+      <div class="mini dark">
+        <span class="mtag">dark</span>
+        <button class="btn v-primary ringC">Approve</button>
+        <button class="btn sm v-success ringC">Merge</button>
+        <button class="btn sm v-quiet ringC">Skip</button>
+      </div>
+      <div class="mini light">
+        <span class="mtag">light</span>
+        <button class="btn v-primary ringC">Approve</button>
+        <button class="btn sm v-success ringC">Merge</button>
+        <button class="btn sm v-quiet ringC">Skip</button>
+      </div>
+      <div class="verdict ok">✓ bulletproof — but heavier / less flat</div>
+    </div>
+  </div>
+
+  <h2>Feel it — real :hover</h2>
+  <div class="liverow">
+    <span class="tag">hover&nbsp;me →</span>
+    <button class="btn v-primary">Approve</button>
+    <button class="btn v-secondary">Cancel</button>
+    <button class="btn v-review">Open review</button>
+    <button class="btn sm v-danger">Remove</button>
+    <button class="btn sm v-success">Merge</button>
+    <button class="btn sm v-info">Details</button>
+    <button class="btn sm v-quiet">Skip</button>
+  </div>
+
+  <h2>Resolved spec</h2>
+  <div class="spec">
+    <div class="specrow"><span class="sk">hover</span> fill <b>+7% lightness</b>, uniform across all variants · <code>quiet</code> gains a faint film (white .08 on dark / black .05 on light) + brighter border</div>
+    <div class="specrow"><span class="sk">active</span> fill <b>−8% lightness</b>, flat (no shadow, no nudge) · <code>quiet</code> film goes stronger</div>
+    <div class="specrow"><span class="sk">focus</span> <code>:focus-visible</code> only · <b>2px solid ring, 2px offset</b> · <b>amber #f4bc41 on dark</b>, <b>ink #2a2a2a on light</b> (surface-contextual token) · <code>:focus</code> (mouse) draws nothing</div>
+    <div class="specrow"><span class="sk">disabled</span> opacity 0.4 (unchanged) · no hover/active/focus</div>
+    <div class="specrow"><span class="sk">motion</span> background/border transition ~90ms ease</div>
+    <div class="specrow"><span class="sk">build</span> <code>Button.tsx</code> → <b>CSS module</b> (<code>Button.module.scss</code>), variant + size as classes · JSX API (<code>variant</code>/<code>size</code> props) <b>unchanged</b> at all ~38 call sites · <b>decouples size from variant</b> (kills the 11px special-case, audit #7)</div>
+  </div>
+  <footer>rounds 1–3 resolved · states live in the matrix + the option comparison · round 4 = build</footer>
+</div>
+</body>
+</html>

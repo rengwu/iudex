@@ -274,9 +274,9 @@ export function CliTab({
                     setSaved(null);
                   }}
                 />
-                <button type="button" className={s.browse} onClick={browse}>
+                <Button variant="secondary" size="md" onClick={browse}>
                   Browse…
-                </button>
+                </Button>
               </div>
               <small className={s.note}>
                 Most people never need this: the GUI already uses its built-in
@@ -908,9 +908,14 @@ export function AgentsTab({
               </div>
             ))}
           </div>
-          <button type="button" className={s.agentAdd} onClick={addCmd}>
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={addCmd}
+            style={{ alignSelf: "flex-start", marginTop: 7 }}
+          >
             + add command
-          </button>
+          </Button>
         </div>
 
         <div className="field" style={hideRoles ? { display: "none" } : {}}>
