@@ -22,6 +22,7 @@ import { useNav, usePendingFocus } from "../lib/nav";
 import ChangedFilesDiff from "../components/ChangedFilesDiff";
 import Badge from "../components/Badge";
 import Button from "../components/Button";
+import Dot from "../components/Dot";
 import ViewHeader from "../components/ViewHeader";
 import { agentStatusColor } from "../lib/badges";
 import XtermPane from "./XtermPane";
@@ -29,14 +30,26 @@ import s from "./Agents.module.scss";
 
 // A status as a colored dot + label — the rail/header status indicator. The dot
 // color comes from the shared badge registry (single source for state colors).
-function StatusDot({ status }: { status: AgentStatus }) {
-  return (
+// `labelFirst` puts the text before the dot (the rail rows right-align the
+// status, so the dot sits at the card edge).
+function StatusDot({
+  status,
+  labelFirst,
+}: {
+  status: AgentStatus;
+  labelFirst?: boolean;
+}) {
+  const dot = <Dot color={agentStatusColor(status)} size={6} />;
+  const label = STATUS_LABEL[status];
+  return labelFirst ? (
     <>
-      <span
-        className={s.statusDot}
-        style={{ background: agentStatusColor(status) }}
-      />
-      {STATUS_LABEL[status]}
+      {label}
+      {dot}
+    </>
+  ) : (
+    <>
+      {dot}
+      {label}
     </>
   );
 }
@@ -49,25 +62,33 @@ function RoleChip({ role }: { role: string }) {
 // Auto-Retire countdown: an amber chip counting down to the sweep, plus a "Keep"
 // button that pardons the session (never auto-marked again). Renders only while
 // the deadline is in the future; `now` is a ticker so it recomputes ~every 30s.
+// `compact` is the rail form: the chip shows just the countdown (amber already
+// says "retiring"; the phrase moves to the tooltip) — the full form stays in
+// the detail header. Keep is always visible in both forms.
 function RetireChip({
   agent,
   now,
   onKeep,
+  compact,
 }: {
   agent: Session;
   now: number;
   onKeep: () => void;
+  compact?: boolean;
 }) {
   if (!agent.retireAt) return null;
   const at = Number(agent.retireAt);
   if (!Number.isFinite(at) || at <= now) return null;
   const remaining = at - now;
   const label = remaining < 60_000 ? "<1m" : `${Math.ceil(remaining / 60_000)}m`;
+  const phrase = `retiring in ${label}`;
   return (
     <>
-      <Badge bg="#e3cf9b" fg="#5a4a1f">
-        retiring in {label}
-      </Badge>
+      <span title={compact ? phrase : undefined}>
+        <Badge bg="#e3cf9b" fg="#5a4a1f">
+          {compact ? label : phrase}
+        </Badge>
+      </span>
       {/* Stop the click from bubbling to the rail card's select handler. */}
       <span onClick={(e) => e.stopPropagation()}>
         <Button
@@ -174,8 +195,9 @@ export default function Agents({
   // Cross-view focus: select a specific agent when jumping from Tickets/Review,
   // opening the requested tab (e.g. Review "watch" → the resolver's console).
   useEffect(() => {
-    if (focus && agents.some((a) => a.name === focus.id)) {
-      select(focus.id, (focus.tab as Tab) || "console");
+    const id = focus?.id;
+    if (id && agents.some((a) => a.name === id)) {
+      select(id, (focus.tab as Tab) || "console");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus, agents]);
@@ -243,27 +265,38 @@ export default function Agents({
               const w = worktreeOf(a);
               const status = statuses[a.name] ?? "idle";
               const isIdea = a.kind === "idea";
+              // The title has no room in the compact row; it rides the card's
+              // tooltip (the detail header shows it in full).
+              const title = isIdea ? (a.role ?? "") : (w && titles[w]) || "";
+              const at = Number(a.retireAt);
+              const retiring =
+                !!a.retireAt && Number.isFinite(at) && at > nowTick;
               return (
                 <button
                   key={a.name}
                   className={`${s.card} ${a.name === selName ? s.active : ""}`}
                   onClick={() => setSelName(a.name)}
+                  title={title || undefined}
                 >
                   <span className={s.cardTop}>
                     <span className={s.cardId}>
                       {isIdea ? "idea" : (a.ticket ?? "agent")}
                     </span>
-                    <span className={s.cardTitle}>
-                      {isIdea ? (a.role ?? "") : (w && titles[w]) || ""}
-                    </span>
-                  </span>
-                  <span className={s.cardBot}>
                     <RoleChip role={isIdea ? "idea" : (a.role ?? "agent")} />
-                    <RetireChip agent={a} now={nowTick} onKeep={() => keep(a.name)} />
                     <span className={s.cardStatus}>
-                      <StatusDot status={status} />
+                      <StatusDot status={status} labelFirst />
                     </span>
                   </span>
+                  {retiring && (
+                    <span className={s.cardBot}>
+                      <RetireChip
+                        agent={a}
+                        now={nowTick}
+                        onKeep={() => keep(a.name)}
+                        compact
+                      />
+                    </span>
+                  )}
                 </button>
               );
             })}

@@ -66,11 +66,11 @@
     background: t.$sel-bg;
   }
 }
+// Top row: id + role chip on the left, status (text · dot) pushed right.
 .cardTop {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  gap: 7px;
 }
 .cardId {
   font-family: t.$font-mono;
@@ -84,24 +84,12 @@
     color: t.$sel-text;
   }
 }
-.cardTitle {
-  font-size: 11px;
-  flex: 1;
-  min-width: 0;
-  text-align: right;
-  color: t.$text-muted;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-
-  .active & {
-    color: t.$sel-text-dim;
-  }
-}
+// Bottom row, present only while retiring: countdown chip left, Keep right.
 .cardBot {
   margin-top: 4px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 7px;
 }
 .cardStatus {
@@ -115,12 +103,6 @@
   .active & {
     color: t.$sel-text;
   }
-}
-.statusDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex: none;
 }
 
 // ── Detail ────────────────────────────────────────────────────────────────────
