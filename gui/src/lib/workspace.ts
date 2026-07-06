@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import * as api from "./api";
@@ -17,11 +17,20 @@ export function useWorkspace() {
   const [offerInit, setOfferInit] = useState(false);
   const [initing, setIniting] = useState(false);
   const [lastSync, setLastSync] = useState<string>("");
+  // Serialized form of the last snapshot, so a re-read that changed nothing
+  // keeps the same `ws` identity. Everything downstream keys effects on `ws`
+  // (agent-status bursts, rail preflights, title refetches…), so replacing it
+  // on every steady-cadence poll would refire all of them for no reason.
+  const lastJsonRef = useRef<string>("");
 
   const load = useCallback(async (r: string) => {
     try {
       const data = await api.iudexStatus(r);
-      setWs(data);
+      const json = JSON.stringify(data);
+      if (json !== lastJsonRef.current) {
+        lastJsonRef.current = json;
+        setWs(data);
+      }
       setError(null);
       setLastSync(new Date().toLocaleTimeString());
     } catch (e) {
@@ -34,6 +43,7 @@ export function useWorkspace() {
       setRoot(r);
       setError(null);
       setOfferInit(false);
+      lastJsonRef.current = ""; // new workspace → always publish its snapshot
       await load(r);
       await api.watchWorkspace(r);
     },
@@ -75,11 +85,19 @@ export function useWorkspace() {
     }
   }, [pickedPath, enter]);
 
-  // The events.jsonl doorbell: any change → re-read derived state.
+  // The events.jsonl doorbell: any change → re-read derived state. Trailing
+  // debounce: a busy pipeline (agents appending events back-to-back) rings the
+  // bell in bursts, and each re-read shells `iudex status --json` — coalesce a
+  // burst into one read after it settles.
   useEffect(() => {
     if (!root) return;
-    const un = listen("events-changed", () => load(root));
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const un = listen("events-changed", () => {
+      if (t !== null) clearTimeout(t);
+      t = setTimeout(() => load(root), 250);
+    });
     return () => {
+      if (t !== null) clearTimeout(t);
       un.then((f) => f());
     };
   }, [root, load]);
