@@ -102,12 +102,9 @@
   align-items: center;
   gap: 5px;
 }
+// Fill + pulse only — shape comes from <Dot>.
 .agentDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
   background: currentColor;
-  flex: none;
   animation: agentPulse 1.4s ease-in-out infinite;
 }
 @keyframes agentPulse {

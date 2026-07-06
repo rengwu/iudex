@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { Ticket, Session } from "../types";
 import { stateDot } from "../lib/badges";
+import Dot from "../components/Dot";
 import s from "./TicketBoard.module.scss";
 
 // The pipeline as a board: one column per stage, tickets as state-colored clips.
@@ -148,7 +149,7 @@ export default function TicketBoard({
                         className={s.cardAgent}
                         title={`Agent running: ${roles.join(", ")}`}
                       >
-                        <span className={s.agentDot} />
+                        <Dot size={6} className={s.agentDot} />
                         <span className={s.agentRole}>{roles.join(" · ")}</span>
                       </div>
                     )}

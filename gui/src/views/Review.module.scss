@@ -200,12 +200,10 @@
     border-top-color: t.$amber;
   }
 }
+// Fill + positioning only — shape comes from <Dot>.
 .tabDot {
   display: inline-block;
-  width: 6px;
-  height: 6px;
   margin-left: 6px;
-  border-radius: 50%;
   background: t.$amber;
   vertical-align: middle;
 }

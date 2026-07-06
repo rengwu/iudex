@@ -6,6 +6,7 @@ import { VIEWS, type Session } from "../types";
 import XtermPane from "./XtermPane";
 import ViewHeader from "../components/ViewHeader";
 import Button from "../components/Button";
+import Dot from "../components/Dot";
 import s from "./Terminal.module.scss";
 
 // Tab status-dot color by session kind/role (gui/design-system/README.md §4 — color is state).
@@ -58,7 +59,7 @@ export default function Terminal({
 
   // Honor an external focus request (e.g. clicking an agent peek).
   useEffect(() => {
-    if (!focus) return;
+    if (!focus?.id) return;
     openSession(focus.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus]);
@@ -133,10 +134,7 @@ export default function Terminal({
               }
             }}
           >
-            <span
-              className={s.tabDot}
-              style={{ background: sessionDot(sessions, name) }}
-            />
+            <Dot color={sessionDot(sessions, name)} size={6} />
             <span>{tabLabel(sessions, name)}</span>
             <button
               className={s.x}

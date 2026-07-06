@@ -1,0 +1,12 @@
+@use "../styles/tokens" as t;
+
+// Shape only — size and fill come from the component's props (or, when no
+// color is passed, from a caller className: currentColor tones, animations).
+.dot {
+  border-radius: 50%;
+  // The neutral ring draws outside the fill (content-box), so `size` is
+  // always the fill diameter.
+  box-sizing: content-box;
+  border: 1px solid t.$divider-mid;
+  flex: none;
+}

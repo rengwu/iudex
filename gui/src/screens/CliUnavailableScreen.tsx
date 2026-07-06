@@ -1,5 +1,6 @@
 import Badge from "../components/Badge";
 import Button from "../components/Button";
+import Dot from "../components/Dot";
 import s from "./screens.module.scss";
 
 // Hard blocking screen: the iudex CLI can't be found. The GUI drives iudex the
@@ -21,7 +22,7 @@ export default function CliUnavailableScreen({
       <section className={s.errPanel}>
         <header className={s.errHead}>
           <span className={s.errBrand}>
-            <span className={s.errDot} />
+            <Dot color="#e0584c" size={9} />
             iudex
           </span>
           <Badge bg="#e0584c" fg="#ffffff">

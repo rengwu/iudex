@@ -9,12 +9,10 @@ import {
   liveAgentFor,
   type Intent,
 } from "../lib/ticketActions";
-import {
-  useAgentStatuses,
-  STATUS_LABEL,
-  type AgentStatus,
-} from "../lib/agents";
+import { useAgentStatuses, STATUS_LABEL } from "../lib/agents";
+import { agentStatusColor } from "../lib/badges";
 import Badge from "./Badge";
+import Dot from "./Dot";
 import TabSwitcher from "./TabSwitcher";
 import s from "./TicketDetail.module.scss";
 
@@ -36,24 +34,6 @@ function parseBrief(raw: string): { title: string; body: string } {
 
 function serializeBrief(title: string, body: string): string {
   return title ? `# ${title}\n\n${body}` : body;
-}
-
-// Dot color for a synthesized agent status.
-function dotClass(status: AgentStatus): string {
-  switch (status) {
-    case "working":
-    case "resolved":
-      return s.green;
-    case "awaiting-finish":
-    case "review-ready":
-    case "flagged":
-      return s.blue;
-    case "crashed":
-    case "gone":
-      return s.red;
-    default:
-      return s.grey;
-  }
 }
 
 // Full ticket detail panel: header + title + sections. The caller provides
@@ -267,7 +247,7 @@ export default function TicketDetail({
                     onClick={() => goTo("agents", { id: a.name })}
                     title="open in Agents view"
                   >
-                    <span className={`${s.dot} ${dotClass(status)}`} />
+                    <Dot color={agentStatusColor(status)} />
                     <span className={s.agentRole}>{a.role ?? "agent"}</span>
                     <span className={s.agentStatus}>
                       {STATUS_LABEL[status]}

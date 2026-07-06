@@ -19,12 +19,6 @@
   border-bottom: 1px solid t.$divider-mid;
   white-space: nowrap;
 }
-.headerDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #7fb3a8;
-}
 .headerTitle {
   font-size: 14px;
   font-weight: 600;
@@ -84,11 +78,6 @@ $cols: 28px 72px 1fr 130px 54px 110px 110px;
 .rowDot {
   display: flex;
   justify-content: center;
-}
-.dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
 }
 .cellId {
   color: t.$text;

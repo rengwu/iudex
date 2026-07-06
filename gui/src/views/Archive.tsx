@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import * as api from "../lib/api";
 import { listen } from "@tauri-apps/api/event";
 import type { ArchiveDocs, ArchiveEntry } from "../types";
+import { VIEWS } from "../types";
 import { stateDot } from "../lib/badges";
 import Badge from "../components/Badge";
+import Dot from "../components/Dot";
 import TabSwitcher from "../components/TabSwitcher";
 import DiffPatch from "../components/DiffPatch";
 import s from "./Archive.module.scss";
@@ -51,7 +53,7 @@ export default function Archive({ root }: { root: string }) {
   return (
     <div className={s.view}>
       <header className={s.header}>
-        <span className={s.headerDot} />
+        <Dot color={VIEWS.archive.dot} size={8} />
         <span className={s.headerTitle}>Archive</span>
         <TabSwitcher
           tabs={[
@@ -110,10 +112,7 @@ function ArchiveTickets({ root }: { root: string }) {
               }}
             >
               <div className={s.rowDot}>
-                <span
-                  className={s.dot}
-                  style={{ background: stateDot(e.outcome) }}
-                />
+                <Dot color={stateDot(e.outcome)} />
               </div>
               <div
                 className={s.cellId}

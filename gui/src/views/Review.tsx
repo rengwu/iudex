@@ -18,6 +18,7 @@ import DiffPatch from "../components/DiffPatch";
 import Modal from "../components/Modal";
 import ViewHeader from "../components/ViewHeader";
 import Badge from "../components/Badge";
+import Dot from "../components/Dot";
 import Button from "../components/Button";
 import s from "./Review.module.scss";
 
@@ -56,7 +57,7 @@ export default function Review({ ws, root }: { ws: Workspace; root: string }) {
 
   // Honor a ticket handed in from another view (e.g. a panel's "Go to Review").
   useEffect(() => {
-    if (focusTicket) setSelId(focusTicket.id);
+    if (focusTicket?.id) setSelId(focusTicket.id);
   }, [focusTicket]);
 
   // Keep the selection valid as the pending list changes (e.g. after approve).
@@ -340,7 +341,7 @@ export default function Review({ ws, root }: { ws: Workspace; root: string }) {
                     ? `Changes (${changes.length})`
                     : TAB_LABELS[d]}
                   {d === "conflicts" && conflictsFlagged && (
-                    <span className={s.tabDot} />
+                    <Dot size={6} className={s.tabDot} />
                   )}
                 </button>
               ),

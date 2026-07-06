@@ -89,6 +89,12 @@ All tokens live in **`src/styles/tokens.scss`** — one source of truth, consume
 
 - **Square by default.** Radius is allowed only for: chips `2px`, the segmented pill `3px`,
   status dots `50%`. Everything else has `border-radius: 0`.
+- **Status dots are the shared `<Dot>` component** (`components/Dot.tsx`): colored fill +
+  a 1px `$divider-chrome` neutral ring for contrast on both light and dark surfaces.
+  `size` is the fill diameter (the ring draws outside it); color comes from the central
+  registries (`lib/badges.ts`, `VIEWS`) via the `color` prop, or from a caller className
+  when CSS supplies the fill (`currentColor` tones, animations). Don't hand-roll
+  `width/height/border-radius` dots.
 - **No gradients.**
 - **Shadows only on floating layers** — modals/overlays (e.g. `Modal`'s
   `box-shadow: 0 8px 28px rgba(0,0,0,.4)`). Inline chrome is flat.
