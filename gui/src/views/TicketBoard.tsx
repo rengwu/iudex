@@ -149,8 +149,12 @@ export default function TicketBoard({
                         className={s.cardAgent}
                         title={`Agent running: ${roles.join(", ")}`}
                       >
-                        <Dot size={6} className={s.agentDot} />
-                        <span className={s.agentRole}>{roles.join(" · ")}</span>
+                        {roles.map((r) => (
+                          <span key={r} className={s.agentBadge}>
+                            <Dot size={6} className={s.agentDot} />
+                            <span className={s.agentRole}>{r}</span>
+                          </span>
+                        ))}
                       </div>
                     )}
                   </div>

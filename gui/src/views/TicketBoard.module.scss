@@ -100,6 +100,13 @@
   margin-top: 3px;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+}
+// One badge per running role, each with its own dot.
+.agentBadge {
+  display: flex;
+  align-items: center;
   gap: 5px;
 }
 // Fill + pulse only — shape comes from <Dot>.
