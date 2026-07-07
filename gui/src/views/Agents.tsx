@@ -1,8 +1,10 @@
 import { useEffect, useState, type ReactNode } from "react";
 import * as api from "../lib/api";
-import { useSessions } from "../lib/sessions";
+import { addSession, useSessions } from "../lib/sessions";
 import {
   agentBucket,
+  canResume,
+  canRestart,
   isFinished,
   STATUS_LABEL,
   useAgentStatuses,
@@ -22,6 +24,8 @@ import { useNav, usePendingFocus } from "../lib/nav";
 import ChangedFilesDiff from "../components/ChangedFilesDiff";
 import Badge from "../components/Badge";
 import Button from "../components/Button";
+import IconButton from "../components/IconButton";
+import OverflowMenu, { OverflowItem } from "../components/OverflowMenu";
 import Dot from "../components/Dot";
 import ViewHeader from "../components/ViewHeader";
 import { agentStatusColor } from "../lib/badges";
@@ -320,6 +324,7 @@ export default function Agents({
               now={nowTick}
               onKeep={() => keep(selected.name)}
               onDismiss={() => setSelName(null)}
+              onSelect={setSelName}
               onKill={async () => {
                 await kill(selected.name);
                 setSelName(null);
@@ -350,6 +355,7 @@ function AgentDetail({
   tab,
   onTab,
   onDismiss,
+  onSelect,
   onKill,
 }: {
   agent: Session;
@@ -363,6 +369,7 @@ function AgentDetail({
   tab: Tab;
   onTab: (t: Tab) => void;
   onDismiss: () => void;
+  onSelect: (name: string) => void;
   onKill: () => void;
 }) {
   // The active tab is parent-owned (persists across agent switches); this view
@@ -379,6 +386,51 @@ function AgentDetail({
     ? (ws.tickets.find((t) => t.id === agent.ticket) ?? null)
     : null;
 
+  // Stalled-agent remedy ladder (all manual — no auto-resume by design). `busy`
+  // serializes the rungs so a double-click can't kill then race a respawn.
+  const [busy, setBusy] = useState(false);
+  const [actionErr, setActionErr] = useState<string | null>(null);
+
+  // Rung 1 — nudge the live REPL to retry/continue (harness-blind send-keys).
+  const resume = async () => {
+    setBusy(true);
+    setActionErr(null);
+    try {
+      const nudge = await api.getResumeNudge(root);
+      await api.resumeAgent(agent.name, nudge);
+    } catch (e) {
+      setActionErr(`resume failed: ${e}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Rungs 2 & 3 — kill the pane, then respawn a fresh agent. `clean` first hard-
+  // resets the worktree (discarding the agent's work); plain Restart keeps it.
+  const restart = async (clean: boolean) => {
+    if (!agent.ticket) return;
+    setBusy(true);
+    setActionErr(null);
+    try {
+      // Stop the pane first so nothing writes while we reset / respawn.
+      await api.killSession(agent.name);
+      if (clean && worktree) {
+        await api.resetWorktree(worktree, ws.mainBranch);
+      }
+      const next =
+        agent.role === "resolve" && worktree
+          ? await api.spawnResolver(root, agent.ticket, worktree)
+          : await api.spawnAgent(root, agent.ticket, agent.role ?? "impl");
+      addSession(next);
+      onSelect(next.name);
+    } catch (e) {
+      // The pane is already gone; leave the panel so the error is visible.
+      setActionErr(`restart failed: ${e}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className={s.detail}>
       <header className={s.head}>
@@ -394,22 +446,56 @@ function AgentDetail({
           <StatusDot status={status} />
         </span>
         <RetireChip agent={agent} now={now} onKeep={onKeep} />
-        <Button
-          variant="danger"
-          size="sm"
-          onClick={onKill}
-          title="kill this agent"
-        >
-          kill agent
-        </Button>
-        <button
-          className={s.x}
+        {/* The one contextual primary stays on the bar; every other action —
+            Restart, the destructive Restart clean, and Kill — lives in the ⋯
+            menu so the row reads as a calm, uniform toolbar (one button style). */}
+        {canResume(status) && (
+          <Button
+            variant="quiet"
+            size="sm"
+            disabled={busy}
+            onClick={resume}
+            title="nudge the live agent to retry / continue (sends the configured line + Enter)"
+          >
+            Resume
+          </Button>
+        )}
+        <OverflowMenu direction="down" size="sm" disabled={busy}>
+          {canRestart(agent) && (
+            <OverflowItem
+              onClick={() => restart(false)}
+              title="kill and respawn a fresh agent — keeps the worktree's progress"
+            >
+              Restart
+            </OverflowItem>
+          )}
+          {canRestart(agent) && worktree && (
+            <OverflowItem
+              danger
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `Restart clean will hard-reset ${agent.ticket}'s worktree to ${ws.mainBranch} and permanently discard the agent's work. Continue?`,
+                  )
+                ) {
+                  restart(true);
+                }
+              }}
+            >
+              Restart clean…
+            </OverflowItem>
+          )}
+          <OverflowItem danger onClick={onKill}>
+            Kill agent
+          </OverflowItem>
+        </OverflowMenu>
+        <IconButton
           title="dismiss panel (agent keeps running)"
           onClick={onDismiss}
-        >
-          ✕
-        </button>
+          style={{ marginLeft: 2 }}
+        />
       </header>
+      {actionErr && <div className={`${s.actionErr} error`}>{actionErr}</div>}
 
       <nav className={s.tabs}>
         {(["console", "ticket", "worktree"] as Tab[]).map((t) => (
