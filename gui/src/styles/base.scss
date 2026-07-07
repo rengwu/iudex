@@ -36,6 +36,15 @@ body {
   font-family: t.$font-mono;
 }
 
+// Inline code (paths, keys, commands, prompt filenames) — one monospace
+// treatment app-wide instead of the same font-family/size re-declared per
+// module. Module-local `code { }` blocks should only add context-specific
+// decoration (chip background, color, …) on top of this.
+code {
+  font-family: t.$font-mono;
+  font-size: 11px;
+}
+
 // Monaco renders its text with WKWebView's default (subpixel) smoothing, which
 // makes the monospace glyphs read as bold/heavy. Antialias them so the editor
 // weight matches the rest of the app's text.
