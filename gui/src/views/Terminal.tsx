@@ -6,7 +6,7 @@ import { VIEWS, type Session } from "../types";
 import XtermPane from "./XtermPane";
 import ViewHeader from "../components/ViewHeader";
 import Button from "../components/Button";
-import IconButton from "../components/IconButton";
+import TabSwitcher from "../components/TabSwitcher";
 import Dot from "../components/Dot";
 import s from "./Terminal.module.scss";
 
@@ -121,34 +121,22 @@ export default function Terminal({
         </Button>
       </ViewHeader>
 
-      <div className={s.tabs}>
-        {open.map((name) => (
-          <div
-            key={name}
-            className={`${s.tab} ${activeTab === name ? s.active : ""}`}
-            onClick={() => setActiveTab(name)}
-            // Middle-click closes the tab (kills the session), like a browser tab.
-            onAuxClick={(e) => {
-              if (e.button === 1) {
-                e.preventDefault();
-                kill(name);
-              }
-            }}
-          >
-            <Dot color={sessionDot(sessions, name)} size={6} />
-            <span>{tabLabel(sessions, name)}</span>
-            <IconButton
-              size="sm"
-              tone="danger"
-              title="kill session"
-              onClick={(e) => {
-                e.stopPropagation();
-                kill(name);
-              }}
-            />
-          </div>
-        ))}
-      </div>
+      <TabSwitcher
+        variant="tabsDark"
+        value={activeTab ?? ""}
+        onChange={setActiveTab}
+        onClose={kill}
+        closeTitle="kill session"
+        tabs={open.map((name) => ({
+          value: name,
+          label: (
+            <>
+              <Dot color={sessionDot(sessions, name)} size={6} />
+              <span>{tabLabel(sessions, name)}</span>
+            </>
+          ),
+        }))}
+      />
 
       {error && <div className="error">{error}</div>}
 

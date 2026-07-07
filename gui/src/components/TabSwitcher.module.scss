@@ -147,3 +147,54 @@
   color: t.$text;
   border-top-color: t.$amber;
 }
+
+// ── tabsDark (the terminal chrome: dark surface, mint accent, mono) ────────────
+.tabsDark {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 1px;
+  background: t.$divider-dark;
+}
+.tabsDark .seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-top: 2px solid transparent;
+  background: t.$module-surface;
+  color: t.$text-meta;
+  font-family: t.$font-mono;
+  font-size: 12px;
+  white-space: nowrap;
+
+  &:hover:not(.on) {
+    color: t.$text-light;
+  }
+}
+.tabsDark .on {
+  background: t.$module;
+  color: t.$text-bright;
+  border-top-color: t.$mint;
+}
+
+// ── closable tabs (a per-tab ✕; the tab is a container, not a <button>) ────────
+.close {
+  flex: none;
+  margin-left: 2px;
+  padding: 0 2px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.55;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  -webkit-user-select: none;
+  user-select: none;
+
+  &:hover {
+    opacity: 1;
+    color: t.$danger;
+  }
+}

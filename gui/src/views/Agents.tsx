@@ -75,11 +75,13 @@ function RetireChip({
   now,
   onKeep,
   compact,
+  dark,
 }: {
   agent: Session;
   now: number;
   onKeep: () => void;
   compact?: boolean;
+  dark?: boolean;
 }) {
   if (!agent.retireAt) return null;
   const at = Number(agent.retireAt);
@@ -97,7 +99,7 @@ function RetireChip({
       {/* Stop the click from bubbling to the rail card's select handler. */}
       <span onClick={(e) => e.stopPropagation()}>
         <Button
-          variant="quiet"
+          variant={dark ? "quietDark" : "quiet"}
           size="sm"
           onClick={onKeep}
           title="keep this agent — cancel auto-retire"
@@ -299,6 +301,7 @@ export default function Agents({
                         now={nowTick}
                         onKeep={() => keep(a.name)}
                         compact
+                        dark={a.name === selName}
                       />
                     </span>
                   )}
