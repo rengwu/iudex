@@ -361,24 +361,20 @@ function ArchiveReview({ root }: { root: string }) {
           )}
         </div>
 
-        <nav className={s.doctabs}>
-          {(["brief", "log", "review", "diff"] as DocTab[]).map((d) => (
-            <button
-              key={d}
-              className={`${s.doctab} ${docTab === d ? s.active : ""}`}
-              onClick={() => setDocTab(d)}
-            >
-              {
-                {
-                  brief: "Ticket Brief",
-                  log: "Implementation Log",
-                  review: "Agent Review",
-                  diff: "Changes",
-                }[d]
-              }
-            </button>
-          ))}
-        </nav>
+        <TabSwitcher
+          variant="tabs"
+          value={docTab}
+          onChange={setDocTab}
+          tabs={(["brief", "log", "review", "diff"] as DocTab[]).map((d) => ({
+            value: d,
+            label: {
+              brief: "Ticket Brief",
+              log: "Implementation Log",
+              review: "Agent Review",
+              diff: "Changes",
+            }[d],
+          }))}
+        />
 
         <div className={s.content}>
           {docTab === "diff" ? (

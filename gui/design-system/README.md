@@ -186,7 +186,7 @@ bespoke markup.
 | **`IconButton`** | The one bare glyph button (close ✕ / dismiss / kill) | `tone` `neutral` / `danger`(hover→red); `size` `sm`(12px) / `md`(14px); glyph via `children` (defaults ✕). Inherits surface text color at reduced opacity → surface-agnostic. Labeled nav (e.g. "← Back") stays a text link, not this |
 | **`Badge`** | The one filled chip across the app | `kind` `state`/`merge`/`role` + `value`; `tone` `light`/`dark`; `bg`/`fg` escape hatch; `children` overrides label. Mono 10px, radius 2px |
 | **`ViewHeader`** | 30px header strip atop every view | `dot` (from `VIEWS`), `title` (14/600), `subtitle?`, `children` = right-aligned action slot; bg `$panel-mid` |
-| **`TabSwitcher`** | Segmented pill for 2–4 tabs | `tabs`, `value`, `onChange`; active fill `$panel-light`, pill radius 3px |
+| **`TabSwitcher`** | Segmented control, 3 variants | `tabs`, `value`, `onChange`; `variant` `pill`(default, gray value-picker) · `mode`/`modeDark`(amber active + radiogroup, a persisted setting — light track for light panels, dark track for the Sidebar rail) · `tabs`(top-accent bar over a body); `stretch` fills the container; `ariaLabel`/`fontSize`. Inset `:focus-visible` ring in `currentColor` (surface-agnostic) |
 | **`Overline`** | Small uppercase section label | 10px, letter-spaced; `tone` `light`/`dark` |
 | **`SectionHeader`** | Sidebar column label strip | `tone`, `pad`, `noBorder`, `borderTop` |
 | **`Modal`** | Floating dialog shell | `.backdrop` + `.box` (560px, the sanctioned shadow) + `actions` slot |

@@ -18,6 +18,7 @@ import {
 import type { Automation } from "../components/Sidebar";
 import ViewHeader from "../components/ViewHeader";
 import Button from "../components/Button";
+import TabSwitcher from "../components/TabSwitcher";
 import Badge from "../components/Badge";
 import Dot from "../components/Dot";
 import CanvasPanel from "../components/CanvasPanel";
@@ -291,7 +292,7 @@ function StartPanel({
       <textarea
         ref={seedRef}
         className={s.seed}
-        placeholder="seed an idea… (what should this project do next?)"
+        placeholder="what should this project do next?"
         value={seed}
         spellCheck={false}
         onChange={(e) => setSeed(e.target.value)}
@@ -530,30 +531,17 @@ function AutomationPanel({
         </div>
       )}
       <div className={s.modeTitle}>MODE</div>
-      <div
-        className={s.modeSeg}
-        role="radiogroup"
-        aria-label="Concurrency mode"
-      >
-        <button
-          type="button"
-          role="radio"
-          aria-checked={!seq}
-          className={`${s.modeBtn} ${!seq ? s.modeOn : ""}`}
-          onClick={() => automation.toggleSequential(false)}
-        >
-          Parallel
-        </button>
-        <button
-          type="button"
-          role="radio"
-          aria-checked={seq}
-          className={`${s.modeBtn} ${seq ? s.modeOn : ""}`}
-          onClick={() => automation.toggleSequential(true)}
-        >
-          Sequential
-        </button>
-      </div>
+      <TabSwitcher
+        variant="mode"
+        ariaLabel="Concurrency mode"
+        stretch
+        tabs={[
+          { label: "Parallel", value: false },
+          { label: "Sequential", value: true },
+        ]}
+        value={seq}
+        onChange={automation.toggleSequential}
+      />
       <div className={s.modeHint}>
         {seq
           ? "One ticket in flight at a time."

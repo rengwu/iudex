@@ -34,27 +34,6 @@
   flex-shrink: 0;
 }
 
-.seg {
-  display: flex;
-  border: 1px solid t.$divider-mid;
-
-  button {
-    padding: 1px 9px;
-    border: none;
-    background: transparent;
-    color: t.$text-muted;
-    cursor: pointer;
-    -webkit-user-select: none;
-    user-select: none;
-    font-size: 11px;
-    font-family: t.$font-ui;
-  }
-
-  button.on {
-    background: t.$panel-light;
-    color: t.$text;
-  }
-}
 
 .body {
   flex: 1;

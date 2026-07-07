@@ -16,6 +16,7 @@ import { useSessions } from "../lib/sessions";
 import ChangedFilesDiff from "../components/ChangedFilesDiff";
 import DiffPatch from "../components/DiffPatch";
 import Modal from "../components/Modal";
+import TabSwitcher from "../components/TabSwitcher";
 import ViewHeader from "../components/ViewHeader";
 import Badge from "../components/Badge";
 import Dot from "../components/Dot";
@@ -329,24 +330,27 @@ export default function Review({ ws, root }: { ws: Workspace; root: string }) {
 
           {error && <div className="error">{error}</div>}
 
-          <nav className={s.doctabs}>
-            {(["brief", "log", "review", "changes", "conflicts"] as Tab[]).map(
-              (d) => (
-                <button
-                  key={d}
-                  className={`${s.doctab} ${tab === d ? s.active : ""}`}
-                  onClick={() => setTab(d)}
-                >
-                  {d === "changes"
-                    ? `Changes (${changes.length})`
-                    : TAB_LABELS[d]}
-                  {d === "conflicts" && conflictsFlagged && (
-                    <Dot size={6} className={s.tabDot} />
-                  )}
-                </button>
-              ),
+          <TabSwitcher
+            variant="tabs"
+            value={tab}
+            onChange={setTab}
+            tabs={(["brief", "log", "review", "changes", "conflicts"] as Tab[]).map(
+              (d) => ({
+                value: d,
+                label:
+                  d === "changes" ? (
+                    `Changes (${changes.length})`
+                  ) : d === "conflicts" ? (
+                    <>
+                      Conflicts
+                      {conflictsFlagged && <Dot size={6} color="#f4bc41" />}
+                    </>
+                  ) : (
+                    TAB_LABELS[d]
+                  ),
+              }),
             )}
-          </nav>
+          />
 
           <div className={s.content}>
             {tab === "changes" ? (

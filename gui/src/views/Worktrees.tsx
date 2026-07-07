@@ -13,6 +13,7 @@ import { useNav } from "../lib/nav";
 import Badge from "../components/Badge";
 import ViewHeader from "../components/ViewHeader";
 import Button from "../components/Button";
+import TabSwitcher from "../components/TabSwitcher";
 import FileTree from "./FileTree";
 import s from "./Worktrees.module.scss";
 
@@ -323,20 +324,14 @@ export default function Worktrees({
                     </Button>
                   )}
                   {!isMain && (
-                    <div className={s.seg}>
-                      <button
-                        className={mode === "changed" ? s.on : ""}
-                        onClick={() => setMode("changed")}
-                      >
-                        changed files
-                      </button>
-                      <button
-                        className={mode === "all" ? s.on : ""}
-                        onClick={() => setMode("all")}
-                      >
-                        all files
-                      </button>
-                    </div>
+                    <TabSwitcher
+                      tabs={[
+                        { label: "changed files", value: "changed" },
+                        { label: "all files", value: "all" },
+                      ]}
+                      value={mode}
+                      onChange={setMode}
+                    />
                   )}
                   {mode === "all" && (
                     <Button

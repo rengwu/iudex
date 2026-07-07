@@ -206,26 +206,7 @@
   margin-right: auto;
 }
 // Mode toggle (changed files | all files) — mirrors DiffViewer's inline/split seg.
-.seg {
-  display: flex;
-  border: 1px solid t.$divider-mid;
-
-  button {
-    padding: 1px 9px;
-    border: none;
-    background: transparent;
-    color: t.$text-muted;
-    cursor: pointer;
-    -webkit-user-select: none;
-    user-select: none;
-    font-size: 11px;
-    font-family: t.$font-ui;
-  }
-  button.on {
-    background: t.$panel-light;
-    color: t.$text;
-  }
-}
+// changed/all toggle is the shared <TabSwitcher variant="pill">.
 
 // ── File tree (the "all files" browser) ───────────────────────────────────────
 .tree {

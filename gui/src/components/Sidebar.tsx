@@ -10,6 +10,7 @@ import type { ResolveStatus } from "../lib/automation";
 import Dot from "./Dot";
 import SectionHeader from "./SectionHeader";
 import Toggle from "./Toggle";
+import TabSwitcher from "./TabSwitcher";
 import s from "./Sidebar.module.scss";
 
 export type Automation = {
@@ -244,26 +245,17 @@ function ModeSwitch({
   return (
     <div className={s.mode}>
       <div className={s.modeTitle}>MODE</div>
-      <div className={s.segmented} role="radiogroup" aria-label="Concurrency mode">
-        <button
-          type="button"
-          role="radio"
-          aria-checked={!sequential}
-          className={`${s.segment} ${!sequential ? s.segOn : ""}`}
-          onClick={() => onChange(false)}
-        >
-          Parallel
-        </button>
-        <button
-          type="button"
-          role="radio"
-          aria-checked={sequential}
-          className={`${s.segment} ${sequential ? s.segOn : ""}`}
-          onClick={() => onChange(true)}
-        >
-          Sequential
-        </button>
-      </div>
+      <TabSwitcher
+        variant="modeDark"
+        ariaLabel="Concurrency mode"
+        tabs={[
+          { label: "Parallel", value: false },
+          { label: "Sequential", value: true },
+        ]}
+        value={sequential}
+        onChange={onChange}
+        stretch
+      />
       <div className={s.modeHint}>{hint}</div>
     </div>
   );

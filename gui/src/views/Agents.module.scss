@@ -165,32 +165,7 @@
   border-bottom: 1px solid t.$divider-mid;
 }
 
-.tabs {
-  display: flex;
-  align-items: stretch;
-  gap: 1px;
-  background: t.$divider-mid;
-  border-bottom: 1px solid t.$divider-mid;
-  flex: none;
-}
-.tab {
-  padding: 5px 13px;
-  cursor: pointer;
-  -webkit-user-select: none;
-  user-select: none;
-  border: none;
-  border-top: 2px solid transparent;
-  background: t.$panel-rail;
-  color: t.$text-muted;
-  font-family: t.$font-ui;
-  font-size: 12px;
-
-  &.active {
-    background: t.$panel-mid;
-    color: t.$text;
-    border-top-color: t.$amber;
-  }
-}
+// Tabs are the shared <TabSwitcher variant="tabs">.
 
 .content {
   flex: 1;

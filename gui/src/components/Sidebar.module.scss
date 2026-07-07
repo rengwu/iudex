@@ -119,39 +119,6 @@
   letter-spacing: 0.08em;
   margin-bottom: 5px;
 }
-.segmented {
-  display: flex;
-  border: 1px solid t.$divider-chrome;
-}
-.segment {
-  flex: 1;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: t.$text-meta;
-  font-family: t.$font-ui;
-  font-size: 10.5px;
-  cursor: pointer;
-  -webkit-user-select: none;
-  user-select: none;
-
-  & + & {
-    border-left: 1px solid t.$divider-chrome;
-  }
-  &:hover:not(.segOn) {
-    color: t.$text-light;
-  }
-  &.segOn {
-    background: t.$amber;
-    color: #2a2a2a;
-    font-weight: 600;
-    cursor: default;
-  }
-}
 .modeHint {
   margin-top: 5px;
   font-size: 10px;

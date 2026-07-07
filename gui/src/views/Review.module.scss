@@ -173,40 +173,7 @@
   flex-shrink: 0;
 }
 
-// ── Tabs ──────────────────────────────────────────────────────────────────────
-.doctabs {
-  display: flex;
-  align-items: stretch;
-  gap: 1px;
-  background: t.$divider-mid;
-  border-bottom: 1px solid t.$divider-mid;
-  flex: none;
-}
-.doctab {
-  padding: 5px 12px;
-  border: none;
-  border-top: 2px solid transparent;
-  background: t.$panel-rail;
-  color: t.$text-muted;
-  cursor: pointer;
-  -webkit-user-select: none;
-  user-select: none;
-  font-family: t.$font-ui;
-  font-size: 12px;
-
-  &.active {
-    background: t.$panel-mid;
-    color: t.$text;
-    border-top-color: t.$amber;
-  }
-}
-// Fill + positioning only — shape comes from <Dot>.
-.tabDot {
-  display: inline-block;
-  margin-left: 6px;
-  background: t.$amber;
-  vertical-align: middle;
-}
+// Tabs are the shared <TabSwitcher variant="tabs">.
 
 .content {
   flex: 1;

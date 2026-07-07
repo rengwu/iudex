@@ -25,6 +25,7 @@ import ChangedFilesDiff from "../components/ChangedFilesDiff";
 import Badge from "../components/Badge";
 import Button from "../components/Button";
 import IconButton from "../components/IconButton";
+import TabSwitcher from "../components/TabSwitcher";
 import OverflowMenu, { OverflowItem } from "../components/OverflowMenu";
 import Dot from "../components/Dot";
 import ViewHeader from "../components/ViewHeader";
@@ -497,17 +498,15 @@ function AgentDetail({
       </header>
       {actionErr && <div className={`${s.actionErr} error`}>{actionErr}</div>}
 
-      <nav className={s.tabs}>
-        {(["console", "ticket", "worktree"] as Tab[]).map((t) => (
-          <button
-            key={t}
-            className={`${s.tab} ${tab === t ? s.active : ""}`}
-            onClick={() => onTab(t)}
-          >
-            {t.slice(0, 1).toLocaleUpperCase() + t.slice(1)}
-          </button>
-        ))}
-      </nav>
+      <TabSwitcher
+        variant="tabs"
+        value={tab}
+        onChange={onTab}
+        tabs={(["console", "ticket", "worktree"] as Tab[]).map((t) => ({
+          value: t,
+          label: t.slice(0, 1).toLocaleUpperCase() + t.slice(1),
+        }))}
+      />
 
       <div className={s.content}>
         {/* Console stays mounted while this agent is selected so switching tabs

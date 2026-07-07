@@ -2,6 +2,7 @@ import { type ReactNode } from "react";
 import { DiffEditor } from "@monaco-editor/react";
 import "../lib/monacoSetup";
 import { useDiffSideBySide } from "../lib/diffView";
+import TabSwitcher from "../components/TabSwitcher";
 import s from "./DiffViewer.module.scss";
 
 // The shared read-only diff surface (Worktrees now, Review later). Shows a base
@@ -30,20 +31,14 @@ export default function DiffViewer({
         <span className={s.title}>{title}</span>
         <div className={s.headActions}>
           {actions}
-          <div className={s.seg}>
-            <button
-              className={sideBySide ? "" : s.on}
-              onClick={() => setSideBySide(false)}
-            >
-              inline
-            </button>
-            <button
-              className={sideBySide ? s.on : ""}
-              onClick={() => setSideBySide(true)}
-            >
-              split
-            </button>
-          </div>
+          <TabSwitcher
+            tabs={[
+              { label: "inline", value: false },
+              { label: "split", value: true },
+            ]}
+            value={sideBySide}
+            onChange={setSideBySide}
+          />
         </div>
       </div>
       <div className={s.body}>

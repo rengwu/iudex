@@ -384,29 +384,6 @@
   color: t.$text-muted;
 }
 
-.modeSeg {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  border: 1px solid #8a8a8a;
-}
-
-.modeBtn {
-  border: none;
-  background: t.$surface-c8;
-  color: #3a3a3a;
-  font: 600 11px t.$font-ui;
-  padding: 2px;
-  cursor: pointer;
-}
-.modeBtn + .modeBtn {
-  border-left: 1px solid #8a8a8a;
-}
-
-.modeOn {
-  background: t.$amber;
-  color: #2a2000;
-}
-
 .modeHint {
   font-size: 10px;
   color: t.$text-muted;

@@ -1,52 +1,81 @@
-// Segmented pill switcher for 2–4 tabs. See gui/design-system/README.md §5.
+import type { CSSProperties, ReactNode } from "react";
+import s from "./TabSwitcher.module.scss";
+
+// Segmented switcher for 2–4 options, three variants (design-system §5):
+// pill (default, gray value-picker) · mode (amber active + radiogroup, a
+// persisted setting) · tabs (top-accent bar over a document body).
 // A tab is either a bare value (label === value) or { label, value } when the
 // rendered label should differ from the value reported to onChange — so the
-// value can be an opaque id/enum while the label is a pretty string/node.
-export type TabItem<V extends string | number = string> =
+// value can be an opaque id/enum/boolean while the label is a pretty node.
+export type TabItem<V extends string | number | boolean = string> =
   | V
-  | { label: React.ReactNode; value: V };
+  | { label: ReactNode; value: V };
 
-function normalize<V extends string | number>(
+type Variant = "pill" | "mode" | "modeDark" | "tabs";
+const isMode = (v: Variant) => v === "mode" || v === "modeDark";
+
+function normalize<V extends string | number | boolean>(
   t: TabItem<V>,
-): { label: React.ReactNode; value: V } {
+): { label: ReactNode; value: V } {
   return typeof t === "object" ? t : { label: String(t), value: t };
 }
 
-export default function TabSwitcher<V extends string | number = string>({
+export default function TabSwitcher<
+  V extends string | number | boolean = string,
+>({
   tabs,
   value,
   onChange,
-  fontSize = "12px",
+  variant = "pill",
+  ariaLabel,
+  fontSize,
+  stretch,
   style,
 }: {
   tabs: TabItem<V>[];
   value: V;
   onChange: (value: V) => void;
+  variant?: Variant;
+  ariaLabel?: string;
   fontSize?: string;
-  style?: React.CSSProperties;
+  stretch?: boolean;
+  style?: CSSProperties;
 }) {
   const items = tabs.map(normalize);
   return (
-    <div style={{ display: "inline-flex", background: "#929292", border: "1px solid #6f6f6f", padding: 1, ...style }}>
+    <div
+      className={`${s.track} ${s[variant]} ${stretch ? s.stretch : ""}`}
+      style={style}
+      role={
+        isMode(variant)
+          ? "radiogroup"
+          : variant === "tabs"
+            ? "tablist"
+            : undefined
+      }
+      aria-label={ariaLabel}
+    >
       {items.map((t) => {
         const on = t.value === value;
         return (
-          <span
+          <button
             key={String(t.value)}
+            type="button"
+            className={`${s.seg} ${on ? s.on : ""}`}
+            style={fontSize ? { fontSize } : undefined}
             onClick={() => onChange(t.value)}
-            style={{
-              padding: "1px 11px",
-              borderRadius: 3,
-              cursor: "pointer",
-              WebkitUserSelect: "none",
-              userSelect: "none",
-              fontSize,
-              background: on ? "#dadada" : "transparent",
-              color: on ? "#2a2a2a" : "#565656",
-            }}
+            role={
+              isMode(variant)
+                ? "radio"
+                : variant === "tabs"
+                  ? "tab"
+                  : undefined
+            }
+            aria-checked={isMode(variant) ? on : undefined}
+            aria-selected={variant === "tabs" ? on : undefined}
           >
             {t.label}
-          </span>
+          </button>
         );
       })}
     </div>
