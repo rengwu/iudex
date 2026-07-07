@@ -43,6 +43,10 @@ body {
 code {
   font-family: t.$font-mono;
   font-size: 11px;
+  // border: 1px solid black;
+  border-radius: 4px;
+  background: t.$surface-c8;
+  padding: 0px 3px;
 }
 
 // Monaco renders its text with WKWebView's default (subpixel) smoothing, which
