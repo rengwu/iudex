@@ -23,6 +23,11 @@
 
 .canvas {
   position: relative;
+  // Panel z-index only ever climbs (bringToFront bumps past the current max,
+  // persisted to localStorage) — isolate so that unbounded local stacking
+  // order can never out-rank a global overlay (Modal, QuitGuard, …) that
+  // sits outside this subtree.
+  isolation: isolate;
 }
 
 .quiet {
