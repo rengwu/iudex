@@ -13,7 +13,8 @@ export type Variant =
   | "danger"
   | "success"
   | "info"
-  | "quiet";
+  | "quiet"
+  | "quietDark";
 type Size = "sm" | "md" | "lg";
 
 export default function Button({
