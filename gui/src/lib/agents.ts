@@ -15,7 +15,11 @@ export type AgentStatus =
 
 export const STATUS_LABEL: Record<AgentStatus, string> = {
   working: "working",
-  idle: "idle",
+  // A live pane gone quiet: this is BOTH "finished its turn, waiting on you" and
+  // "stalled / gave up" — the GUI deliberately doesn't detect which (that'd mean
+  // per-harness output scraping). The label says "check it" rather than implying
+  // all-is-well; the human's glance at the console is the cross-harness detector.
+  idle: "quiet — check it",
   "awaiting-finish": "awaiting finish",
   "review-ready": "review ready",
   resolved: "resolved",
@@ -31,6 +35,21 @@ export const STATUS_LABEL: Record<AgentStatus, string> = {
 // the rail until you handle it (it self-clears to `resolved` once committed).
 export function isFinished(s: AgentStatus): boolean {
   return s === "done" || s === "resolved" || s === "crashed";
+}
+
+// The remedy ladder for a stalled agent (Agents view). Two independent gates:
+//
+// canResume — the pane is still ALIVE (working|idle are the only live-pane
+//   statuses; everything else is a dead/terminal pane). Resume nudges the live
+//   REPL, so it only makes sense while there's a process to talk to.
+// canRestart — there's a ticket to respawn from (a real ticket agent, not an
+//   idea session, whose seed we don't retain). Works on live OR dead panes —
+//   Restart is exactly the remedy for a `crashed` (dead) agent.
+export function canResume(s: AgentStatus): boolean {
+  return s === "working" || s === "idle";
+}
+export function canRestart(agent: Session): boolean {
+  return agent.kind === "agent" && !!agent.ticket;
 }
 
 export type AgentBucket = "working" | "needs-you" | "finished";

@@ -112,6 +112,12 @@ export const getSequential = (root: string) =>
   invoke<boolean>("get_sequential", { root });
 export const setSequential = (root: string, value: boolean) =>
   invoke<void>("set_sequential", { root, value });
+// Resume nudge (workspace text, gui_resume_nudge in .iudex/config.yml): the line
+// the Agents "Resume" action types into a stalled agent. Blank → built-in default.
+export const getResumeNudge = (root: string) =>
+  invoke<string>("get_resume_nudge", { root });
+export const setResumeNudge = (root: string, value: string) =>
+  invoke<void>("set_resume_nudge", { root, value });
 
 // ── Tickets ─────────────────────────────────────────────────────────────────
 export const readQueueBrief = (root: string, id: string) =>
@@ -146,6 +152,10 @@ export const worktreeDirtyCount = (worktree: string) =>
 // `force` discards uncommitted changes; the branch is left alone.
 export const removeWorktree = (root: string, path: string, force: boolean) =>
   invoke<void>("remove_worktree", { root, path, force });
+// Hard-reset a worktree to main's tip + clean (guarded to .iudex/worktrees/).
+// The destructive "Restart clean" rung: discard an agent's work, keep .task/.
+export const resetWorktree = (worktree: string, mainBranch: string) =>
+  invoke<void>("reset_worktree", { worktree, mainBranch });
 
 // ── Review / merge preflight / conflict resolution ──────────────────────────
 export const railStatus = (root: string, mainBranch: string, worktrees: string[]) =>
@@ -202,6 +212,10 @@ export const sessionStatuses = () =>
 export const capturePane = (name: string, lines: number) =>
   invoke<string>("capture_pane", { name, lines });
 export const killSession = (name: string) => invoke<void>("kill_session", { name });
+// Resume a stalled (idle but alive) agent by typing the nudge + Enter into its
+// live REPL — the harness-blind "Resume" remedy (send-keys, not an API call).
+export const resumeAgent = (name: string, nudge: string) =>
+  invoke<void>("resume_agent", { name, nudge });
 // Auto-Retire marks (stored as tmux session user-options): stamp a kill
 // deadline (unix millis string), or clear it — with `pardon` opting the session
 // out of ever being auto-marked again (the "Keep" action).
