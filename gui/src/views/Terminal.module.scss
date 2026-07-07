@@ -38,21 +38,6 @@
   }
 }
 
-.x {
-  border: none;
-  background: transparent;
-  color: t.$text-meta;
-  cursor: pointer;
-  -webkit-user-select: none;
-  user-select: none;
-  font-size: 13px;
-  line-height: 1;
-  padding: 0 2px;
-
-  &:hover {
-    color: t.$danger;
-  }
-}
 
 .empty {
   color: t.$text-muted;

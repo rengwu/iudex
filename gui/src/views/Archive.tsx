@@ -5,6 +5,7 @@ import type { ArchiveDocs, ArchiveEntry } from "../types";
 import { VIEWS } from "../types";
 import { stateDot } from "../lib/badges";
 import Badge from "../components/Badge";
+import IconButton from "../components/IconButton";
 import Dot from "../components/Dot";
 import TabSwitcher from "../components/TabSwitcher";
 import DiffPatch from "../components/DiffPatch";
@@ -203,9 +204,7 @@ function ArchiveTicketDetail({
         <span className={s.detailId}>{entry.id}</span>
         <Badge kind="state" value={entry.outcome} />
         <span className={s.spacer} />
-        <button className={s.detailClose} onClick={onClose} title="close">
-          ✕
-        </button>
+        <IconButton onClick={onClose} title="close" />
       </div>
 
       <div className={s.detailTitle}>

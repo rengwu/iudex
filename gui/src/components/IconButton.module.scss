@@ -1,0 +1,53 @@
+@use "../styles/tokens" as t;
+
+// Bare glyph button — close / dismiss / kill (✕). Surface-agnostic: it inherits
+// the surrounding text color at reduced opacity and brightens on hover, so it
+// reads on both the light panels and the dark terminal chrome without a surface
+// prop. tone="danger" turns the hover red for destructive actions. Focus ring
+// uses currentColor (so it, too, adapts to the surface) — see design-system §5
+// and button-interaction-states.md for the ring convention.
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  transition:
+    opacity 0.09s ease,
+    color 0.09s ease;
+
+  &:hover:not(:disabled) {
+    opacity: 1;
+  }
+  &:disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
+  &:focus {
+    outline: none;
+  }
+  &:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 1px;
+    opacity: 1;
+  }
+}
+
+.sm {
+  font-size: 12px;
+}
+.md {
+  font-size: 14px;
+}
+
+// destructive: hover turns the glyph red (e.g. kill session)
+.danger:hover:not(:disabled) {
+  color: t.$danger;
+}

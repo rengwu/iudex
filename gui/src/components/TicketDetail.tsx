@@ -12,6 +12,7 @@ import {
 import { useAgentStatuses, STATUS_LABEL } from "../lib/agents";
 import { agentStatusColor } from "../lib/badges";
 import Badge from "./Badge";
+import IconButton from "./IconButton";
 import Dot from "./Dot";
 import TabSwitcher from "./TabSwitcher";
 import s from "./TicketDetail.module.scss";
@@ -141,9 +142,11 @@ export default function TicketDetail({
       <div className={s.header}>
         <span className={s.headId}>{ticket.id}</span>
         <Badge kind="state" value={ticket.state} />
-        <button className={s.headClose} onClick={onClose} title="close">
-          ✕
-        </button>
+        <IconButton
+          onClick={onClose}
+          title="close"
+          style={{ marginLeft: "auto" }}
+        />
       </div>
 
       {/* Title */}

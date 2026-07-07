@@ -132,21 +132,6 @@ $cols: 28px 72px 1fr 130px 54px 110px 110px;
   font-size: 13px;
   color: t.$text;
 }
-.detailClose {
-  border: none;
-  background: transparent;
-  color: t.$text-muted;
-  cursor: pointer;
-  -webkit-user-select: none;
-  user-select: none;
-  font-size: 12px;
-  line-height: 1;
-  padding: 2px 4px;
-
-  &:hover {
-    color: t.$text;
-  }
-}
 .detailTitle {
   flex: none;
   padding: 8px 10px;

@@ -6,6 +6,7 @@ import { VIEWS, type Session } from "../types";
 import XtermPane from "./XtermPane";
 import ViewHeader from "../components/ViewHeader";
 import Button from "../components/Button";
+import IconButton from "../components/IconButton";
 import Dot from "../components/Dot";
 import s from "./Terminal.module.scss";
 
@@ -136,16 +137,15 @@ export default function Terminal({
           >
             <Dot color={sessionDot(sessions, name)} size={6} />
             <span>{tabLabel(sessions, name)}</span>
-            <button
-              className={s.x}
+            <IconButton
+              size="sm"
+              tone="danger"
               title="kill session"
               onClick={(e) => {
                 e.stopPropagation();
                 kill(name);
               }}
-            >
-              ×
-            </button>
+            />
           </div>
         ))}
       </div>
