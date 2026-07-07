@@ -337,6 +337,26 @@
     color: #10333a;
   }
 }
+
+// Resolver finished — flagged conflicts for the human (amber = your turn).
+.resolverParked {
+  border-color: #c79a2e;
+  background: #f6e6bf;
+
+  .gateMsg {
+    color: #3a2a00;
+  }
+}
+
+// Resolver crashed — conflicts left unresolved (red = something went wrong).
+.resolverCrashed {
+  border-color: #c0552f;
+  background: #f2d2c9;
+
+  .gateMsg {
+    color: #3a1206;
+  }
+}
 .flagHead {
   margin: 0 0 8px;
   color: #5a3e00;

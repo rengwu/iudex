@@ -2101,7 +2101,7 @@ fn open_folder_with(path: String) -> Result<(), String> {
 /// coarse merge badge — so the human can sequence the clean merges first and
 /// batch the conflicted ones without opening each. `title` is the first content
 /// line of the worktree's `.task/brief.md`; `badge` is one of
-/// `clean` / `conflicts` / `resolving`.
+/// `clean` / `conflicts` / `resolving` / `flagged`.
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 struct RailCard {
@@ -2216,7 +2216,30 @@ fn rail_status(
             .map(|o| o.status.success())
             .unwrap_or(false);
         let badge = if merging {
-            "resolving"
+            // A merge in progress is "resolving" while an agent works, but flips
+            // to "flagged" (your turn) once the resolver has left a file for
+            // human judgment — mirroring the frontend's flagged derivation.
+            // Requires BOTH still-unmerged files (git's truth) AND a flagged
+            // report entry with a reason, so a fully-resolved-but-uncommitted
+            // merge reads "resolving", not "flagged". Coarse by design: no tmux
+            // here, so a crash-before-report card still reads "resolving".
+            let has_unmerged = Command::new("git")
+                .args(["-C", &worktree, "diff", "--name-only", "--diff-filter=U"])
+                .output()
+                .map(|o| !o.stdout.is_empty())
+                .unwrap_or(false);
+            let flagged_report = std::fs::read_to_string(
+                Path::new(&worktree).join(".task").join("resolution.json"),
+            )
+            .ok()
+            .and_then(|t| serde_json::from_str::<Report>(&t).ok())
+            .map(|r| r.flagged.iter().any(|f| !f.reason.is_empty()))
+            .unwrap_or(false);
+            if has_unmerged && flagged_report {
+                "flagged"
+            } else {
+                "resolving"
+            }
         } else {
             let work_branch = Command::new("git")
                 .args(["-C", &worktree, "rev-parse", "--abbrev-ref", "HEAD"])

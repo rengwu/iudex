@@ -13,6 +13,7 @@ import { VIEWS } from "../types";
 import { useRailStatus, useReview } from "../lib/review";
 import { useNav, usePendingFocus } from "../lib/nav";
 import { useSessions } from "../lib/sessions";
+import { resolveStatusForTicket, type AgentStatus } from "../lib/agents";
 import ChangedFilesDiff from "../components/ChangedFilesDiff";
 import DiffPatch from "../components/DiffPatch";
 import Modal from "../components/Modal";
@@ -53,6 +54,13 @@ export default function Review({ ws, root }: { ws: Workspace; root: string }) {
   const [busy, setBusy] = useState(false);
   const [actErr, setActErr] = useState<string | null>(null);
   const [mergeFile, setMergeFile] = useState<string | null>(null);
+  // Resolver-session liveness (dead/exit), keyed by session name. `useSessions`
+  // carries no liveness, so we probe it ourselves in the merge-poll below and
+  // feed it to resolveStatusForTicket — the same derivation the Agents panel and
+  // the Auto-Resolve phase use, so all three agree.
+  const [stats, setStats] = useState<Map<string, api.NamedSessionStatus>>(
+    new Map(),
+  );
 
   const { sessions } = useSessions(root);
 
@@ -86,11 +94,23 @@ export default function Review({ ws, root }: { ws: Workspace; root: string }) {
   );
   const title = (worktree && rail[worktree]?.title) || "";
 
-  // A live conflict-resolution agent for this ticket, if one is running.
-  const resolver =
-    sessions.find(
-      (s) => s.kind === "agent" && s.ticket === selId && s.role === "resolve",
-    ) ?? null;
+  // Every resolve session for this ticket. A Re-run leaves the old dead pane
+  // beside the fresh one, so we aggregate across all of them for status; the
+  // most recent is the representative for Watch/Stop.
+  const resolverSessions = sessions.filter(
+    (s) => s.kind === "agent" && s.ticket === selId && s.role === "resolve",
+  );
+  const resolver = resolverSessions[resolverSessions.length - 1] ?? null;
+  // The single answer to "what is the resolver doing?" — null when none exists.
+  const resolverStatus: AgentStatus | null =
+    resolverSessions.length > 0
+      ? resolveStatusForTicket({
+          resolveSessions: resolverSessions,
+          statsByName: stats,
+          ticketState: selected?.state,
+          resolution,
+        })
+      : null;
 
   // Reset the open file / tab / merge editor when switching tickets.
   useEffect(() => {
@@ -108,11 +128,27 @@ export default function Review({ ws, root }: { ws: Workspace; root: string }) {
   }, [changes]);
 
   // A worktree merge doesn't touch events.jsonl, so there's no doorbell while an
-  // agent (or the user) resolves — poll the git state to keep the tab live.
+  // agent (or the user) resolves — poll the git state AND the resolver's
+  // liveness to keep the tab live. Pull once immediately so a working agent
+  // never flashes as "flagged" before the first probe lands.
   useEffect(() => {
     if (!preflight?.mergeInProgress) return;
-    const h = setInterval(() => recheck(), 3000);
-    return () => clearInterval(h);
+    let alive = true;
+    const pull = async () => {
+      recheck();
+      try {
+        const ss = await api.sessionStatuses();
+        if (alive) setStats(new Map(ss.map((x) => [x.name, x])));
+      } catch {
+        /* transient tmux failure — keep the previous liveness map */
+      }
+    };
+    pull();
+    const h = setInterval(pull, 3000);
+    return () => {
+      alive = false;
+      clearInterval(h);
+    };
   }, [preflight?.mergeInProgress, recheck]);
 
   // Load the three-dot diff for the selected file.
@@ -219,6 +255,15 @@ export default function Review({ ws, root }: { ws: Workspace; root: string }) {
     act(async () => {
       if (resolver) await api.killSession(resolver.name);
     });
+  // Re-run after a crash. The merge is already in progress (a crashed agent
+  // leaves MERGE_HEAD set), so this must NOT call beginResolution — that errors
+  // on an in-progress merge. Spawn a fresh resolver straight into the merge.
+  const rerunResolver = () =>
+    act(async () => {
+      if (!worktree || !selId) return;
+      await api.spawnResolver(root, selId, worktree);
+      recheck();
+    });
   const commitResolution = () =>
     act(async () => {
       if (!worktree) return;
@@ -260,7 +305,7 @@ export default function Review({ ws, root }: { ws: Workspace; root: string }) {
   const docText =
     tab === "brief" ? docs?.brief : tab === "log" ? docs?.log : docs?.review;
   const conflictsFlagged = !!preflight && !preflight.ready;
-  const hb = headerBadge(preflight);
+  const hb = headerBadge(preflight, resolverStatus);
 
   return (
     <div className={s.view}>
@@ -394,13 +439,14 @@ export default function Review({ ws, root }: { ws: Workspace; root: string }) {
                 <ConflictsTab
                   pf={preflight}
                   resolution={resolution}
-                  resolverActive={!!resolver}
+                  resolverStatus={resolverStatus}
                   worktree={worktree}
                   mainBranch={ws.mainBranch}
                   busy={busy}
                   onResolveAgent={resolveWithAgent}
                   onWatch={watchResolver}
                   onStop={stopResolver}
+                  onRerun={rerunResolver}
                   onCommit={commitResolution}
                   onShellRoot={() => openShell(root)}
                   onShellWorktree={() => worktree && openShell(worktree)}
@@ -559,13 +605,14 @@ function ReadySummary({
 function ConflictsTab({
   pf,
   resolution,
-  resolverActive,
+  resolverStatus,
   worktree,
   mainBranch,
   busy,
   onResolveAgent,
   onWatch,
   onStop,
+  onRerun,
   onCommit,
   onShellRoot,
   onShellWorktree,
@@ -577,13 +624,14 @@ function ConflictsTab({
 }: {
   pf: Preflight | null;
   resolution: Resolution | null;
-  resolverActive: boolean;
+  resolverStatus: AgentStatus | null;
   worktree: string | null;
   mainBranch: string;
   busy: boolean;
   onResolveAgent: () => void;
   onWatch: () => void;
   onStop: () => void;
+  onRerun: () => void;
   onCommit: () => void;
   onShellRoot: () => void;
   onShellWorktree: () => void;
@@ -639,27 +687,61 @@ function ConflictsTab({
     const resolved = resolution?.resolved ?? [];
     return (
       <div className={`${s.confPad} ${s.blocked}`}>
-        {resolverActive && (
-          <div className={s.resolver}>
-            <span className={s.gateMsg}>
-              ◐ Resolver agent working in the worktree…
-            </span>
-            <Button variant="quiet" size="sm" disabled={busy} onClick={onWatch}>
-              Watch
-            </Button>
-            <Button variant="danger" size="sm" disabled={busy} onClick={onStop}>
-              Stop
-            </Button>
-            <Button
-              variant="quiet"
-              size="sm"
-              disabled={busy}
-              onClick={onRecheck}
+        {resolverStatus &&
+          resolverStatus !== "resolved" &&
+          resolverStatus !== "done" && (
+            <div
+              className={`${s.resolver} ${
+                resolverStatus === "flagged" ? s.resolverParked : ""
+              } ${resolverStatus === "crashed" ? s.resolverCrashed : ""}`}
             >
-              Re-check
-            </Button>
-          </div>
-        )}
+              <span className={s.gateMsg}>
+                {resolverStatus === "flagged"
+                  ? `◑ Resolver finished — flagged ${flagged.length} conflict${
+                      flagged.length === 1 ? "" : "s"
+                    } for you`
+                  : resolverStatus === "crashed"
+                    ? "⚠ Resolver crashed — conflicts left unresolved"
+                    : "◐ Resolver agent working in the worktree…"}
+              </span>
+              <Button
+                variant="quiet"
+                size="sm"
+                disabled={busy}
+                onClick={onWatch}
+              >
+                Watch
+              </Button>
+              {(resolverStatus === "working" || resolverStatus === "idle") && (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  disabled={busy}
+                  onClick={onStop}
+                >
+                  Stop
+                </Button>
+              )}
+              {resolverStatus === "crashed" && (
+                <Button
+                  variant="quiet"
+                  size="sm"
+                  disabled={busy}
+                  onClick={onRerun}
+                >
+                  Re-run resolver
+                </Button>
+              )}
+              <Button
+                variant="quiet"
+                size="sm"
+                disabled={busy}
+                onClick={onRecheck}
+              >
+                Re-check
+              </Button>
+            </div>
+          )}
 
         {allResolved ? (
           <div className={s.gate}>
@@ -796,10 +878,21 @@ function ConflictsTab({
 
 // Header/rail badge helpers — both render the same vocabulary so the rail card
 // and the open ticket can never disagree.
-function headerBadge(pf: Preflight | null): { label: string; cls: string } {
+function headerBadge(
+  pf: Preflight | null,
+  resolverStatus: AgentStatus | null,
+): { label: string; cls: string } {
   if (!pf) return { label: "checking…", cls: "clean" };
   if (pf.ready) return { label: "✓ ready to merge", cls: "clean" };
-  if (pf.mergeInProgress) return { label: "◐ resolving", cls: "resolving" };
+  if (pf.mergeInProgress) {
+    // Match the banner: a finished/crashed resolver is the human's turn, not
+    // "resolving". Working/idle (or no agent yet) stays "resolving".
+    if (resolverStatus === "flagged")
+      return { label: "⚠ needs you", cls: "flagged" };
+    if (resolverStatus === "crashed")
+      return { label: "⚠ crashed", cls: "flagged" };
+    return { label: "◐ resolving", cls: "resolving" };
+  }
   if (pf.wouldConflict)
     return {
       label: `⚠ ${pf.conflictFiles.length} conflict${pf.conflictFiles.length === 1 ? "" : "s"}`,
@@ -816,6 +909,8 @@ function railBadge(badge?: string): { label: string; cls: string } {
       return { label: "⚠ conflicts", cls: "conflicts" };
     case "resolving":
       return { label: "◐ resolving", cls: "resolving" };
+    case "flagged":
+      return { label: "⚠ needs you", cls: "flagged" };
     case "clean":
       return { label: "✓ clean", cls: "clean" };
     default:

@@ -95,15 +95,57 @@ export function resolveStatus(opts: {
   if (resolution) {
     // No merge in progress → it was committed (or aborted): episode over.
     if (!resolution.mergeInProgress) return "resolved";
-    // Conflicts left for a human: either the agent explicitly flagged a file
-    // (gave it a reason in its report), or it exited with files still unmerged.
-    // `flagged` lists EVERY unmerged file, so checking the count would read as
-    // flagged the instant the merge starts — gate on a reason / on the process
-    // having exited instead, so a working agent stays "working".
-    if (resolution.flagged.some((f) => f.reason) || dead) return "flagged";
+    // Conflicts left for a human: files are STILL unmerged AND either the agent
+    // flagged one (gave it a reason) or it exited with them unmerged. `flagged`
+    // lists every unmerged file, so requiring a reason / a dead process keeps a
+    // working agent as "working" — and requiring the list be non-empty keeps a
+    // fully-resolved-but-uncommitted merge from reading as "flagged".
+    if (
+      resolution.flagged.length > 0 &&
+      (resolution.flagged.some((f) => f.reason) || dead)
+    )
+      return "flagged";
+    // Merge in progress, nothing left unmerged: every conflict is resolved and
+    // only the commit remains. A dead agent is finished (its work is done, the
+    // human just needs to commit) → "resolved"; a live one is mid-commit.
+    if (resolution.flagged.length === 0 && dead) return "resolved";
   }
-  // Merge in progress, nothing flagged yet — still working.
+  // Merge in progress, still churning — working (or quiet).
   return quietMs < 5000 ? "working" : "idle";
+}
+
+// Per-ticket rollup of the resolver's state. A ticket can have more than one
+// resolve session (a Re-run leaves the old dead pane alongside the fresh one),
+// so aggregate liveness across all of them — any live pane wins ("working"),
+// otherwise a non-zero exit is a crash — then run it through the same
+// resolveStatus primitive the Agents panel uses. This is the single answer
+// Review and the Auto-Resolve phase both consume, so they can't disagree with
+// Agents. `quietMs` is irrelevant here (idle folds into working), so pass 0.
+export function resolveStatusForTicket(opts: {
+  resolveSessions: Session[];
+  statsByName: Map<string, { dead: boolean; exitCode: number | null }>;
+  ticketState: string | undefined;
+  resolution: Resolution | null;
+}): AgentStatus {
+  const { resolveSessions, statsByName, ticketState, resolution } = opts;
+  let anyLive = false;
+  let crashExit: number | null = 0;
+  for (const s of resolveSessions) {
+    const st = statsByName.get(s.name);
+    if (!st) continue; // unknown to the tmux probe → treat as not-live
+    if (!st.dead) {
+      anyLive = true;
+      break;
+    }
+    if (st.exitCode !== null && st.exitCode !== 0) crashExit = st.exitCode;
+  }
+  return resolveStatus({
+    dead: !anyLive,
+    exitCode: anyLive ? null : crashExit,
+    ticketState,
+    quietMs: 0,
+    resolution,
+  });
 }
 
 // An idea-shaping agent's status. Idea agents aren't ticket-scoped (no role

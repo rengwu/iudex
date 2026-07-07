@@ -166,12 +166,3 @@
     background: t.$mint;
   }
 }
-
-// Auto-Resolve row status suffix: dim while an agent is working, amber when
-// the line is parked on the human (flagged files / crashed resolver).
-.resolveBusy {
-  color: t.$text-meta;
-}
-.resolveParked {
-  color: #f4bc41;
-}

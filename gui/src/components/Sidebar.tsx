@@ -163,7 +163,6 @@ function TransportControls({
     autoQA,
     autoRetire,
     autoResolve,
-    resolveStatus,
     sequential,
     toggleAutoActivate,
     toggleAutoQA,
@@ -188,30 +187,13 @@ function TransportControls({
           <Toggle checked={autoRetire} onChange={toggleAutoRetire} />
         </div>
         {/* The one toggle that spends tokens with no human click between
-            qa-approve and review. The row doubles as status: a parked line
-            (flagged/crashed = your turn) is visible from every view. */}
+            qa-approve and review. Parked states (flagged/crashed = your turn)
+            surface on the Dashboard, not here. */}
         <div
           className={s.toggleRow}
           title="Spawns a conflict-resolution agent when a review-ready ticket can't merge cleanly; up to one more run each time main moves. One at a time; flagged files park it for you."
         >
-          <span className={s.toggleLabel}>
-            Auto-Resolve
-            {resolveStatus && (
-              <span
-                className={
-                  resolveStatus.phase === "resolving"
-                    ? s.resolveBusy
-                    : s.resolveParked
-                }
-              >
-                {" "}
-                · {resolveStatus.ticket}{" "}
-                {resolveStatus.phase === "resolving"
-                  ? "…"
-                  : resolveStatus.phase}
-              </span>
-            )}
-          </span>
+          <span className={s.toggleLabel}>Auto-Resolve</span>
           <Toggle checked={autoResolve} onChange={toggleAutoResolve} />
         </div>
       </div>

@@ -93,6 +93,9 @@ export const MERGE: Record<string, { bg: string; fg: string }> = {
   clean: { bg: "#237723", fg: "#cee0ce" },
   conflicts: { bg: "#e6b54c", fg: "#3a2a00" },
   resolving: { bg: "#5bc7d8", fg: "#10333a" },
+  // Resolver finished/crashed → the human's turn. Brighter amber than the
+  // passive "conflicts predicted" badge, to read as a call to action.
+  flagged: { bg: "#f4bc41", fg: "#3a2a00" },
 };
 
 // Agent role — monochrome for every role (label conveys the role, not color).

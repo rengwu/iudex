@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as api from "./api";
+import { resolveStatusForTicket } from "./agents";
 import { IN_FLIGHT_STATES } from "./ticketActions";
 import type { Session, Workspace } from "../types";
 
@@ -345,35 +346,35 @@ export function useAutomation(
           const resolveSessions = sessions.filter(
             (s) => s.kind === "agent" && s.role === "resolve" && s.ticket === t.id,
           );
-          let live = false;
-          let crashed = false;
-          for (const sx of resolveSessions) {
-            const st = stats.get(sx.name);
-            if (!st) continue; // unknown → treat as not-live
-            if (!st.dead) {
-              live = true;
-              break;
-            }
-            if (st.exitCode !== null && st.exitCode !== 0) crashed = true;
-          }
 
           const res = await api.readResolution(wt);
           if (res.mergeInProgress) {
-            if (live) {
+            // "What is the resolver doing?" comes from the shared derivation, so
+            // this row can't disagree with Review or the Agents panel. The
+            // *policy* around it (hand off the human's own merge; one-at-a-time)
+            // stays here — it's not something resolveStatus models.
+            const st = resolveStatusForTicket({
+              resolveSessions,
+              statsByName: stats,
+              ticketState: t.state,
+              resolution: res,
+            });
+            if (st === "working" || st === "idle") {
               status = { ticket: t.id, phase: "resolving" };
-            } else if (crashed) {
-              // Notify-only, like impl crashes: never respawn into a merge a
-              // crashed agent may have half-touched. The line waits for you.
-              status = { ticket: t.id, phase: "crashed" };
-            } else if (res.hasReport && res.flagged.length > 0) {
-              status = { ticket: t.id, phase: "flagged" };
+            } else if (st === "resolved") {
+              // Every conflict resolved; only the human's commit remains. Not a
+              // parked error and not the engine's job — show no resolver line.
+              status = null;
             } else if (!res.hasReport && !autoBegunRef.current.has(t.id)) {
               // The human's own merge (manual Begin-resolution / hand-editing):
               // hands off entirely — and per one-at-a-time, the line waits.
               status = null;
+            } else if (st === "flagged") {
+              status = { ticket: t.id, phase: "flagged" };
             } else {
-              // Our merge with no live agent and no flags (spawn failed, or a
-              // report without a commit): needs a human look.
+              // Crashed (dead, non-zero) — notify-only, like impl crashes: never
+              // respawn into a merge a crashed agent may have half-touched. The
+              // line waits for you.
               status = { ticket: t.id, phase: "crashed" };
             }
             break; // one at a time — never look past an in-progress merge

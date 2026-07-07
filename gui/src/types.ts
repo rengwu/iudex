@@ -90,7 +90,7 @@ export interface TaskDocs {
 export interface RailCard {
   worktree: string;
   title: string;
-  badge: "clean" | "conflicts" | "resolving";
+  badge: "clean" | "conflicts" | "resolving" | "flagged";
 }
 
 // One conflicted file the agent flagged for human judgment (or any still-unmerged
