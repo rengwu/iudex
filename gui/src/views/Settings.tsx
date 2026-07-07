@@ -65,6 +65,7 @@ export default function Settings({
   const [impl, setImpl] = useState("");
   const [review, setReview] = useState("");
   const [resolve, setResolve] = useState("");
+  const [nudge, setNudge] = useState("");
   const [loadErr, setLoadErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -75,13 +76,15 @@ export default function Settings({
       api.readPrompt(root, "impl"),
       api.readPrompt(root, "review"),
       api.readPrompt(root, "resolve"),
+      api.getResumeNudge(root),
     ])
-      .then(([c, i, r, res]) => {
+      .then(([c, i, r, res, n]) => {
         if (!alive) return;
         setConfig(c);
         setImpl(i);
         setReview(r);
         setResolve(res);
+        setNudge(n);
         setLoadErr(null);
       })
       .catch((e) => alive && setLoadErr(String(e)));
@@ -162,6 +165,8 @@ export default function Settings({
               setReview={setReview}
               resolve={resolve}
               setResolve={setResolve}
+              nudge={nudge}
+              setNudge={setNudge}
             />
           )}
         </div>
@@ -635,6 +640,8 @@ function PromptsTab({
   setReview,
   resolve,
   setResolve,
+  nudge,
+  setNudge,
 }: {
   root: string;
   impl: string;
@@ -643,6 +650,8 @@ function PromptsTab({
   setReview: (v: string) => void;
   resolve: string;
   setResolve: (v: string) => void;
+  nudge: string;
+  setNudge: (v: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState<Saved>(null);
@@ -654,6 +663,7 @@ function PromptsTab({
       await api.writePrompt(root, "impl", impl);
       await api.writePrompt(root, "review", review);
       await api.writePrompt(root, "resolve", resolve);
+      await api.setResumeNudge(root, nudge);
       setSaved({ ok: true, msg: "saved" });
     } catch (e) {
       setSaved({ ok: false, msg: String(e) });
@@ -716,6 +726,24 @@ function PromptsTab({
             }}
             spellCheck={false}
           />
+        </label>
+
+        <label className="field">
+          <span>
+            Resume nudge <code className={s.path}>gui_resume_nudge</code>
+          </span>
+          <input
+            value={nudge}
+            onChange={(e) => {
+              setNudge(e.target.value);
+              setSaved(null);
+            }}
+            spellCheck={false}
+          />
+          <small className={s.note}>
+            The line the Agents “Resume” action types (+ Enter) into a stalled
+            agent's console. Harness-neutral; blank restores the default.
+          </small>
         </label>
       </div>
 
