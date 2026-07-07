@@ -14,6 +14,7 @@ import { agentStatusColor } from "../lib/badges";
 import Badge from "./Badge";
 import IconButton from "./IconButton";
 import Dot from "./Dot";
+import OverflowMenu, { OverflowItem } from "./OverflowMenu";
 import TabSwitcher from "./TabSwitcher";
 import s from "./TicketDetail.module.scss";
 
@@ -444,60 +445,22 @@ function FooterActions({
       {/* Destructive / dangerous (and other tucked-away) actions live behind
           the overflow menu — non-terminal only (nothing to do once done/removed). */}
       {!isTerminal && (
-        <FooterOverflow>
+        <OverflowMenu direction="up">
           {showFinish && (
-            <button
-              className={s.menuItem}
-              disabled={busy}
-              onClick={finishGuarded}
-            >
+            <OverflowItem disabled={busy} onClick={finishGuarded}>
               Finish
-            </button>
+            </OverflowItem>
           )}
-          <button
-            className={`${s.menuItem} ${s.danger}`}
+          <OverflowItem
+            danger
             disabled={busy}
             onClick={() => run(["remove", ticket.id], true)}
           >
             Remove
-          </button>
-        </FooterOverflow>
+          </OverflowItem>
+        </OverflowMenu>
       )}
     </>
   );
 }
 
-// Three-dot overflow for the footer's destructive/dangerous actions. Pass the
-// danger buttons as children (styled with `s.menuItem`/`s.danger`); the menu
-// opens upward from the footer, closes on outside-click, and dismisses itself
-// after any item click. This is the base hook for future dangerous actions —
-// add more children here rather than as inline footer buttons.
-function FooterOverflow({ children }: { children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  return (
-    <div className={s.menuWrap} ref={ref}>
-      <button
-        className={s.menuBtn}
-        onClick={() => setOpen((o) => !o)}
-        title="more actions"
-      >
-        ⋮
-      </button>
-      {open && (
-        <div className={s.menu} onClick={() => setOpen(false)}>
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
