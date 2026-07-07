@@ -1,4 +1,11 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import * as api from "../lib/api";
 import { loadSpec, lintPrd, type LintWarning } from "../lib/spec";
 import { VIEWS, type PRD, type Requirement, type SpecDoc } from "../types";
@@ -13,14 +20,17 @@ const MdViewer = lazy(() => import("./MdViewer"));
 // Requirement status → chip colors. Status is intent state, not ticket state, so
 // it has its own light-surface palette (active is neutral — the default; parked
 // is a muted amber hold; out-of-scope reads dim/struck).
-const STATUS_STYLE: Record<string, { bg: string; fg: string; label: string }> = {
-  active: { bg: "#bdbdbd", fg: "#2a2a2a", label: "active" },
-  parked: { bg: "#e3cf9b", fg: "#5a4a1f", label: "parked" },
-  "out-of-scope": { bg: "#c4c4c4", fg: "#7a7a7a", label: "out of scope" },
-};
+const STATUS_STYLE: Record<string, { bg: string; fg: string; label: string }> =
+  {
+    active: { bg: "#bdbdbd", fg: "#2a2a2a", label: "active" },
+    parked: { bg: "#e3cf9b", fg: "#5a4a1f", label: "parked" },
+    "out-of-scope": { bg: "#c4c4c4", fg: "#7a7a7a", label: "out of scope" },
+  };
 
 function statusStyle(status: string) {
-  return STATUS_STYLE[status] ?? { bg: "#404040", fg: "#cfcfcf", label: status };
+  return (
+    STATUS_STYLE[status] ?? { bg: "#404040", fg: "#cfcfcf", label: status }
+  );
 }
 
 // Read-only browser for the PRD spec: pick a PRD (left), read its raw markdown in
@@ -94,7 +104,12 @@ export default function Specifications({ root }: { root: string }) {
         title="Specifications"
         subtitle={`${prds.length} PRD${prds.length === 1 ? "" : "s"} · ${total} requirement${total === 1 ? "" : "s"}`}
       >
-        <Button variant="quiet" onClick={load} disabled={loading} title="Re-read .context/prd">
+        <Button
+          variant="quiet"
+          onClick={load}
+          disabled={loading}
+          title="Re-read .context/prd"
+        >
           {loading ? "Loading…" : "Refresh"}
         </Button>
       </ViewHeader>
@@ -106,17 +121,12 @@ export default function Specifications({ root }: { root: string }) {
         // it; don't also imply the dir is just empty.
         !err && (
           <div className={s.empty}>
-            No PRDs in <code>.context/prd</code>. Author one with the{" "}
-            <code>to-prd</code> skill, then it appears here.
+            No PRDs found in <code>.context/prd</code> yet.
           </div>
         )
       ) : (
         <div className={s.root}>
-          <PrdRail
-            prds={prds}
-            selFile={selFile}
-            onSelect={setSelFile}
-          />
+          <PrdRail prds={prds} selFile={selFile} onSelect={setSelFile} />
 
           <div className={s.source}>
             <div className={s.sourceHead}>
@@ -125,7 +135,9 @@ export default function Specifications({ root }: { root: string }) {
             </div>
             <div className={s.sourceBody}>
               {selFile && (
-                <Suspense fallback={<div className={s.pending}>Loading editor…</div>}>
+                <Suspense
+                  fallback={<div className={s.pending}>Loading editor…</div>}
+                >
                   <MdViewer value={raw} />
                 </Suspense>
               )}
@@ -156,8 +168,12 @@ function PrdRail({
       <div className={s.railHead}>PRDS</div>
       {prds.map((p) => {
         const n = p.requirements.length;
-        const parked = p.requirements.filter((r) => r.status === "parked").length;
-        const oos = p.requirements.filter((r) => r.status === "out-of-scope").length;
+        const parked = p.requirements.filter(
+          (r) => r.status === "parked",
+        ).length;
+        const oos = p.requirements.filter(
+          (r) => r.status === "out-of-scope",
+        ).length;
         const extra = [
           parked ? `${parked} parked` : "",
           oos ? `${oos} out` : "",
