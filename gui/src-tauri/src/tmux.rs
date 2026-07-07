@@ -765,6 +765,39 @@ pub fn kill_session(name: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Nudge a live agent's REPL by typing a line + Enter into its pane, exactly as
+/// a human would in the console — the "Resume" remedy for a stalled (idle but
+/// still-alive) agent after a transient API failure. Deliberately harness-blind:
+/// it injects keystrokes rather than modeling the agent CLI, so the *same*
+/// primitive resumes pi / claude / kimi / codex / opencode. `-l` sends the nudge
+/// literally (never parsed as tmux key-names); a separate plain `Enter` submits
+/// it (works for the common single-line REPL — modified-Enter harnesses are out
+/// of scope, matching the CLI's own extended-keys caveat). Best-effort by design:
+/// only offered on a live+idle pane, and recoverable like a fat-fingered console
+/// line if the REPL wasn't actually at its prompt.
+#[tauri::command(async)]
+pub fn resume_agent(name: String, nudge: String) -> Result<(), String> {
+    if !name.starts_with(PREFIX) {
+        return Err(format!("refusing to send keys to non-iudex session {name}"));
+    }
+    // Type the nudge literally first; then submit with a separate Enter (a single
+    // `-l` call would treat "Enter" as literal characters, not the key).
+    if !nudge.trim().is_empty() {
+        let st = Command::new(tmux_bin())
+            .args(["send-keys", "-t", &name, "-l", &nudge])
+            .status()
+            .map_err(|e| format!("tmux send-keys: {e}"))?;
+        if !st.success() {
+            return Err("tmux send-keys failed (pane may be dead)".to_string());
+        }
+    }
+    Command::new(tmux_bin())
+        .args(["send-keys", "-t", &name, "Enter"])
+        .status()
+        .map_err(|e| format!("tmux send-keys Enter: {e}"))?;
+    Ok(())
+}
+
 /// Stamp a superseded agent's kill deadline (unix millis, as a string) on its
 /// session. The Auto-Retire engine sets this instead of killing immediately; the
 /// mark lives in tmux, so it survives GUI restarts.

@@ -1464,6 +1464,70 @@ fn remove_worktree(root: String, path: String, force: bool) -> Result<(), String
     Ok(())
 }
 
+/// Discard everything in a ticket's worktree and reset it to the tip of
+/// `main_branch` — a hard reset + `clean -fd`, so a fresh agent starts from a
+/// pristine tree. Backs the Agents "Restart clean" (destructive) rung. Guarded
+/// to `.iudex/worktrees/` (like remove_worktree) so it can never nuke files
+/// elsewhere. `.task/` (the brief) survives: it's ignored, and `clean` without
+/// `-x` leaves ignored files alone — so the respawned agent still has its brief.
+#[tauri::command(async)]
+fn reset_worktree(worktree: String, main_branch: String) -> Result<(), String> {
+    let target = std::fs::canonicalize(&worktree)
+        .map_err(|e| format!("canonicalize {worktree}: {e}"))?;
+    // The target must live under a ".iudex/worktrees" dir (consecutive path
+    // components), so a hard reset can never escape into the real repo.
+    let comps: Vec<_> = target.components().collect();
+    if !comps
+        .windows(2)
+        .any(|w| w[0].as_os_str() == ".iudex" && w[1].as_os_str() == "worktrees")
+    {
+        return Err("refusing to reset a worktree outside .iudex/worktrees".to_string());
+    }
+    let target_str = target.to_string_lossy();
+    let reset = Command::new("git")
+        .args(["-C", &target_str, "reset", "--hard", &main_branch])
+        .output()
+        .map_err(|e| format!("git reset: {e}"))?;
+    if !reset.status.success() {
+        return Err(String::from_utf8_lossy(&reset.stderr).trim().to_string());
+    }
+    let clean = Command::new("git")
+        .args(["-C", &target_str, "clean", "-fd"])
+        .output()
+        .map_err(|e| format!("git clean: {e}"))?;
+    if !clean.status.success() {
+        return Err(String::from_utf8_lossy(&clean.stderr).trim().to_string());
+    }
+    Ok(())
+}
+
+/// GUI-owned workspace text: the line typed into a stalled agent's REPL by the
+/// Agents "Resume" action (send-keys + Enter). Stored as a `gui_*` key the CLI
+/// ignores, per the gui_sequential precedent; blank/absent falls back to a
+/// generic, harness-neutral nudge.
+const DEFAULT_RESUME_NUDGE: &str =
+    "Your previous request failed or timed out. Please retry and continue where you left off.";
+
+#[tauri::command]
+fn get_resume_nudge(root: String) -> String {
+    std::fs::read_to_string(config_path(&root))
+        .ok()
+        .and_then(|t| yaml_scalar(&t, "gui_resume_nudge"))
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| DEFAULT_RESUME_NUDGE.to_string())
+}
+
+#[tauri::command]
+fn set_resume_nudge(root: String, value: String) -> Result<(), String> {
+    let path = config_path(&root);
+    let text =
+        std::fs::read_to_string(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
+    // Empty → clear the key (reverts to the built-in default).
+    let v = value.trim();
+    let out = yaml_upsert_scalar(&text, "gui_resume_nudge", (!v.is_empty()).then_some(v));
+    std::fs::write(&path, out).map_err(|e| format!("write {}: {e}", path.display()))
+}
+
 /// One archived ticket (.iudex/archive/<id>/) — the list entry for the Archive
 /// view. `outcome` is "done" (merged) or "removed" (abandoned); the GUI filters.
 #[derive(serde::Serialize)]
@@ -2306,6 +2370,9 @@ pub fn run() {
             confirm_quit,
             get_sequential,
             set_sequential,
+            get_resume_nudge,
+            set_resume_nudge,
+            reset_worktree,
             discover_workspace,
             init_workspace,
             read_config,
@@ -2359,6 +2426,7 @@ pub fn run() {
             tmux::list_sessions,
             tmux::create_shell,
             tmux::kill_session,
+            tmux::resume_agent,
             tmux::set_retire_at,
             tmux::clear_retire,
             tmux::capture_pane,
