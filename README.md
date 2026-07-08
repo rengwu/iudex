@@ -14,8 +14,8 @@
 
 <p align="center">
   <!-- TODO: replace badges once the repo is public and a release is cut -->
-  <a href="https://github.com/johngohrw/iudex/releases"><img src="https://img.shields.io/github/v/release/johngohrw/iudex?display_name=tag" alt="Release" /></a>
-  <a href="https://github.com/johngohrw/iudex/stargazers"><img src="https://img.shields.io/github/stars/johngohrw/iudex?style=flat" alt="Stars" /></a>
+  <a href="https://github.com/rengwu/iudex/releases"><img src="https://img.shields.io/github/v/release/rengwu/iudex?display_name=tag" alt="Release" /></a>
+  <a href="https://github.com/rengwu/iudex/stargazers"><img src="https://img.shields.io/github/stars/rengwu/iudex?style=flat" alt="Stars" /></a>
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey" alt="Platforms" />
   <img src="https://img.shields.io/badge/built%20with-Tauri%20%2B%20Go-blue" alt="Built with Tauri + Go" />
   <!-- TODO: add a LICENSE file, then a license badge -->
