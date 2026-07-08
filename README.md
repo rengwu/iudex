@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <img src="./docs/assets/iudex-dashboard-tiny.png" alt="iudex dashboard" width="820" />
+  <img src="https://i.imgur.com/FZX2VPA.png" alt="iudex dashboard" width="820" />
 </p>
 
 ---
