@@ -8,8 +8,8 @@ and treats `.iudex/events.jsonl` as a doorbell (on any change it re-reads). It i
 also the human's hands — it owns agent process lifecycles via a tmux pool, which
 the CLI deliberately never does.
 
-> The design is specified in [`.context/prd/gui-client.md`](../.context/prd/gui-client.md)
-> (hardened through a `grill-me` session → 13 decisions).
+> The design is specified in an internal PRD (hardened through a `grill-me`
+> session → 13 decisions).
 
 ## Stack
 
@@ -88,8 +88,8 @@ the human; armed individually, never by ▶; all session-only so an app launch
 never silently spends tokens) plus **Sequential**: a persisted per-workspace
 policy
 (`gui_sequential` in `.iudex/config.yml`) that allows at most one ticket in
-flight and hard-blocks GUI activation past it, engine on or off. Design:
-[`.context/prd/sequential-mode.md`](../.context/prd/sequential-mode.md).
+flight and hard-blocks GUI activation past it, engine on or off. (Design
+detailed in an internal PRD.)
 
 ## Architecture
 

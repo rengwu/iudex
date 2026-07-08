@@ -4,6 +4,9 @@ test/
 .dev-skills/
 .test-projects/
 .sessions/
+.claude/
+.context/
+CLAUDE.md
 
 # Design reference: keep DESIGN.md + DC sources, drop the stale image artifacts.
 gui-design/screenshots/
