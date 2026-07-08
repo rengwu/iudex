@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <img src="./docs/assets/iudex-dashboard.png" alt="iudex dashboard" width="820" />
+  <img src="./docs/assets/iudex-dashboard-tiny.png" alt="iudex dashboard" width="820" />
 </p>
 
 ---
@@ -41,15 +41,15 @@ For engineers, iudex means parallel agents in isolated worktrees, a terminal int
 
 The GUI is built around seven views:
 
-| View | What it does |
-| ---- | ------------ |
+| View          | What it does                                                                                  |
+| ------------- | --------------------------------------------------------------------------------------------- |
 | **Dashboard** | Next-action hero, the pipeline as clickable columns, an idea launcher, and a live event feed. |
-| **Terminal** | Tabbed, interactive tmux sessions that survive view switches. |
-| **Tickets** | Reactive table with state-aware actions and front-of-funnel launchers. |
-| **Agents** | Live `capture-pane` peeks into each agent, with synthesized status. |
-| **Worktrees** | Per-worktree diff inspection with escape hatches into your editor or a shell. |
-| **Review** | The human gate: brief, log, QA notes, diff, and a preflighted approve and merge. |
-| **Settings** | Agent commands, prompts, and per-workspace config. |
+| **Terminal**  | Tabbed, interactive tmux sessions that survive view switches.                                 |
+| **Tickets**   | Reactive table with state-aware actions and front-of-funnel launchers.                        |
+| **Agents**    | Live `capture-pane` peeks into each agent, with synthesized status.                           |
+| **Worktrees** | Per-worktree diff inspection with escape hatches into your editor or a shell.                 |
+| **Review**    | The human gate: brief, log, QA notes, diff, and a preflighted approve and merge.              |
+| **Settings**  | Agent commands, prompts, and per-workspace config.                                            |
 
 Beyond the views:
 
@@ -66,10 +66,10 @@ Beyond the views:
 
 Grab the latest build from [**Releases**](https://github.com/rengwu/iudex/releases):
 
-| Platform | Asset |
-| -------- | ----- |
-| macOS (Apple Silicon) | `.dmg` |
-| Linux (x86_64) | `.AppImage` |
+| Platform              | Asset       |
+| --------------------- | ----------- |
+| macOS (Apple Silicon) | `.dmg`      |
+| Linux (x86_64)        | `.AppImage` |
 
 The app bundles the CLI as a sidecar, so no separate setup is needed. It requires [tmux](https://github.com/tmux/tmux) 3.2 or newer for the Terminal and Agents views. To build from source, see [`gui/README.md`](./gui/README.md).
 
@@ -141,22 +141,22 @@ A ticket is only `done` after you approve the merge. If QA rejects a ticket too 
 
 The GUI and the terminal are two front-ends to the same engine. Agents inside a worktree call these commands directly.
 
-| Command | Description |
-| ------- | ----------- |
-| `iudex init` | Scaffold the current directory into a workspace |
-| `iudex next-ticket-id` | Print the next ticket id |
-| `iudex queue <id> [--deps <ids>]` | Register a ticket and its dependencies |
-| `iudex activate <id>` | Create the worktree and print the impl spawn command |
-| `iudex finish [id]` | Hand off to QA; auto-commits if dirty; id inferred from the worktree |
-| `iudex spawn [id]` | Reprint the spawn command for a ticket's current state |
-| `iudex qa approve\|reject [id]` | Agent QA decision |
-| `iudex human-qa approve\|reject <id>` | Merge, or send back for revision with `--reason` |
-| `iudex retry <id>` | Reset a failed ticket for another attempt |
-| `iudex remove <id>` | Abandon a ticket |
-| `iudex review <id>` | Print brief, log, diff, QA review, state, and next actions |
-| `iudex status [--all] [--json]` | Tickets grouped by state; `--json` is machine-readable |
-| `iudex config [--json]` | Print the resolved config |
-| `iudex agent-command <role>` | Print the agent command resolved for a role |
+| Command                               | Description                                                          |
+| ------------------------------------- | -------------------------------------------------------------------- |
+| `iudex init`                          | Scaffold the current directory into a workspace                      |
+| `iudex next-ticket-id`                | Print the next ticket id                                             |
+| `iudex queue <id> [--deps <ids>]`     | Register a ticket and its dependencies                               |
+| `iudex activate <id>`                 | Create the worktree and print the impl spawn command                 |
+| `iudex finish [id]`                   | Hand off to QA; auto-commits if dirty; id inferred from the worktree |
+| `iudex spawn [id]`                    | Reprint the spawn command for a ticket's current state               |
+| `iudex qa approve\|reject [id]`       | Agent QA decision                                                    |
+| `iudex human-qa approve\|reject <id>` | Merge, or send back for revision with `--reason`                     |
+| `iudex retry <id>`                    | Reset a failed ticket for another attempt                            |
+| `iudex remove <id>`                   | Abandon a ticket                                                     |
+| `iudex review <id>`                   | Print brief, log, diff, QA review, state, and next actions           |
+| `iudex status [--all] [--json]`       | Tickets grouped by state; `--json` is machine-readable               |
+| `iudex config [--json]`               | Print the resolved config                                            |
+| `iudex agent-command <role>`          | Print the agent command resolved for a role                          |
 
 `finish`, `qa`, and `spawn` can infer the ticket from the current worktree directory. An explicit id always overrides.
 
@@ -176,22 +176,22 @@ Shared project docs live in `.context/` (glossary, ADRs, PRDs). Because this dir
 
 Workspace settings live in `.iudex/config.yml`:
 
-| Field | Meaning |
-| ----- | ------- |
-| `main_branch` | Merge target (the repo's current branch at init) |
-| `max_active` | Cap on tickets in `active` state (`0` = unlimited) |
-| `qa_reject_limit` | QA rejections before a ticket is `failed` (`<= 0` = unlimited) |
-| `merge_strategy` | `no-ff` or `squash` |
-| `merge_message_template` | Merge commit message; `{{.Ticket}}` is substituted |
-| `branch_prefix` | Per-ticket branch prefix (e.g. `work/`) |
+| Field                    | Meaning                                                        |
+| ------------------------ | -------------------------------------------------------------- |
+| `main_branch`            | Merge target (the repo's current branch at init)               |
+| `max_active`             | Cap on tickets in `active` state (`0` = unlimited)             |
+| `qa_reject_limit`        | QA rejections before a ticket is `failed` (`<= 0` = unlimited) |
+| `merge_strategy`         | `no-ff` or `squash`                                            |
+| `merge_message_template` | Merge commit message; `{{.Ticket}}` is substituted             |
+| `branch_prefix`          | Per-ticket branch prefix (e.g. `work/`)                        |
 
 Agent commands are machine-level, so they live in `~/.iudex/config.yml` and are shared across workspaces:
 
-| Field | Meaning |
-| ----- | ------- |
-| `agent_commands` | Pool of named commands (`name`, `command`, `default`) |
-| `agent_roles` | Map a role (`impl`, `qa`, `resolve`, `idea`, ...) to a pool entry |
-| `iudex_bin` | Path to the iudex CLI (used by the GUI) |
+| Field            | Meaning                                                           |
+| ---------------- | ----------------------------------------------------------------- |
+| `agent_commands` | Pool of named commands (`name`, `command`, `default`)             |
+| `agent_roles`    | Map a role (`impl`, `qa`, `resolve`, `idea`, ...) to a pool entry |
+| `iudex_bin`      | Path to the iudex CLI (used by the GUI)                           |
 
 `iudex agent-command <role>` resolves a role to a command, so scripts and the GUI use the same rule as the CLI. The pool must contain at least one command; there is no built-in default.
 
