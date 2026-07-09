@@ -1,6 +1,6 @@
-<!-- <p align="center">
-  <img src="./docs/assets/logo.png" alt="iudex logo" width="240" />
-</p> -->
+<p align="center">
+  <img src="./docs/assets/AppIcons/source.svg" alt="iudex logo" width="128" />
+</p>
 
 <h1 align="center">iudex</h1>
 
