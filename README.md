@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/assets/AppIcons/source.svg" alt="iudex logo" width="128" />
+  <img src="https://i.imgur.com/4rbTqfl.png" alt="iudex logo" width="128" />
 </p>
 
 <h1 align="center">iudex</h1>
